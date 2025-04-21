@@ -1,12 +1,12 @@
 // disable console on windows for release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use bevy::DefaultPlugins;
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
-use bevy::DefaultPlugins;
-use bevy_game::GamePlugin; // ToDo: Replace bevy_game with your new crate name.
+use inhabitants::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
@@ -37,7 +37,6 @@ fn main() {
         .run();
 }
 
-// Sets the icon on windows and X11
 fn set_window_icon(
     windows: NonSend<WinitWindows>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
@@ -46,9 +45,7 @@ fn set_window_icon(
     let Some(primary) = windows.get_window(primary_entity) else {
         return;
     };
-    let icon_buf = Cursor::new(include_bytes!(
-        "../build/macos/AppIcon.iconset/icon_256x256.png"
-    ));
+    let icon_buf = Cursor::new(include_bytes!("../assets/icons/icon.png"));
     if let Ok(image) = image::load(icon_buf, image::ImageFormat::Png) {
         let image = image.into_rgba8();
         let (width, height) = image.dimensions();

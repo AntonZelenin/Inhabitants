@@ -102,7 +102,6 @@ fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
                         normal: Color::NONE,
                         ..default()
                     },
-                    OpenLink("https://bevyengine.org"),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -140,7 +139,6 @@ fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
                         normal: Color::NONE,
                         hovered: Color::linear_rgb(0.25, 0.25, 0.25),
                     },
-                    OpenLink("https://github.com/NiklasEi/bevy_game_template"),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -165,9 +163,6 @@ fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
 #[derive(Component)]
 struct ChangeState(GameState);
 
-#[derive(Component)]
-struct OpenLink(&'static str);
-
 fn click_play_button(
     mut next_state: ResMut<NextState<GameState>>,
     mut interaction_query: Query<
@@ -176,20 +171,15 @@ fn click_play_button(
             &mut BackgroundColor,
             &ButtonColors,
             Option<&ChangeState>,
-            Option<&OpenLink>,
         ),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
-    for (interaction, mut color, button_colors, change_state, open_link) in &mut interaction_query {
+    for (interaction, mut color, button_colors, change_state) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 if let Some(state) = change_state {
                     next_state.set(state.0.clone());
-                } else if let Some(link) = open_link {
-                    if let Err(error) = webbrowser::open(link.0) {
-                        warn!("Failed to open link {error:?}");
-                    }
                 }
             }
             Interaction::Hovered => {
