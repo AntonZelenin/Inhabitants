@@ -16,6 +16,7 @@ impl Plugin for LoadingPlugin {
 
 #[derive(AssetCollection, Resource)]
 pub struct ModelAssets {
-    #[asset(path = "models/medieval_village.glb")]
+    #[asset(path = "models/medieval_village.glb#Scene0")]
     pub village: Handle<Scene>,
 }
+    

@@ -38,19 +38,17 @@ fn spawn_camera(mut commands: Commands) {
 
 fn zoom_control(
     mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut camera_projection_q: Query<&mut OrthographicProjection, With<MainCamera>>,
+    mut camera_transform_q: Query<&mut Transform, With<MainCamera>>,
 ) {
-    let mut projection = camera_projection_q.single_mut();
+    let mut projection = camera_transform_q.single_mut();
 
     for mouse_wheel_event in mouse_wheel_events.read() {
         if mouse_wheel_event.y < 0.0 {
-            projection.scale *= 1.1;
+            projection.translation.z += 0.5;
         } else if mouse_wheel_event.y > 0.0 {
-            projection.scale *= 0.9;
+            projection.translation.z -= 0.5;
         }
     }
-
-    projection.scale = projection.scale.clamp(0.8, 4.5);
 }
 
 fn camera_control(

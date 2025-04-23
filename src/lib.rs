@@ -7,7 +7,7 @@ mod menu;
 mod player;
 
 use crate::audio::InternalAudioPlugin;
-use crate::loading::LoadingPlugin;
+use crate::loading::{LoadingPlugin, ModelAssets};
 use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
 
@@ -22,17 +22,23 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameState>().add_plugins((
-            CameraPlugin,
-            LoadingPlugin,
-            InternalAudioPlugin,
-            MenuPlugin,
-            PlayerPlugin,
-        ));
+        app.init_state::<GameState>()
+            .add_plugins((
+                CameraPlugin,
+                LoadingPlugin,
+                InternalAudioPlugin,
+                MenuPlugin,
+                PlayerPlugin,
+            ))
+            .add_systems(OnEnter(GameState::InGame), spawn_scene);
 
         #[cfg(debug_assertions)]
         {
             app.add_plugins((FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default()));
         }
     }
+}
+
+fn spawn_scene(mut commands: Commands, assets: Res<ModelAssets>) {
+    commands.spawn(SceneRoot(assets.village.clone()));
 }
