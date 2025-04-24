@@ -9,7 +9,8 @@ impl Plugin for LoadingPlugin {
         app.add_loading_state(
             LoadingState::new(GameState::Loading)
                 .continue_to_state(GameState::InGame)
-                .load_collection::<ModelAssets>(),
+                .load_collection::<ModelAssets>()
+            ,
         );
     }
 }
@@ -19,4 +20,4 @@ pub struct ModelAssets {
     #[asset(path = "models/medieval_village.glb#Scene0")]
     pub village: Handle<Scene>,
 }
-    
+ 

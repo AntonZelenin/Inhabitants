@@ -39,6 +39,32 @@ impl Plugin for GamePlugin {
     }
 }
 
-fn spawn_scene(mut commands: Commands, assets: Res<ModelAssets>) {
-    commands.spawn(SceneRoot(assets.village.clone()));
+fn spawn_scene(
+    mut commands: Commands,
+    model_assets: Res<ModelAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // commands.spawn(SceneRoot(model_assets.village.clone()));
+    commands.spawn((
+        Transform::from_scale(Vec3::splat(10.0)),
+        GlobalTransform::default(),
+    )).with_children(|parent| {
+        parent.spawn(SceneRoot(model_assets.village.clone()));
+    });
+
+    let ground_mesh = meshes.add(
+        Plane3d::default()
+            .mesh()
+            .size(50.0, 50.0)
+            .subdivisions(1),
+    );
+
+    commands.spawn((
+        Mesh3d(ground_mesh),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb_u8(48, 64, 47),
+            ..default()
+        })),
+    ));
 }

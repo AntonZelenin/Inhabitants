@@ -32,7 +32,8 @@ dev = [
     "bevy/dynamic_linking",
 ]
 
-# All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
+# All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis)
+# since they clash with bevy_kira_audio
 [dependencies]
 bevy = { version = "0.15", default-features = false, features = [
     "animation",
@@ -59,6 +60,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "default_font",
     "hdr",
     "multi_threaded",
+    "jpeg",
     "png",
     "smaa_luts",
     "sysinfo_plugin",
