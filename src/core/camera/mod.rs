@@ -2,7 +2,7 @@ pub(crate) mod components;
 
 use crate::core::camera::components::{MainCamera, MainCameraTarget};
 use crate::core::state::GameState;
-use bevy::input::mouse::MouseWheel;
+use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
@@ -13,7 +13,6 @@ impl Plugin for CameraPlugin {
         app.register_type::<MainCamera>()
             .register_type::<MainCameraTarget>()
             .add_systems(Startup, spawn_camera)
-            .add_systems(Update, (zoom_control.run_if(in_state(GameState::InGame)),))
             .add_systems(
                 PostUpdate,
                 (camera_control.run_if(in_state(GameState::InGame)),),
@@ -36,32 +35,51 @@ fn spawn_camera(mut commands: Commands) {
     info!("Camera spawned");
 }
 
-fn zoom_control(
-    mut mouse_wheel_events: EventReader<MouseWheel>,
-    mut camera_transform_q: Query<&mut Transform, With<MainCamera>>,
+fn camera_control(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    mut mouse_motion: EventReader<MouseMotion>,
+    mut mouse_wheel: EventReader<MouseWheel>,
+    time: Res<Time>,
+    mut camera_q: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
 ) {
-    let mut projection = camera_transform_q.single_mut();
+    let dt = time.delta().as_secs_f32();
+    let mut transform = camera_q.single_mut();
 
-    for mouse_wheel_event in mouse_wheel_events.read() {
-        if mouse_wheel_event.y < 0.0 {
-            projection.translation.z += 0.5;
-        } else if mouse_wheel_event.y > 0.0 {
-            projection.translation.z -= 0.5;
+    let mut speed = 5.0;
+    if keyboard_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+        speed *= 4.0;
+    }
+
+    let forward = transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, -1.0));
+    let right = transform.rotation.mul_vec3(Vec3::new(1.0, 0.0, 0.0));
+    let mut dir = Vec3::ZERO;
+
+    if keyboard_input.pressed(KeyCode::KeyW) {
+        dir += forward;
+    }
+    if keyboard_input.pressed(KeyCode::KeyS) {
+        dir -= forward;
+    }
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        dir -= right;
+    }
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        dir += right;
+    }
+    if dir.length_squared() > 0.0 {
+        transform.translation += dir.normalize() * speed * dt;
+    }
+
+    if mouse_input.pressed(MouseButton::Right) {
+        for ev in mouse_motion.read() {
+            let yaw = Quat::from_rotation_y(-ev.delta.x * 0.002);
+            let pitch = Quat::from_rotation_x(-ev.delta.y * 0.002);
+            transform.rotation = yaw * transform.rotation * pitch;
         }
     }
-}
 
-fn camera_control(
-    mut camera_transforms: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
-    player_transforms: Query<&Transform, With<MainCameraTarget>>,
-) {
-    if let Ok(player_transform) = player_transforms.get_single() {
-        let mut camera_transform = camera_transforms.single_mut();
-
-        let lerp = camera_transform
-            .translation
-            .lerp(player_transform.translation, 0.1);
-        camera_transform.translation.x = lerp.x;
-        camera_transform.translation.y = lerp.y;
+    for ev in mouse_wheel.read() {
+        transform.translation += forward * ev.y * 0.5;
     }
 }
