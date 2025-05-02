@@ -42,16 +42,16 @@ impl Plugin for GamePlugin {
     }
 }
 
-pub fn build_planet_mesh(planet: &PlanetData, base_radius: f32) -> Mesh {
+pub fn build_planet_mesh(planet: &PlanetData) -> Mesh {
     let mut positions = Vec::new();
     let mut indices = Vec::new();
 
     let mut vertex_offset = 0;
 
     for (face_idx, face) in planet.faces.iter().enumerate() {
-        let face_positions = generate_face_positions(face, face_idx, base_radius);
+        let face_positions = generate_face_positions(face, face_idx, planet.radius);
 
-        let size = face.size;
+        let size = face.grid_size;
         for y in 0..size {
             for x in 0..size {
                 positions.push(face_positions[y * size + x]);
@@ -83,11 +83,11 @@ pub fn build_planet_mesh(planet: &PlanetData, base_radius: f32) -> Mesh {
 
 fn generate_face_positions(face: &CubeFace, face_idx: usize, base_radius: f32) -> Vec<[f32; 3]> {
     let mut positions = Vec::new();
-    let size = face.size as f32;
+    let size = face.grid_size as f32;
 
-    for y in 0..face.size {
+    for y in 0..face.grid_size {
         let v = (y as f32 / (size - 1.0)) * 2.0 - 1.0;
-        for x in 0..face.size {
+        for x in 0..face.grid_size {
             let u = (x as f32 / (size - 1.0)) * 2.0 - 1.0;
 
             // cube face point
@@ -119,10 +119,10 @@ fn spawn_planet(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let generator = planetgen::PlanetGenerator::new(100);
+    let generator = planetgen::PlanetGenerator::new(5.0);
     let planet_data = generator.generate();
 
-    let mesh = build_planet_mesh(&planet_data, 4.0);
+    let mesh = build_planet_mesh(&planet_data);
     let mesh_handle = meshes.add(mesh);
 
     let material_handle = materials.add(StandardMaterial {
