@@ -6,6 +6,7 @@ mod loading;
 mod menu;
 mod player;
 
+use std::collections::HashMap;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::{LoadingPlugin, ModelAssets};
 use crate::menu::MenuPlugin;
@@ -19,7 +20,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use planetgen::{CubeFace, PlanetData};
+use planetgen::PlanetData;
 
 pub struct GamePlugin;
 
@@ -42,78 +43,6 @@ impl Plugin for GamePlugin {
     }
 }
 
-pub fn build_planet_mesh(planet: &PlanetData) -> Mesh {
-    let mut positions = Vec::new();
-    let mut indices = Vec::new();
-
-    let mut vertex_offset = 0;
-
-    for (face_idx, face) in planet.faces.iter().enumerate() {
-        let face_positions = generate_face_positions(face, face_idx, planet.radius);
-
-        let size = face.grid_size;
-        for y in 0..size {
-            for x in 0..size {
-                positions.push(face_positions[y * size + x]);
-            }
-        }
-
-        for y in 0..(size - 1) {
-            for x in 0..(size - 1) {
-                let i = y * size + x;
-                indices.extend_from_slice(&[
-                    vertex_offset + i as u32,
-                    vertex_offset + (i + 1) as u32,
-                    vertex_offset + (i + size) as u32,
-                    vertex_offset + (i + 1) as u32,
-                    vertex_offset + (i + size + 1) as u32,
-                    vertex_offset + (i + size) as u32,
-                ]);
-            }
-        }
-
-        vertex_offset += (size * size) as u32;
-    }
-
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_indices(Indices::U32(indices));
-    mesh
-}
-
-fn generate_face_positions(face: &CubeFace, face_idx: usize, base_radius: f32) -> Vec<[f32; 3]> {
-    let mut positions = Vec::new();
-    let size = face.grid_size as f32;
-
-    for y in 0..face.grid_size {
-        let v = (y as f32 / (size - 1.0)) * 2.0 - 1.0;
-        for x in 0..face.grid_size {
-            let u = (x as f32 / (size - 1.0)) * 2.0 - 1.0;
-
-            // cube face point
-            let (nx, ny, nz) = match face_idx {
-                0 => (1.0, v, -u),   // +X
-                1 => (-1.0, v, u),   // -X
-                2 => (u, 1.0, -v),   // +Y
-                3 => (u, -1.0, v),   // -Y
-                4 => (u, v, 1.0),   // +Z
-                5 => (-u, v, -1.0),  // -Z
-                _ => (0.0, 0.0, 0.0),
-            };
-
-            // NORMALIZE to project onto unit sphere
-            let dir = Vec3::new(nx, ny, nz).normalize();
-
-            // apply height displacement
-            let height = face.heightmap[y][x];
-            let r = base_radius + height;
-            positions.push([dir.x * r, dir.y * r, dir.z * r]);
-        }
-    }
-
-    positions
-}
-
 fn spawn_planet(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -122,7 +51,7 @@ fn spawn_planet(
     let generator = planetgen::PlanetGenerator::new(5.0);
     let planet_data = generator.generate();
 
-    let mesh = build_planet_mesh(&planet_data);
+    let mesh = build_stitched_planet_mesh(&planet_data);
     let mesh_handle = meshes.add(mesh);
 
     let material_handle = materials.add(StandardMaterial {
@@ -136,4 +65,84 @@ fn spawn_planet(
         Transform::from_xyz(0.0, 0.0, 0.0),
         GlobalTransform::default(),
     ));
+}
+
+pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
+    let size = planet.face_grid_size;
+    let mut positions = Vec::new();
+    let mut indices = Vec::new();
+
+    // Map from quantized direction to global vertex index
+    let mut dir_map: HashMap<(i32, i32, i32), u32> = HashMap::new();
+    // Local mapping for each face [face_idx][y][x] -> global index
+    let mut vertex_indices = vec![vec![vec![0u32; size]; size]; 6];
+    let mut next_index = 0u32;
+
+    // Scale for quantizing the normalized direction
+    let quant_scale = (size - 1) as f32;
+
+    // Generate vertices
+    for (face_idx, face) in planet.faces.iter().enumerate() {
+        for y in 0..size {
+            let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
+            for x in 0..size {
+                let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
+                // Compute the direction vector for this cube face point
+                let (nx, ny, nz) = cube_face_point(face_idx, u, v);
+                let dir = Vec3::new(nx, ny, nz).normalize();
+
+                // Quantize direction to avoid floating-point key issues
+                let key = (
+                    (dir.x * quant_scale).round() as i32,
+                    (dir.y * quant_scale).round() as i32,
+                    (dir.z * quant_scale).round() as i32,
+                );
+
+                // Get or insert the global index for this direction
+                let idx = *dir_map.entry(key).or_insert_with(|| {
+                    // First time we see this direction: create a new vertex
+                    let height = face.heightmap[y][x];
+                    let radius = planet.radius + height;
+                    let pos = dir * radius;
+                    positions.push([pos.x, pos.y, pos.z]);
+                    let i = next_index;
+                    next_index += 1;
+                    i
+                });
+
+                vertex_indices[face_idx][y][x] = idx;
+            }
+        }
+    }
+
+    // Build triangles using the unified indices
+    for face_idx in 0..6 {
+        for y in 0..(size - 1) {
+            for x in 0..(size - 1) {
+                let i0 = vertex_indices[face_idx][y][x];
+                let i1 = vertex_indices[face_idx][y][x + 1];
+                let i2 = vertex_indices[face_idx][y + 1][x];
+                let i3 = vertex_indices[face_idx][y + 1][x + 1];
+                indices.extend_from_slice(&[i0, i1, i2, i1, i3, i2]);
+            }
+        }
+    }
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_indices(Indices::U32(indices));
+    mesh
+}
+
+/// Maps (u, v) on a given face to a 3D point on the cube
+fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
+    match face_idx {
+        0 => (1.0, v, -u),   // +X
+        1 => (-1.0, v, u),   // -X
+        2 => (u, 1.0, -v),   // +Y
+        3 => (u, -1.0, v),   // -Y
+        4 => (u, v, 1.0),    // +Z
+        5 => (-u, v, -1.0),  // -Z
+        _ => (0.0, 0.0, 0.0),
+    }
 }
