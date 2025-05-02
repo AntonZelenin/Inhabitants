@@ -63,11 +63,11 @@ pub fn build_planet_mesh(planet: &PlanetData) -> Mesh {
                 let i = y * size + x;
                 indices.extend_from_slice(&[
                     vertex_offset + i as u32,
-                    vertex_offset + (i + size) as u32,
-                    vertex_offset + (i + 1) as u32,
                     vertex_offset + (i + 1) as u32,
                     vertex_offset + (i + size) as u32,
+                    vertex_offset + (i + 1) as u32,
                     vertex_offset + (i + size + 1) as u32,
+                    vertex_offset + (i + size) as u32,
                 ]);
             }
         }
