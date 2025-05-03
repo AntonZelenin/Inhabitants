@@ -71,6 +71,7 @@ bevy = { version = "0.15", default-features = false, features = [
 bevy_kira_audio = { version = "0.22.0", features = ["android_shared_stdcxx"] }
 bevy_asset_loader = { version = "0.22" }
 rand = { version = "0.9.1" }
+planetgen = { path = "crates/planetgen" }
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.30", default-features = false }
