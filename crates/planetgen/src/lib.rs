@@ -29,12 +29,12 @@ impl PlanetGenerator {
         let grid_size = (self.radius * self.cells_per_unit).ceil() as usize + 1;
 
         let faces = [
-            Self::generate_face(grid_size, "pos_x"),
-            Self::generate_face(grid_size, "neg_x"),
-            Self::generate_face(grid_size, "pos_y"),
-            Self::generate_face(grid_size, "neg_y"),
-            Self::generate_face(grid_size, "pos_z"),
-            Self::generate_face(grid_size, "neg_z"),
+            Self::generate_face(grid_size),
+            Self::generate_face(grid_size),
+            Self::generate_face(grid_size),
+            Self::generate_face(grid_size),
+            Self::generate_face(grid_size),
+            Self::generate_face(grid_size),
         ];
 
         PlanetData {
@@ -44,7 +44,7 @@ impl PlanetGenerator {
         }
     }
 
-    fn generate_face(size: usize, _face_name: &str) -> CubeFace {
+    fn generate_face(size: usize) -> CubeFace {
         let mut heightmap = vec![vec![0.0; size]; size];
 
         for y in 0..size {
