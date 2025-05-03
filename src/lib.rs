@@ -8,7 +8,7 @@ mod player;
 
 use std::collections::HashMap;
 use crate::audio::InternalAudioPlugin;
-use crate::loading::{LoadingPlugin, ModelAssets};
+use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
 
