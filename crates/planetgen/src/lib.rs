@@ -2,7 +2,6 @@ const CELLS_PER_UNIT: f32 = 1.0;
 
 pub struct CubeFace {
     pub heightmap: Vec<Vec<f32>>,
-    pub grid_size: usize,
 }
 
 pub struct PlanetData {
@@ -53,6 +52,6 @@ impl PlanetGenerator {
             }
         }
 
-        CubeFace { heightmap, grid_size: size }
+        CubeFace { heightmap }
     }
 }
