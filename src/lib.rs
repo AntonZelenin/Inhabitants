@@ -6,11 +6,11 @@ mod loading;
 mod menu;
 mod player;
 
-use std::collections::HashMap;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
+use std::collections::HashMap;
 
 use crate::core::camera::CameraPlugin;
 use crate::core::state::GameState;
@@ -48,7 +48,7 @@ fn spawn_planet(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let generator = planetgen::PlanetGenerator::new(5.0);
+    let generator = planetgen::PlanetGenerator::new(20.0);
     let planet_data = generator.generate();
 
     let mesh = build_stitched_planet_mesh(&planet_data);
@@ -66,10 +66,10 @@ fn spawn_planet(
         GlobalTransform::default(),
     ));
 }
-
 pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
     let size = planet.face_grid_size;
     let mut positions = Vec::new();
+    let mut colors = Vec::new();
     let mut indices = Vec::new();
     let mut dir_map: HashMap<(i32, i32, i32), u32> = HashMap::new();
     let mut vertex_indices = vec![vec![vec![0u32; size]; size]; 6];
@@ -82,7 +82,7 @@ pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
             let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
             for x in 0..size {
                 let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
-                let (nx, ny, nz) = cube_face_point(face_idx, u, v);
+                let (nx, ny, nz) = planetgen::cube_face_point(face_idx, u, v);
                 let dir = Vec3::new(nx, ny, nz).normalize();
 
                 let key = (
@@ -96,6 +96,11 @@ pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
                     let radius = planet.radius + height;
                     let pos = dir * radius;
                     positions.push([pos.x, pos.y, pos.z]);
+
+                    let plate_id = planet.plate_map[face_idx][y][x];
+                    let color = planet.plates[plate_id].color;
+                    colors.push(color);
+
                     let i = next_index;
                     next_index += 1;
                     i
@@ -123,21 +128,13 @@ pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
         .map(|p| Vec3::from(*p).normalize().to_array())
         .collect();
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_indices(Indices::U32(indices));
     mesh
-}
-
-fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
-    match face_idx {
-        0 => (1.0, v, -u),   // +X
-        1 => (-1.0, v, u),   // -X
-        2 => (u, 1.0, -v),   // +Y
-        3 => (u, -1.0, v),   // -Y
-        4 => (u, v, 1.0),    // +Z
-        5 => (-u, v, -1.0),  // -Z
-        _ => (0.0, 0.0, 0.0),
-    }
 }
