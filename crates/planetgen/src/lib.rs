@@ -1,40 +1,12 @@
+use glam::Vec3;
 use noise::{NoiseFn, Perlin};
 use rand::{random_bool, random_range};
 
 const CELLS_PER_UNIT: f32 = 1.0;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Vec3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
-
-impl Vec3 {
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
-    }
-
-    pub fn normalize(self) -> Self {
-        let mag = (self.x * self.x + self.y * self.y + self.z * self.z).sqrt();
-        if mag > 0.0 {
-            Self {
-                x: self.x / mag,
-                y: self.y / mag,
-                z: self.z / mag,
-            }
-        } else {
-            self
-        }
-    }
-
-    pub fn distance(self, other: Vec3) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        let dz = self.z - other.z;
-        (dx * dx + dy * dy + dz * dz).sqrt()
-    }
-}
+const CONTINENTAL_FREQ: f32 = 3.0;
+const CONTINENTAL_AMP: f32 = 0.7;
+const OCEANIC_FREQ: f32 = CONTINENTAL_FREQ / 2.0;
+const OCEANIC_AMP: f32 = CONTINENTAL_AMP / 10.0;
 
 #[derive(Clone)]
 pub struct CubeFace {
@@ -144,9 +116,7 @@ impl PlanetGenerator {
         ];
         (0..self.num_plates)
             .map(|id| {
-                // explicit seed for Perlin
                 let noise_seed = random_range(0_u32..u32::MAX);
-                // random plate direction
                 let seed_dir = Vec3::new(
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
@@ -161,8 +131,8 @@ impl PlanetGenerator {
                 };
 
                 let (freq, amp) = match plate_type {
-                    PlateType::Continental => (3.0, 0.7),
-                    PlateType::Oceanic => (2.0, 0.05),
+                    PlateType::Continental => (CONTINENTAL_FREQ, CONTINENTAL_AMP),
+                    PlateType::Oceanic => (OCEANIC_FREQ, OCEANIC_AMP),
                 };
 
                 let noise_config = NoiseConfig::new(noise_seed, freq, amp);

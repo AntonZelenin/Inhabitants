@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 noise = "0.9"
 rand = "0.9"
+glam = "0.30"
