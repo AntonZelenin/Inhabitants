@@ -2,7 +2,7 @@ use glam::Vec3;
 use noise::{NoiseFn, Perlin};
 use rand::{random_bool, random_range};
 
-const CELLS_PER_UNIT: f32 = 1.0;
+const CELLS_PER_UNIT: f32 = 3.0;
 const CONTINENTAL_FREQ: f32 = 3.0;
 const CONTINENTAL_AMP: f32 = 0.7;
 const OCEANIC_FREQ: f32 = CONTINENTAL_FREQ / 2.0;
