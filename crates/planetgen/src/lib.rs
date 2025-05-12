@@ -69,21 +69,12 @@ impl PlanetGenerator {
         Self {
             radius,
             cells_per_unit: CELLS_PER_UNIT,
-            num_plates: 10,
+            num_plates: Self::get_number_of_plates(),
         }
     }
 
-    pub fn new_with_cells(radius: f32, cells_per_unit: f32) -> Self {
-        Self {
-            radius,
-            cells_per_unit,
-            num_plates: 10,
-        }
-    }
-
-    pub fn with_plate_count(mut self, count: usize) -> Self {
-        self.num_plates = count;
-        self
+    fn get_number_of_plates() -> usize {
+        random_range(4..10)
     }
 
     pub fn generate(&self) -> PlanetData {
