@@ -8,6 +8,19 @@ const CONTINENTAL_AMP: f32 = 0.7;
 const OCEANIC_FREQ: f32 = CONTINENTAL_FREQ / 2.0;
 const OCEANIC_AMP: f32 = CONTINENTAL_AMP / 10.0;
 
+const DEBUG_COLORS: &[[f32; 4]] = &[
+    [1.0, 0.0, 0.0, 1.0], // red
+    [0.0, 1.0, 0.0, 1.0], // green
+    [0.0, 0.0, 1.0, 1.0], // blue
+    [1.0, 1.0, 0.0, 1.0], // yellow
+    [1.0, 0.0, 1.0, 1.0], // magenta
+    [0.0, 1.0, 1.0, 1.0], // cyan
+    [1.0, 0.5, 0.0, 1.0], // orange
+    [0.5, 0.0, 1.0, 1.0], // violet
+    [0.0, 0.5, 1.0, 1.0], // sky blue
+    [0.5, 1.0, 0.0, 1.0], // lime
+];
+
 #[derive(Clone)]
 pub struct CubeFace {
     pub heightmap: Vec<Vec<f32>>,
@@ -25,7 +38,6 @@ pub struct NoiseConfig {
 }
 
 impl NoiseConfig {
-    /// Create a new noise config with explicit seed for reproducibility
     pub fn new(seed: u32, frequency: f32, amplitude: f32) -> Self {
         Self {
             perlin: Perlin::new(seed),
@@ -62,6 +74,7 @@ pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,
     pub num_plates: usize,
+    pub num_micro_plates: usize,
 }
 
 impl PlanetGenerator {
@@ -70,105 +83,152 @@ impl PlanetGenerator {
             radius,
             cells_per_unit: CELLS_PER_UNIT,
             num_plates: Self::get_number_of_plates(),
+            num_micro_plates: Self::get_number_of_microplates(),
         }
     }
 
     fn get_number_of_plates() -> usize {
-        random_range(4..10)
+        random_range(4..9)
+    }
+
+    fn get_number_of_microplates() -> usize {
+        random_range(5..10)
     }
 
     pub fn generate(&self) -> PlanetData {
-        let grid_size = (self.radius * self.cells_per_unit).ceil() as usize + 1;
-        let plates = self.generate_plates();
-        let plate_map = self.assign_plates(grid_size, &plates);
-        let faces = self.generate_faces(grid_size, &plates, &plate_map);
+        let size = (self.radius * self.cells_per_unit).ceil() as usize + 1;
+        let mut plates = self.generate_plates();
+        let mut plate_map = self.assign_plates(size, &plates, plates.len(), 1.0);
 
+        let micros = self.generate_microplates(size, &plates, &plate_map);
+        let base_count = plates.len();
+        plates.extend(micros);
+
+        plate_map = self.assign_plates(size, &plates, base_count, 3.0);
+
+        let faces = self.generate_faces(size, &plates, &plate_map);
         PlanetData {
             faces,
-            face_grid_size: grid_size,
+            face_grid_size: size,
             radius: self.radius,
             plate_map,
             plates,
         }
     }
 
+    fn make_plate(
+        &self,
+        id: usize,
+        seed_dir: Vec3,
+        plate_type: PlateType,
+        freq: f32,
+        amp: f32,
+    ) -> TectonicPlate {
+        let noise_seed = random_range(0_u32..u32::MAX);
+        let color = DEBUG_COLORS[id % DEBUG_COLORS.len()];
+        TectonicPlate {
+            id,
+            seed_dir,
+            plate_type,
+            noise_config: NoiseConfig::new(noise_seed, freq, amp),
+            color,
+        }
+    }
+
     fn generate_plates(&self) -> Vec<TectonicPlate> {
-        let debug_colors = [
-            [1.0, 0.0, 0.0, 1.0], // red
-            [0.0, 1.0, 0.0, 1.0], // green
-            [0.0, 0.0, 1.0, 1.0], // blue
-            [1.0, 1.0, 0.0, 1.0], // yellow
-            [1.0, 0.0, 1.0, 1.0], // magenta
-            [0.0, 1.0, 1.0, 1.0], // cyan
-            [1.0, 0.5, 0.0, 1.0], // orange
-            [0.5, 0.0, 1.0, 1.0], // violet
-            [0.0, 0.5, 1.0, 1.0], // sky blue
-            [0.5, 1.0, 0.0, 1.0], // lime
-        ];
         (0..self.num_plates)
             .map(|id| {
-                let noise_seed = random_range(0_u32..u32::MAX);
                 let seed_dir = Vec3::new(
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
                 )
                 .normalize();
-
                 let plate_type = if random_bool(0.5) {
                     PlateType::Continental
                 } else {
                     PlateType::Oceanic
                 };
-
                 let (freq, amp) = match plate_type {
                     PlateType::Continental => (CONTINENTAL_FREQ, CONTINENTAL_AMP),
                     PlateType::Oceanic => (OCEANIC_FREQ, OCEANIC_AMP),
                 };
-
-                let noise_config = NoiseConfig::new(noise_seed, freq, amp);
-                let color = debug_colors[id % debug_colors.len()];
-
-                TectonicPlate {
-                    id,
-                    seed_dir,
-                    plate_type,
-                    noise_config,
-                    color,
-                }
+                self.make_plate(id, seed_dir, plate_type, freq, amp)
             })
             .collect()
     }
 
-    fn assign_plates(&self, size: usize, plates: &[TectonicPlate]) -> Vec<Vec<Vec<usize>>> {
-        let mut plate_map = vec![vec![vec![0; size]; size]; 6];
+    fn generate_microplates(
+        &self,
+        size: usize,
+        plates: &[TectonicPlate],
+        plate_map: &Vec<Vec<Vec<usize>>>,
+    ) -> Vec<TectonicPlate> {
+        (0..self.num_micro_plates)
+            .map(|i| {
+                let id = plates.len() + i;
+                let (f, x, y) = loop {
+                    let f = random_range(0..6);
+                    let y = random_range(0..size);
+                    let x = random_range(0..size);
+                    let c = plate_map[f][y][x];
+                    let r = plate_map[f][y][(x + 1).min(size - 1)];
+                    let d = plate_map[f][(y + 1).min(size - 1)][x];
+                    if r != c || d != c {
+                        break (f, x, y);
+                    }
+                };
+                let (dx, dy, dz) = cube_face_point(
+                    f,
+                    x as f32 * 2.0 / (size as f32 - 1.0) - 1.0,
+                    y as f32 * 2.0 / (size as f32 - 1.0) - 1.0,
+                );
+                let base_dir = Vec3::new(dx, dy, dz).normalize();
+                // *tiny* jitter so seed stays close to boundary
+                let jitter = Vec3::new(
+                    random_range(-0.1..0.1),
+                    random_range(-0.1..0.1),
+                    random_range(-0.1..0.1),
+                );
+                let seed_dir = (base_dir + jitter).normalize();
+                // smaller scale noise
+                let freq = CONTINENTAL_FREQ * 1.5;
+                let amp = CONTINENTAL_AMP * 0.3;
+                self.make_plate(id, seed_dir, PlateType::Continental, freq, amp)
+            })
+            .collect()
+    }
 
-        for face_idx in 0..6 {
+    fn assign_plates(
+        &self,
+        size: usize,
+        plates: &[TectonicPlate],
+        base_count: usize,
+        micro_bias: f32,
+    ) -> Vec<Vec<Vec<usize>>> {
+        let mut map = vec![vec![vec![0; size]; size]; 6];
+        for f in 0..6 {
             for y in 0..size {
-                let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
-
+                let v = y as f32 / (size - 1) as f32 * 2.0 - 1.0;
                 for x in 0..size {
-                    let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
-                    let (dx, dy, dz) = cube_face_point(face_idx, u, v);
-                    let dir = Vec3::new(dx, dy, dz).normalize();
-
-                    let plate_id = plates
+                    let u = x as f32 / (size - 1) as f32 * 2.0 - 1.0;
+                    let dir = Vec3::from(cube_face_point(f, u, v)).normalize();
+                    let winner = plates
                         .iter()
                         .min_by(|a, b| {
-                            a.seed_dir
-                                .distance(dir)
-                                .partial_cmp(&b.seed_dir.distance(dir))
-                                .unwrap()
+                            let w1 = if a.id >= base_count { micro_bias } else { 1.0 };
+                            let w2 = if b.id >= base_count { micro_bias } else { 1.0 };
+                            let d1 = dir.distance(a.seed_dir) * w1;
+                            let d2 = dir.distance(b.seed_dir) * w2;
+                            d1.partial_cmp(&d2).unwrap()
                         })
                         .unwrap()
                         .id;
-
-                    plate_map[face_idx][y][x] = plate_id;
+                    map[f][y][x] = winner;
                 }
             }
         }
-
-        plate_map
+        map
     }
 
     fn generate_faces(
@@ -188,24 +248,18 @@ impl PlanetGenerator {
             blank.clone(),
             blank.clone(),
         ];
-
         for face_idx in 0..6 {
             for y in 0..size {
-                let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
-
+                let v = y as f32 / (size - 1) as f32 * 2.0 - 1.0;
                 for x in 0..size {
-                    let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
-                    let (dx, dy, dz) = cube_face_point(face_idx, u, v);
-                    let dir = Vec3::new(dx, dy, dz).normalize();
-
+                    let u = x as f32 / (size - 1) as f32 * 2.0 - 1.0;
+                    let dir = Vec3::from(cube_face_point(face_idx, u, v)).normalize();
                     let plate_id = plate_map[face_idx][y][x];
                     let height = plates[plate_id].noise_config.sample(dir);
-
                     faces[face_idx].heightmap[y][x] = height;
                 }
             }
         }
-
         faces
     }
 }
