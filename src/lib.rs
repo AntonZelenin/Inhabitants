@@ -1,5 +1,3 @@
-#![allow(clippy::type_complexity)]
-
 mod audio;
 mod core;
 mod loading;
@@ -20,7 +18,8 @@ use bevy::asset::RenderAssetUsages;
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use planetgen::PlanetData;
+use planetgen::generator::cube_face_point;
+use planetgen::prelude::*;
 
 pub struct GamePlugin;
 
@@ -48,7 +47,7 @@ fn spawn_planet(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let generator = planetgen::PlanetGenerator::new(20.0);
+    let generator = PlanetGenerator::new(20.0);
     let planet_data = generator.generate();
 
     let mesh = build_stitched_planet_mesh(&planet_data);
@@ -82,7 +81,7 @@ pub fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
             let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
             for x in 0..size {
                 let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
-                let (nx, ny, nz) = planetgen::cube_face_point(face_idx, u, v);
+                let (nx, ny, nz) = cube_face_point(face_idx, u, v);
                 let dir = Vec3::new(nx, ny, nz).normalize();
 
                 let key = (
