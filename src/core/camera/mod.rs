@@ -44,7 +44,7 @@ fn camera_control(
     mut camera_q: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
 ) {
     let dt = time.delta().as_secs_f32();
-    let mut transform = camera_q.single_mut();
+    let mut transform = camera_q.single_mut().unwrap();
 
     let mut speed = 5.0;
     if keyboard_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
