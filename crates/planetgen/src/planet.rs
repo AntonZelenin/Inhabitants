@@ -1,14 +1,19 @@
-use crate::generator::CubeFace;
 use crate::plate::TectonicPlate;
 
 pub enum PlateType {
     Continental,
+    // oceanic plates have lower amplitude and noise frequency, thus are smoother
     Oceanic,
 }
 
 pub enum PlateSizeClass {
     Regular,
     Micro,
+}
+
+#[derive(Clone)]
+pub struct CubeFace {
+    pub heightmap: Vec<Vec<f32>>,
 }
 
 pub struct PlanetData {

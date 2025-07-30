@@ -8,5 +8,5 @@ pub struct TectonicPlate {
     pub plate_type: PlateType,
     pub size_class: PlateSizeClass,
     pub noise_config: NoiseConfig,
-    pub color: [f32; 4],
+    pub debug_color: [f32; 4],
 }

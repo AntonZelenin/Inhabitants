@@ -1,11 +1,11 @@
+use crate::config::NoiseConfig;
 use crate::constants::{
     CELLS_PER_UNIT, CONTINENTAL_AMP, CONTINENTAL_FREQ, DEBUG_COLORS, OCEANIC_AMP, OCEANIC_FREQ,
 };
-use crate::planet::{PlanetData, PlateSizeClass, PlateType};
+use crate::planet::{CubeFace, PlanetData, PlateSizeClass, PlateType};
 use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
-use crate::config::NoiseConfig;
 
 pub struct PlanetGenerator {
     pub radius: f32,
@@ -22,14 +22,6 @@ impl PlanetGenerator {
             num_plates: Self::get_number_of_plates(),
             num_micro_plates: Self::get_number_of_microplates(),
         }
-    }
-
-    fn get_number_of_plates() -> usize {
-        random_range(4..9)
-    }
-
-    fn get_number_of_microplates() -> usize {
-        random_range(5..10)
     }
 
     pub fn generate(&self) -> PlanetData {
@@ -57,6 +49,14 @@ impl PlanetGenerator {
         }
     }
 
+    fn get_number_of_plates() -> usize {
+        random_range(4..9)
+    }
+
+    fn get_number_of_microplates() -> usize {
+        random_range(5..10)
+    }
+
     fn make_plate(
         &self,
         id: usize,
@@ -74,7 +74,7 @@ impl PlanetGenerator {
             plate_type,
             size_class,
             noise_config: NoiseConfig::new(noise_seed, freq, amp),
-            color,
+            debug_color: color,
         }
     }
 
@@ -222,11 +222,6 @@ impl PlanetGenerator {
         }
         faces
     }
-}
-
-#[derive(Clone)]
-pub struct CubeFace {
-    pub heightmap: Vec<Vec<f32>>,
 }
 
 pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
