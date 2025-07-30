@@ -158,15 +158,21 @@ fn spawn_plate_direction_arrows(
             center = center.normalize() * (planet.radius + 1.0);
 
             // Get the movement direction of the plate
-            let direction = plate.direction.normalize();
+            let direction =
+                Vec3::new(plate.direction.x, plate.direction.y, plate.direction.z).normalize();
             info!("Plate {} direction: {:?}", plate_idx, direction);
 
-            // Calculate rotation to point in the correct direction
+            // Get the surface normal at this position (pointing outward from center)
+            let surface_normal = center.normalize();
+
+            // Project the plate direction onto the tangent plane at this surface point
+            // This removes the component of the direction that points toward/away from the center
+            let tangent_direction =
+                (direction - surface_normal * direction.dot(surface_normal)).normalize();
+
+            // Calculate rotation to point in the tangent direction
             let default_direction = Vec3::Z;
-            let rotation = Quat::from_rotation_arc(
-                default_direction,
-                Vec3::new(direction.x, direction.y, direction.z),
-            );
+            let rotation = Quat::from_rotation_arc(default_direction, tangent_direction);
 
             commands.spawn((
                 Mesh3d(arrow_mesh_handle.clone()),
