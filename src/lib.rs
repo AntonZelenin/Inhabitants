@@ -31,7 +31,10 @@ impl Plugin for GamePlugin {
                 MenuPlugin,
                 PlayerPlugin,
             ))
-            .add_systems(OnEnter(GameState::InGame), spawn_planet);
+            .add_systems(OnEnter(GameState::InGame), spawn_planet)
+            .add_systems(OnEnter(GameState::Loading), || {
+                // Transition to MainMenu after loading
+            });
 
         #[cfg(debug_assertions)]
         {
