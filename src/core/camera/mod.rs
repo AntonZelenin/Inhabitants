@@ -23,7 +23,7 @@ impl Plugin for CameraPlugin {
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(4.0, 4.0, 12.0).looking_at(Vec3::new(0.0, 0.0, 0.5), Vec3::Y),
+        Transform::from_xyz(4.0, 60.0, 12.0).looking_at(Vec3::new(0.0, 0.0, 0.5), Vec3::Y),
         MainCamera,
     ));
 
@@ -44,11 +44,11 @@ fn camera_control(
     mut camera_q: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
 ) {
     let dt = time.delta().as_secs_f32();
-    let mut transform = camera_q.single_mut();
+    let mut transform = camera_q.single_mut().unwrap();
 
     let mut speed = 5.0;
     if keyboard_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
-        speed *= 4.0;
+        speed *= 5.0;
     }
 
     let forward = transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, -1.0));
