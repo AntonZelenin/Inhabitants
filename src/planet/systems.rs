@@ -1,4 +1,4 @@
-use crate::helpers::mesh::create_arrow_mesh;
+use crate::helpers::mesh::arrow_mesh;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::math::{Quat, Vec3};
@@ -114,7 +114,7 @@ fn spawn_plate_direction_arrows(
     materials: &mut Assets<StandardMaterial>,
     planet: &PlanetData,
 ) {
-    let arrow_mesh = create_arrow_mesh();
+    let arrow_mesh = arrow_mesh();
     let arrow_mesh_handle = meshes.add(arrow_mesh);
     let arrow_material = materials.add(StandardMaterial {
         base_color: Color::srgb(0.3, 0.8, 0.4),
