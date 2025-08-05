@@ -5,11 +5,12 @@ mod loading;
 mod menu;
 mod planet;
 mod player;
+mod ui;
 
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
-use crate::player::PlayerPlugin;
+use crate::ui::UIPlugin;
 
 use crate::core::camera::CameraPlugin;
 use crate::core::state::GameState;
@@ -29,7 +30,7 @@ impl Plugin for GamePlugin {
                 LoadingPlugin,
                 InternalAudioPlugin,
                 MenuPlugin,
-                PlayerPlugin,
+                UIPlugin,
             ))
             .add_systems(OnEnter(GameState::InGame), spawn_planet)
             .add_systems(OnEnter(GameState::Loading), || {
