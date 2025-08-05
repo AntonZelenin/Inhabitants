@@ -40,6 +40,10 @@ pub struct IncrementButton;
 #[derive(Component)]
 pub struct ValueDisplay;
 
+// Marker component to link buttons to their adjuster
+#[derive(Component)]
+pub struct AdjusterTarget(pub Entity);
+
 // Builder functions for creating UI components
 pub fn create_value_adjuster(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
@@ -51,13 +55,24 @@ pub fn create_value_adjuster(
     is_integer: bool,
 ) -> Entity {
     parent
-        .spawn((Node {
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(5.0),
-            width: Val::Percent(100.0),
-            ..default()
-        },))
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(5.0),
+                width: Val::Percent(100.0),
+                ..default()
+            },
+            ValueAdjuster {
+                current_value: initial_value,
+                min_value,
+                max_value,
+                step,
+                is_integer,
+            },
+        ))
         .with_children(|parent| {
+            let adjuster_entity = parent.target_entity();
+
             // Label
             parent.spawn((
                 Text::new(label),
@@ -82,37 +97,37 @@ pub fn create_value_adjuster(
                 })
                 .with_children(|parent| {
                     // Decrement button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(30.0),
-                                height: Val::Px(30.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
+                    parent.spawn((
+                        Button,
+                        Node {
+                            width: Val::Px(30.0),
+                            height: Val::Px(30.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.5, 0.5, 0.5)),
+                        BorderRadius::all(Val::Px(5.0)),
+                        Interaction::None,
+                        UIButton,
+                        DecrementButton,
+                        AdjusterTarget(adjuster_entity),
+                        ButtonConfig {
+                            normal_color: Color::srgb(0.5, 0.5, 0.5),
+                            hover_color: Color::srgb(0.6, 0.6, 0.6),
+                            pressed_color: Color::srgb(0.4, 0.4, 0.4),
+                        },
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn((
+                            Text::new("-"),
+                            TextFont {
+                                font_size: 18.0,
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.5, 0.5, 0.5)),
-                            BorderRadius::all(Val::Px(5.0)),
-                            Interaction::None,
-                            UIButton,
-                            DecrementButton,
-                            ButtonConfig {
-                                normal_color: Color::srgb(0.5, 0.5, 0.5),
-                                hover_color: Color::srgb(0.6, 0.6, 0.6),
-                                pressed_color: Color::srgb(0.4, 0.4, 0.4),
-                            },
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new("-"),
-                                TextFont {
-                                    font_size: 18.0,
-                                    ..default()
-                                },
-                                TextColor(Color::WHITE),
-                            ));
-                        });
+                            TextColor(Color::WHITE),
+                        ));
+                    });
 
                     // Value display
                     let display_value = if is_integer {
@@ -134,48 +149,42 @@ pub fn create_value_adjuster(
                             ..default()
                         },
                         ValueDisplay,
+                        AdjusterTarget(adjuster_entity),
                     ));
 
                     // Increment button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(30.0),
-                                height: Val::Px(30.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
+                    parent.spawn((
+                        Button,
+                        Node {
+                            width: Val::Px(30.0),
+                            height: Val::Px(30.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.5, 0.5, 0.5)),
+                        BorderRadius::all(Val::Px(5.0)),
+                        Interaction::None,
+                        UIButton,
+                        IncrementButton,
+                        AdjusterTarget(adjuster_entity),
+                        ButtonConfig {
+                            normal_color: Color::srgb(0.5, 0.5, 0.5),
+                            hover_color: Color::srgb(0.6, 0.6, 0.6),
+                            pressed_color: Color::srgb(0.4, 0.4, 0.4),
+                        },
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn((
+                            Text::new("+"),
+                            TextFont {
+                                font_size: 18.0,
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.5, 0.5, 0.5)),
-                            BorderRadius::all(Val::Px(5.0)),
-                            Interaction::None,
-                            UIButton,
-                            IncrementButton,
-                            ButtonConfig {
-                                normal_color: Color::srgb(0.5, 0.5, 0.5),
-                                hover_color: Color::srgb(0.6, 0.6, 0.6),
-                                pressed_color: Color::srgb(0.4, 0.4, 0.4),
-                            },
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new("+"),
-                                TextFont {
-                                    font_size: 18.0,
-                                    ..default()
-                                },
-                                TextColor(Color::WHITE),
-                            ));
-                        });
+                            TextColor(Color::WHITE),
+                        ));
+                    });
                 });
-        })
-        .insert(ValueAdjuster {
-            current_value: initial_value,
-            min_value,
-            max_value,
-            step,
-            is_integer,
         })
         .id()
 }

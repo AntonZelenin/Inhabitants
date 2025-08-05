@@ -60,14 +60,14 @@ fn handle_toggle_interactions(
 }
 
 fn handle_value_adjuster_interactions(
-    increment_query: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<IncrementButton>)>,
-    decrement_query: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<DecrementButton>)>,
+    increment_query: Query<(&Interaction, &AdjusterTarget), (Changed<Interaction>, With<IncrementButton>)>,
+    decrement_query: Query<(&Interaction, &AdjusterTarget), (Changed<Interaction>, With<DecrementButton>)>,
     mut adjuster_query: Query<&mut ValueAdjuster>,
 ) {
     // Handle increment buttons
-    for (interaction, parent) in &increment_query {
+    for (interaction, target) in &increment_query {
         if *interaction == Interaction::Pressed {
-            if let Ok(mut adjuster) = adjuster_query.get_mut(parent.get()) {
+            if let Ok(mut adjuster) = adjuster_query.get_mut(target.0) {
                 adjuster.current_value =
                     (adjuster.current_value + adjuster.step).min(adjuster.max_value);
             }
@@ -75,9 +75,9 @@ fn handle_value_adjuster_interactions(
     }
 
     // Handle decrement buttons
-    for (interaction, parent) in &decrement_query {
+    for (interaction, target) in &decrement_query {
         if *interaction == Interaction::Pressed {
-            if let Ok(mut adjuster) = adjuster_query.get_mut(parent.get()) {
+            if let Ok(mut adjuster) = adjuster_query.get_mut(target.0) {
                 adjuster.current_value =
                     (adjuster.current_value - adjuster.step).max(adjuster.min_value);
             }
@@ -104,18 +104,21 @@ fn update_toggle_text(
 
 fn update_value_displays(
     mut text_query: Query<&mut Text, With<ValueDisplay>>,
-    adjuster_query: Query<(&ValueAdjuster, &Children), Changed<ValueAdjuster>>,
+    display_query: Query<(Entity, &AdjusterTarget), With<ValueDisplay>>,
+    adjuster_query: Query<(Entity, &ValueAdjuster), Changed<ValueAdjuster>>,
 ) {
-    for (adjuster, children) in &adjuster_query {
-        for child in children.iter() {
-            // Find the value display text in the children hierarchy
-            if let Ok(mut text) = text_query.get_mut(child) {
-                let display_value = if adjuster.is_integer {
-                    format!("{}", adjuster.current_value as i32)
-                } else {
-                    format!("{:.1}", adjuster.current_value)
-                };
-                text.0 = display_value;
+    // For each changed adjuster, find its displays and update them
+    for (adjuster_entity, adjuster) in &adjuster_query {
+        for (display_entity, target) in &display_query {
+            if target.0 == adjuster_entity {
+                if let Ok(mut text) = text_query.get_mut(display_entity) {
+                    let display_value = if adjuster.is_integer {
+                        format!("{}", adjuster.current_value as i32)
+                    } else {
+                        format!("{:.1}", adjuster.current_value)
+                    };
+                    text.0 = display_value;
+                }
             }
         }
     }
