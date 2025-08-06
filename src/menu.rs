@@ -1,5 +1,6 @@
 use crate::core::state::GameState;
 use crate::ui::components::*;
+use crate::ui::widgets::*;
 use bevy::prelude::*;
 
 pub struct MenuPlugin;
@@ -110,7 +111,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                 ))
                 .with_children(|parent| {
                     // Planet Radius Value Adjuster
-                    create_value_adjuster(
+                    spawn_value_adjuster(
                         parent,
                         "Planet Radius",
                         settings.radius,
@@ -121,7 +122,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     );
 
                     // Cells Per Unit Value Adjuster
-                    create_value_adjuster(
+                    spawn_value_adjuster(
                         parent,
                         "Cells Per Unit",
                         settings.cells_per_unit,
@@ -132,7 +133,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     );
 
                     // Number of Plates Value Adjuster
-                    create_value_adjuster(
+                    spawn_value_adjuster(
                         parent,
                         "Number of Plates",
                         settings.num_plates as f32,
@@ -143,7 +144,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     );
 
                     // Number of Micro Plates Value Adjuster
-                    create_value_adjuster(
+                    spawn_value_adjuster(
                         parent,
                         "Number of Micro Plates",
                         settings.num_micro_plates as f32,
@@ -154,7 +155,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     );
 
                     // Show Arrows Toggle
-                    create_toggle(parent, "Show Direction Arrows", settings.show_arrows);
+                    spawn_toggle(parent, "Show Direction Arrows", settings.show_arrows);
                 });
 
             // Buttons container
@@ -167,7 +168,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                 })
                 .with_children(|parent| {
                     // Generate Planet button
-                    create_button(
+                    spawn_button(
                         parent,
                         "Generate Planet",
                         Color::srgb(0.2, 0.7, 0.2),
@@ -176,7 +177,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     );
 
                     // Quit button
-                    create_button(
+                    spawn_button(
                         parent,
                         "Quit",
                         Color::srgb(0.7, 0.2, 0.2),

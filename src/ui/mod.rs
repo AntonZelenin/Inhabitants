@@ -1,4 +1,6 @@
 pub mod components;
+pub mod widgets;
+mod bundles;
 
 use bevy::prelude::*;
 use components::*;
