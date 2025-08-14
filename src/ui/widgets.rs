@@ -37,7 +37,7 @@ pub fn spawn_value_adjuster(
             // Label
             parent.spawn(
                 LabelBundle::new(label, 16.0, Color::WHITE)
-                    .with_margin(UiRect::bottom(Val::Px(5.0)))
+                    .with_margin(UiRect::bottom(Val::Px(5.0))),
             );
 
             // Value control row
@@ -48,60 +48,64 @@ pub fn spawn_value_adjuster(
                 ..default()
             };
 
-            parent
-                .spawn(control_row_node)
-                .with_children(|parent| {
-                    let button_config = ButtonConfig {
-                        normal_color: Color::srgb(0.5, 0.5, 0.5),
-                        hover_color: Color::srgb(0.6, 0.6, 0.6),
-                        pressed_color: Color::srgb(0.4, 0.4, 0.4),
-                    };
-
-                    // Decrement button
-                    parent.spawn((
-                        SmallButtonBundle::new(30.0, Color::srgb(0.5, 0.5, 0.5)),
+            parent.spawn(control_row_node).with_children(|parent| {
+                // Decrement button
+                parent
+                    .spawn((
+                        SmallButtonBundle::new(
+                            30.0,
+                            Color::srgb(0.5, 0.5, 0.5),
+                            Color::srgb(0.6, 0.6, 0.6),
+                            Color::srgb(0.4, 0.4, 0.4),
+                        ),
+                        BackgroundColor(Color::srgb(0.5, 0.5, 0.5)), // Initial color matches normal_color
                         UIButton,
                         DecrementButton,
                         AdjusterTarget(adjuster_entity),
-                        button_config.clone(),
                     ))
                     .with_children(|parent| {
                         parent.spawn(LabelBundle::new("-", 18.0, Color::WHITE));
                     });
 
-                    // Value display
-                    let display_value = if is_integer {
-                        format!("{}", initial_value as i32)
-                    } else {
-                        format!("{:.1}", initial_value)
-                    };
+                // Value display
+                let display_value = if is_integer {
+                    format!("{}", initial_value as i32)
+                } else {
+                    format!("{:.1}", initial_value)
+                };
 
-                    let display_node = Node {
-                        width: Val::Px(80.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    };
+                let display_node = Node {
+                    width: Val::Px(80.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                };
 
-                    parent.spawn((
-                        LabelBundle::new(&display_value, 16.0, Color::srgb(0.8, 0.8, 1.0))
-                            .with_node(display_node),
-                        ValueDisplay,
-                        AdjusterTarget(adjuster_entity),
-                    ));
+                parent.spawn((
+                    LabelBundle::new(&display_value, 16.0, Color::srgb(0.8, 0.8, 1.0))
+                        .with_node(display_node),
+                    ValueDisplay,
+                    AdjusterTarget(adjuster_entity),
+                ));
 
-                    // Increment button
-                    parent.spawn((
-                        SmallButtonBundle::new(30.0, Color::srgb(0.5, 0.5, 0.5)),
+                // Increment button
+                parent
+                    .spawn((
+                        SmallButtonBundle::new(
+                            30.0,
+                            Color::srgb(0.5, 0.5, 0.5),
+                            Color::srgb(0.6, 0.6, 0.6),
+                            Color::srgb(0.4, 0.4, 0.4),
+                        ),
+                        BackgroundColor(Color::srgb(0.5, 0.5, 0.5)), // Initial color matches normal_color
                         UIButton,
                         IncrementButton,
                         AdjusterTarget(adjuster_entity),
-                        button_config,
                     ))
                     .with_children(|parent| {
                         parent.spawn(LabelBundle::new("+", 18.0, Color::WHITE));
                     });
-                });
+            });
         })
         .id()
 }

@@ -1,3 +1,4 @@
+use crate::ui::components::ButtonConfig;
 use bevy::color::Color;
 use bevy::prelude::*;
 
@@ -37,13 +38,13 @@ impl LabelBundle {
 pub struct SmallButtonBundle {
     pub button: Button,
     pub node: Node,
-    pub background: BackgroundColor,
     pub border_radius: BorderRadius,
     pub interaction: Interaction,
+    pub config: ButtonConfig,
 }
 
 impl SmallButtonBundle {
-    pub fn new(size: f32, background_color: Color) -> Self {
+    pub fn new(size: f32, normal_color: Color, hover_color: Color, pressed_color: Color) -> Self {
         Self {
             button: Button,
             node: Node {
@@ -53,9 +54,13 @@ impl SmallButtonBundle {
                 align_items: AlignItems::Center,
                 ..default()
             },
-            background: BackgroundColor(background_color),
             border_radius: BorderRadius::all(Val::Px(5.0)),
             interaction: Interaction::None,
+            config: ButtonConfig {
+                normal_color,
+                hover_color,
+                pressed_color,
+            },
         }
     }
 }
