@@ -1,4 +1,5 @@
 use crate::helpers::mesh::arrow_mesh;
+use crate::menu::PlanetGenerationSettings;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::math::{Quat, Vec3};
@@ -13,8 +14,13 @@ pub fn spawn_planet(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    settings: Res<PlanetGenerationSettings>,
 ) {
-    let generator = PlanetGenerator::new(20.0);
+    let mut generator = PlanetGenerator::new(settings.radius);
+    generator.cells_per_unit = settings.cells_per_unit;
+    generator.num_plates = settings.num_plates;
+    generator.num_micro_plates = settings.num_micro_plates;
+
     let planet_data = generator.generate();
 
     let mesh = build_stitched_planet_mesh(&planet_data);
@@ -32,7 +38,9 @@ pub fn spawn_planet(
         GlobalTransform::default(),
     ));
 
-    spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+    if settings.show_arrows {
+        spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+    }
 }
 
 fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
