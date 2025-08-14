@@ -36,7 +36,7 @@ pub fn spawn_value_adjuster(
 
             // Label
             parent.spawn(
-                UILabelBundle::new(label, 16.0, Color::WHITE)
+                LabelBundle::new(label, 16.0, Color::WHITE)
                     .with_margin(UiRect::bottom(Val::Px(5.0)))
             );
 
@@ -66,7 +66,7 @@ pub fn spawn_value_adjuster(
                         button_config.clone(),
                     ))
                     .with_children(|parent| {
-                        parent.spawn(UILabelBundle::new("-", 18.0, Color::WHITE));
+                        parent.spawn(LabelBundle::new("-", 18.0, Color::WHITE));
                     });
 
                     // Value display
@@ -84,7 +84,7 @@ pub fn spawn_value_adjuster(
                     };
 
                     parent.spawn((
-                        UILabelBundle::new(&display_value, 16.0, Color::srgb(0.8, 0.8, 1.0))
+                        LabelBundle::new(&display_value, 16.0, Color::srgb(0.8, 0.8, 1.0))
                             .with_node(display_node),
                         ValueDisplay,
                         AdjusterTarget(adjuster_entity),
@@ -99,7 +99,7 @@ pub fn spawn_value_adjuster(
                         button_config,
                     ))
                     .with_children(|parent| {
-                        parent.spawn(UILabelBundle::new("+", 18.0, Color::WHITE));
+                        parent.spawn(LabelBundle::new("+", 18.0, Color::WHITE));
                     });
                 });
         })
@@ -138,7 +138,7 @@ pub fn spawn_button(
             button_config,
         ))
         .with_children(|parent| {
-            parent.spawn(UILabelBundle::new(text, 18.0, Color::WHITE));
+            parent.spawn(LabelBundle::new(text, 18.0, Color::WHITE));
         })
         .id()
 }
@@ -160,7 +160,7 @@ pub fn spawn_toggle(
         .spawn(container_node)
         .with_children(|parent| {
             // Label
-            parent.spawn(UILabelBundle::new(label, 16.0, Color::WHITE));
+            parent.spawn(LabelBundle::new(label, 16.0, Color::WHITE));
 
             // Toggle button
             let toggle_button_node = Node {
@@ -192,7 +192,7 @@ pub fn spawn_toggle(
                 .with_children(|parent| {
                     let toggle_text = if initial_state { "ON" } else { "OFF" };
 
-                    parent.spawn(UILabelBundle::new(toggle_text, 14.0, Color::WHITE));
+                    parent.spawn(LabelBundle::new(toggle_text, 14.0, Color::WHITE));
                 });
         })
         .id()

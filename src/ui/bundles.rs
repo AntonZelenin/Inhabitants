@@ -2,14 +2,14 @@ use bevy::color::Color;
 use bevy::prelude::*;
 
 #[derive(Bundle)]
-pub struct UILabelBundle {
+pub struct LabelBundle {
     pub text: Text,
     pub font: TextFont,
     pub color: TextColor,
     pub node: Node,
 }
 
-impl UILabelBundle {
+impl LabelBundle {
     pub fn new(text: &str, font_size: f32, color: Color) -> Self {
         Self {
             text: Text::new(text),
