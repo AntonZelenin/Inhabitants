@@ -120,13 +120,13 @@ pub fn handle_slider_interactions(
         (Changed<Interaction>, With<SliderHandle>),
     >,
     mut slider_query: Query<&mut Slider>,
-    track_query: Query<(&Node, &SliderTarget), (With<SliderTrack>, Without<SliderHandle>)>,
-    windows: Query<&Window>,
+    track_query: Query<
+        (&Node, &SliderTarget, &RelativeCursorPosition),
+        (With<SliderTrack>, Without<SliderHandle>),
+    >,
     mouse_input: Res<ButtonInput<MouseButton>>,
     mut drag_state: Local<Option<Entity>>, // Just store which slider is being dragged
 ) {
-    let window = windows.single().expect("Expected a single window");
-
     // Stop dragging immediately on mouse release
     if !mouse_input.pressed(MouseButton::Left) {
         *drag_state = None;
@@ -148,31 +148,25 @@ pub fn handle_slider_interactions(
         }
     }
 
-    // While dragging, map cursor position directly to slider value (no delta!)
+    // While dragging, use RelativeCursorPosition for EXACT positioning
     if let Some(slider_entity) = *drag_state {
-        if let Some(cursor_pos) = window.cursor_position() {
-            if let Ok(mut slider) = slider_query.get_mut(slider_entity) {
-                if let Some((track_node, _)) = track_query.iter().find(|(_, t)| t.0 == slider_entity) {
-                    if let Val::Px(track_width) = track_node.width {
+        if let Ok(mut slider) = slider_query.get_mut(slider_entity) {
+            // Find the track with RelativeCursorPosition
+            if let Some((track_node, _, rel_cursor)) = track_query
+                .iter()
+                .find(|(_, target, _)| target.0 == slider_entity)
+            {
+                if let Val::Px(track_width) = track_node.width {
+                    if let Some(normalized_pos) = rel_cursor.normalized {
                         let handle_size = 18.0;
                         let usable_track_width = track_width - handle_size;
 
-                        // Map cursor to track - this is the key fix!
-                        // Assume UI panel is centered and 400px wide
-                        let window_width = window.width();
-                        let panel_width = 400.0;
-                        let panel_left = (window_width - panel_width) * 0.5;
-                        let track_margin = 20.0 + 2.0; // padding + boundary marker
-                        let track_left = panel_left + track_margin;
-
-                        // Map cursor X to position within track
-                        let relative_x = (cursor_pos.x - track_left).clamp(0.0, track_width);
-
-                        // Center the handle on cursor
-                        let handle_center_x = relative_x;
+                        // cursor X is normalized [0..1] within the track
+                        // Convert to handle center position, then to handle left position
+                        let handle_center_x = normalized_pos.x * track_width;
                         let handle_left = (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
 
-                        // Convert position to value
+                        // Convert position to slider value
                         let position_ratio = if usable_track_width > 0.0 {
                             handle_left / usable_track_width
                         } else {

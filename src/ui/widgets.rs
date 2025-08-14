@@ -179,6 +179,7 @@ pub fn spawn_slider(
                             ),
                             SliderTrack,
                             SliderTarget(slider_entity),
+                            RelativeCursorPosition::default(),
                         ))
                         .with_children(|parent| {
                             // Track center line
