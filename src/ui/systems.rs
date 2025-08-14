@@ -123,7 +123,6 @@ pub fn handle_slider_interactions(
     track_query: Query<(&Node, &SliderTarget), (With<SliderTrack>, Without<SliderHandle>)>,
     windows: Query<&Window>,
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<MouseMotion>,
     mut drag_state: Local<Option<Entity>>, // Just store which slider is being dragged
 ) {
     let window = windows.single().expect("Expected a single window");
@@ -131,8 +130,6 @@ pub fn handle_slider_interactions(
     // Stop dragging immediately on mouse release
     if !mouse_input.pressed(MouseButton::Left) {
         *drag_state = None;
-        // drain events
-        for _ in mouse_motion.read() {}
         return;
     }
 
@@ -141,8 +138,6 @@ pub fn handle_slider_interactions(
         match *interaction {
             Interaction::Pressed => {
                 *drag_state = Some(target.0);
-                // drain stale events
-                for _ in mouse_motion.read() {}
             }
             Interaction::None => {
                 if matches!(*drag_state, Some(id) if id == target.0) {
@@ -153,38 +148,46 @@ pub fn handle_slider_interactions(
         }
     }
 
-    // While dragging, update using mouse delta for movement
+    // While dragging, map cursor position directly to slider value (no delta!)
     if let Some(slider_entity) = *drag_state {
-        let mut dx = 0.0;
-        for ev in mouse_motion.read() {
-            dx += ev.delta.x;
-        }
+        if let Some(cursor_pos) = window.cursor_position() {
+            if let Ok(mut slider) = slider_query.get_mut(slider_entity) {
+                if let Some((track_node, _)) = track_query.iter().find(|(_, t)| t.0 == slider_entity) {
+                    if let Val::Px(track_width) = track_node.width {
+                        let handle_size = 18.0;
+                        let usable_track_width = track_width - handle_size;
 
-        // Update slider even if dx is 0 (for initial click without movement)
-        if let Ok(mut slider) = slider_query.get_mut(slider_entity) {
-            if let Some((track_node, _)) = track_query.iter().find(|(_, t)| t.0 == slider_entity) {
-                if let Val::Px(track_width) = track_node.width {
-                    let handle_size = 18.0;
-                    let usable = (track_width - handle_size).max(0.0);
+                        // Map cursor to track - this is the key fix!
+                        // Assume UI panel is centered and 400px wide
+                        let window_width = window.width();
+                        let panel_width = 400.0;
+                        let panel_left = (window_width - panel_width) * 0.5;
+                        let track_margin = 20.0 + 2.0; // padding + boundary marker
+                        let track_left = panel_left + track_margin;
 
-                    // Convert current value to position
-                    let current_ratio = (slider.current_value - slider.min_value)
-                        / (slider.max_value - slider.min_value);
-                    let current_left = current_ratio * usable;
+                        // Map cursor X to position within track
+                        let relative_x = (cursor_pos.x - track_left).clamp(0.0, track_width);
 
-                    // Apply mouse delta (will be 0 on initial click, but that's fine)
-                    let new_left = (current_left + dx).clamp(0.0, usable);
+                        // Center the handle on cursor
+                        let handle_center_x = relative_x;
+                        let handle_left = (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
 
-                    // Convert back to value
-                    let new_ratio = if usable > 0.0 { new_left / usable } else { 0.0 };
-                    let range = slider.max_value - slider.min_value;
-                    let new_value = slider.min_value + new_ratio * range;
+                        // Convert position to value
+                        let position_ratio = if usable_track_width > 0.0 {
+                            handle_left / usable_track_width
+                        } else {
+                            0.0
+                        };
 
-                    slider.current_value = if slider.is_integer {
-                        new_value.round().clamp(slider.min_value, slider.max_value)
-                    } else {
-                        new_value.clamp(slider.min_value, slider.max_value)
-                    };
+                        let value_range = slider.max_value - slider.min_value;
+                        let new_value = slider.min_value + position_ratio * value_range;
+
+                        slider.current_value = if slider.is_integer {
+                            new_value.round().clamp(slider.min_value, slider.max_value)
+                        } else {
+                            new_value.clamp(slider.min_value, slider.max_value)
+                        };
+                    }
                 }
             }
         }

@@ -115,7 +115,6 @@ pub struct SliderHandleBundle {
     pub node: Node,
     pub background: BackgroundColor,
     pub border_radius: BorderRadius,
-    pub interaction: Interaction,
 }
 
 impl SliderHandleBundle {
@@ -132,7 +131,6 @@ impl SliderHandleBundle {
             },
             background: BackgroundColor(color),
             border_radius: BorderRadius::all(Val::Px(size / 2.0)),
-            interaction: Interaction::None,
         }
     }
 
