@@ -13,10 +13,13 @@ impl Plugin for UIPlugin {
             Update,
             (
                 systems::handle_button_interactions,
+                systems::handle_slider_interactions,
                 systems::handle_toggle_interactions,
                 systems::handle_value_adjuster_interactions,
                 systems::update_toggle_text,
                 systems::update_value_displays,
+                systems::update_slider_handles,
+                systems::update_slider_value_displays,
             ),
         );
     }

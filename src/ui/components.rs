@@ -38,3 +38,23 @@ pub struct ValueDisplay;
 
 #[derive(Component)]
 pub struct AdjusterTarget(pub Entity);
+
+#[derive(Component)]
+pub struct Slider {
+    pub current_value: f32,
+    pub min_value: f32,
+    pub max_value: f32,
+    pub is_integer: bool,
+}
+
+#[derive(Component)]
+pub struct SliderTrack;
+
+#[derive(Component)]
+pub struct SliderHandle;
+
+#[derive(Component)]
+pub struct SliderTarget(pub Entity);
+
+#[derive(Component)]
+pub struct SliderValueDisplay;

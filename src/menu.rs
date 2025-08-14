@@ -110,48 +110,48 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                     BorderRadius::all(Val::Px(10.0)),
                 ))
                 .with_children(|parent| {
-                    // Planet Radius Value Adjuster
-                    spawn_value_adjuster(
+                    // Planet Radius Slider (changed from value adjuster)
+                    spawn_slider(
                         parent,
                         "Planet Radius",
                         settings.radius,
                         5.0,
                         50.0,
-                        1.0,
                         false,
+                        350.0,
                     );
 
-                    // Cells Per Unit Value Adjuster
-                    spawn_value_adjuster(
+                    // Cells Per Unit Slider (changed from value adjuster)
+                    spawn_slider(
                         parent,
                         "Cells Per Unit",
                         settings.cells_per_unit,
                         0.5,
                         5.0,
-                        0.1,
                         false,
+                        350.0,
                     );
 
-                    // Number of Plates Value Adjuster
-                    spawn_value_adjuster(
+                    // Number of Plates Slider (changed from value adjuster)
+                    spawn_slider(
                         parent,
                         "Number of Plates",
                         settings.num_plates as f32,
                         5.0,
                         30.0,
-                        1.0,
                         true,
+                        350.0,
                     );
 
-                    // Number of Micro Plates Value Adjuster
-                    spawn_value_adjuster(
+                    // Number of Micro Plates Slider (changed from value adjuster)
+                    spawn_slider(
                         parent,
                         "Number of Micro Plates",
                         settings.num_micro_plates as f32,
                         0.0,
                         20.0,
-                        1.0,
                         true,
+                        350.0,
                     );
 
                     // Show Arrows Toggle
@@ -191,32 +191,23 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
 // System to add marker components after UI is created
 fn add_menu_markers(
     mut commands: Commands,
-    value_adjusters: Query<(Entity, &ValueAdjuster), Without<RadiusSlider>>,
+    sliders: Query<(Entity, &Slider), Without<RadiusSlider>>,
     toggles: Query<(Entity, &ToggleState), Without<ShowArrowsToggle>>,
     buttons: Query<(Entity, &UIButton), (Without<GeneratePlanetButton>, Without<QuitButton>)>,
     text_query: Query<&Text>,
     children_query: Query<&Children>,
 ) {
-    // Add marker components to value adjusters based on their initial values
-    let mut adjusters: Vec<_> = value_adjusters.iter().collect();
-    adjusters.sort_by(|a, b| a.1.current_value.partial_cmp(&b.1.current_value).unwrap());
-
-    if adjusters.len() >= 4 {
-        // Based on default values:
-        // cells_per_unit: 2.0, num_micro_plates: 5.0, num_plates: 15.0, radius: 20.0
-
-        // Find adjusters by their initial values
-        for (entity, adjuster) in &adjusters {
-            let value = adjuster.current_value;
-            if (value - 2.0).abs() < 0.1 && !adjuster.is_integer {
-                commands.entity(*entity).insert(CellsPerUnitSlider);
-            } else if (value - 5.0).abs() < 0.1 && adjuster.is_integer {
-                commands.entity(*entity).insert(NumMicroPlatesSlider);
-            } else if (value - 15.0).abs() < 0.1 && adjuster.is_integer {
-                commands.entity(*entity).insert(NumPlatesSlider);
-            } else if (value - 20.0).abs() < 0.1 && !adjuster.is_integer {
-                commands.entity(*entity).insert(RadiusSlider);
-            }
+    // Add marker components to sliders based on their initial values
+    for (entity, slider) in sliders.iter() {
+        let value = slider.current_value;
+        if (value - 20.0).abs() < 0.1 && !slider.is_integer {
+            commands.entity(entity).insert(RadiusSlider);
+        } else if (value - 2.0).abs() < 0.1 && !slider.is_integer {
+            commands.entity(entity).insert(CellsPerUnitSlider);
+        } else if (value - 15.0).abs() < 0.1 && slider.is_integer {
+            commands.entity(entity).insert(NumPlatesSlider);
+        } else if (value - 5.0).abs() < 0.1 && slider.is_integer {
+            commands.entity(entity).insert(NumMicroPlatesSlider);
         }
     }
 
@@ -272,31 +263,32 @@ fn handle_menu_buttons(
 }
 
 fn sync_settings_with_sliders(
-    radius_query: Query<&ValueAdjuster, (With<RadiusSlider>, Changed<ValueAdjuster>)>,
-    cells_query: Query<&ValueAdjuster, (With<CellsPerUnitSlider>, Changed<ValueAdjuster>)>,
-    plates_query: Query<&ValueAdjuster, (With<NumPlatesSlider>, Changed<ValueAdjuster>)>,
-    micro_plates_query: Query<&ValueAdjuster, (With<NumMicroPlatesSlider>, Changed<ValueAdjuster>)>,
     toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    // All slider queries
+    radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
+    cells_slider_query: Query<&Slider, (With<CellsPerUnitSlider>, Changed<Slider>)>,
+    plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
+    micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     mut settings: ResMut<PlanetGenerationSettings>,
 ) {
-    // Update radius
-    for adjuster in &radius_query {
-        settings.radius = adjuster.current_value;
+    // Update radius from slider
+    for slider in &radius_slider_query {
+        settings.radius = slider.current_value;
     }
 
-    // Update cells per unit
-    for adjuster in &cells_query {
-        settings.cells_per_unit = adjuster.current_value;
+    // Update cells per unit from slider
+    for slider in &cells_slider_query {
+        settings.cells_per_unit = slider.current_value;
     }
 
-    // Update number of plates
-    for adjuster in &plates_query {
-        settings.num_plates = adjuster.current_value as usize;
+    // Update number of plates from slider
+    for slider in &plates_slider_query {
+        settings.num_plates = slider.current_value as usize;
     }
 
-    // Update number of micro plates
-    for adjuster in &micro_plates_query {
-        settings.num_micro_plates = adjuster.current_value as usize;
+    // Update number of micro plates from slider
+    for slider in &micro_plates_slider_query {
+        settings.num_micro_plates = slider.current_value as usize;
     }
 
     // Update show arrows toggle
