@@ -66,28 +66,14 @@ pub fn spawn_slider(
     is_integer: bool,
     width: f32,
 ) -> Entity {
-    let slider = Slider {
-        current_value: initial_value,
-        min_value,
-        max_value,
-        is_integer,
-    };
-
     parent
-        .spawn(SliderBundle::new(width, 80.0, slider))
+        .spawn(SliderWidgetBundle::new(width, initial_value, min_value, max_value, is_integer))
         .with_children(|parent| {
             let slider_entity = parent.target_entity();
 
             // First row: Title on left + Value on right
             parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    align_items: AlignItems::Center,
-                    width: Val::Percent(100.0),
-                    margin: UiRect::bottom(Val::Px(8.0)),
-                    ..default()
-                })
+                .spawn(SliderTitleRowBundle::new())
                 .with_children(|parent| {
                     // Title on the left
                     parent.spawn(LabelBundle::new(label, 16.0, Color::WHITE));
@@ -107,18 +93,11 @@ pub fn spawn_slider(
                 });
 
             // Second row: The slider track and controls
-            let track_width = width - 40.0; // Margin for the track
+            let track_width = width - 40.0;
             let track_height = 8.0;
 
             parent
-                .spawn(Node {
-                    width: Val::Px(width),
-                    height: Val::Px(24.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(4.0)),
-                    ..default()
-                })
+                .spawn(SliderTrackRowBundle::new(width))
                 .with_children(|parent| {
                     // Left boundary marker
                     parent.spawn((
@@ -177,40 +156,6 @@ pub fn spawn_slider(
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.6, 0.6, 0.6)),
-                    ));
-                });
-
-            // Min/Max value labels (smaller, at the bottom)
-            parent
-                .spawn(Node {
-                    width: Val::Px(width),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    ..default()
-                })
-                .with_children(|parent| {
-                    // Min value label
-                    let min_text = if is_integer {
-                        format!("{}", min_value as i32)
-                    } else {
-                        format!("{:.1}", min_value)
-                    };
-                    parent.spawn(LabelBundle::new(
-                        &min_text,
-                        12.0,
-                        Color::srgb(0.6, 0.6, 0.6),
-                    ));
-
-                    // Max value label
-                    let max_text = if is_integer {
-                        format!("{}", max_value as i32)
-                    } else {
-                        format!("{:.1}", max_value)
-                    };
-                    parent.spawn(LabelBundle::new(
-                        &max_text,
-                        12.0,
-                        Color::srgb(0.6, 0.6, 0.6),
                     ));
                 });
         })

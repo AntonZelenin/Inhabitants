@@ -9,8 +9,7 @@ impl Plugin for LoadingPlugin {
         app.add_loading_state(
             LoadingState::new(GameState::Loading)
                 .continue_to_state(GameState::MainMenu)
-                .load_collection::<ModelAssets>()
-            ,
+                .load_collection::<ModelAssets>(),
         );
     }
 }

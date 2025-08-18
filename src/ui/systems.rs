@@ -163,7 +163,8 @@ pub fn handle_slider_interactions(
                         // cursor X is normalized [0..1] within the track
                         // Convert to handle center position, then to handle left position
                         let handle_center_x = normalized_pos.x * track_width;
-                        let handle_left = (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
+                        let handle_left =
+                            (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
 
                         // Convert position to slider value
                         let position_ratio = if usable_track_width > 0.0 {

@@ -67,27 +67,6 @@ impl ButtonBundle {
 }
 
 #[derive(Bundle)]
-pub struct SliderBundle {
-    pub node: Node,
-    pub slider: Slider,
-}
-
-impl SliderBundle {
-    pub fn new(width: f32, height: f32, slider: Slider) -> Self {
-        Self {
-            node: Node {
-                flex_direction: FlexDirection::Column,
-                width: Val::Px(width),
-                height: Val::Px(height),
-                margin: UiRect::bottom(Val::Px(15.0)), // Margin for the whole widget
-                ..default()
-            },
-            slider,
-        }
-    }
-}
-
-#[derive(Bundle)]
 pub struct SliderTrackBundle {
     pub node: Node,
     pub background: BackgroundColor,
@@ -174,6 +153,81 @@ impl ToggleBundle {
             ui_toggle: UIToggle,
             toggle_state: ToggleState {
                 is_on: initial_state,
+            },
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct SliderWidgetBundle {
+    pub node: Node,
+    pub slider: Slider,
+    pub slider_value_display: SliderValueDisplay,
+}
+
+impl SliderWidgetBundle {
+    pub fn new(
+        width: f32,
+        initial_value: f32,
+        min_value: f32,
+        max_value: f32,
+        is_integer: bool,
+    ) -> Self {
+        let slider = Slider {
+            current_value: initial_value,
+            min_value,
+            max_value,
+            is_integer,
+        };
+
+        Self {
+            node: Node {
+                flex_direction: FlexDirection::Column,
+                width: Val::Px(width),
+                margin: UiRect::bottom(Val::Px(15.0)), // Margin for the whole widget
+                ..default()
+            },
+            slider,
+            slider_value_display: SliderValueDisplay,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct SliderTitleRowBundle {
+    pub node: Node,
+}
+
+impl SliderTitleRowBundle {
+    pub fn new() -> Self {
+        Self {
+            node: Node {
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                width: Val::Percent(100.0),
+                margin: UiRect::bottom(Val::Px(8.0)),
+                ..default()
+            },
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct SliderTrackRowBundle {
+    pub node: Node,
+}
+
+impl SliderTrackRowBundle {
+    pub fn new(width: f32) -> Self {
+        Self {
+            node: Node {
+                width: Val::Px(width),
+                height: Val::Px(24.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                margin: UiRect::bottom(Val::Px(4.0)),
+                ..default()
             },
         }
     }
