@@ -1,8 +1,8 @@
+use crate::ui::bundles::*;
+use crate::ui::components::*;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
-use crate::ui::bundles::*;
-use crate::ui::components::*;
 
 pub fn spawn_button(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
@@ -11,29 +11,14 @@ pub fn spawn_button(
     hover_color: Color,
     pressed_color: Color,
 ) -> Entity {
-    let button_node = Node {
-        width: Val::Px(200.0),
-        height: Val::Px(50.0),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-
-    let button_config = ButtonConfig {
-        normal_color,
-        hover_color,
-        pressed_color,
-    };
-
     parent
-        .spawn((
-            Button,
-            button_node,
-            BackgroundColor(normal_color),
-            BorderRadius::all(Val::Px(8.0)),
-            Interaction::None,
-            UIButton,
-            button_config,
+        .spawn(ButtonBundle::new(
+            200.0,
+            50.0,
+            normal_color,
+            hover_color,
+            pressed_color,
+            8.0,
         ))
         .with_children(|parent| {
             parent.spawn(LabelBundle::new(text, 18.0, Color::WHITE));
@@ -60,33 +45,9 @@ pub fn spawn_toggle(
             // Label
             parent.spawn(LabelBundle::new(label, 16.0, Color::WHITE));
 
-            // Toggle button
-            let toggle_button_node = Node {
-                width: Val::Px(60.0),
-                height: Val::Px(30.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            };
-
-            let background_color = if initial_state {
-                Color::srgb(0.3, 0.7, 0.3)
-            } else {
-                Color::srgb(0.6, 0.6, 0.6)
-            };
-
+            // Toggle button using the new bundle
             parent
-                .spawn((
-                    Button,
-                    toggle_button_node,
-                    BackgroundColor(background_color),
-                    BorderRadius::all(Val::Px(15.0)),
-                    Interaction::None,
-                    UIToggle,
-                    ToggleState {
-                        is_on: initial_state,
-                    },
-                ))
+                .spawn(ToggleBundle::new(60.0, 30.0, initial_state, 15.0))
                 .with_children(|parent| {
                     let toggle_text = if initial_state { "ON" } else { "OFF" };
 
