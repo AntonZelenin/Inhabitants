@@ -10,4 +10,6 @@ pub(crate) enum GameState {
     SaveGame,
     InGame,
     MainMenu,
+    /// New state for showing both menu and planet simultaneously
+    PlanetWithMenu,
 }

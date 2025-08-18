@@ -1,5 +1,6 @@
 use crate::helpers::mesh::arrow_mesh;
 use crate::menu::PlanetGenerationSettings;
+use crate::planet::PlanetEntity;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::math::{Quat, Vec3};
@@ -36,6 +37,7 @@ pub fn spawn_planet(
         MeshMaterial3d(material_handle),
         Transform::from_xyz(0.0, 0.0, 0.0),
         GlobalTransform::default(),
+        PlanetEntity, // Add marker component
     ));
 
     if settings.show_arrows {
@@ -189,7 +191,18 @@ fn spawn_plate_direction_arrows(
                     .with_rotation(rotation)
                     .with_scale(Vec3::splat(arrow_scale)),
                 GlobalTransform::default(),
+                PlanetEntity, // Add marker component to arrows too
             ));
         }
+    }
+}
+
+/// System to despawn all planet entities
+pub fn despawn_planet(
+    mut commands: Commands,
+    planet_entities: Query<Entity, With<PlanetEntity>>,
+) {
+    for entity in planet_entities.iter() {
+        commands.entity(entity).despawn();
     }
 }

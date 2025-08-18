@@ -11,10 +11,10 @@ use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
 use crate::ui::UIPlugin;
+use crate::planet::systems::{despawn_planet, spawn_planet};
 
 use crate::core::camera::CameraPlugin;
 use crate::core::state::GameState;
-use crate::planet::systems::spawn_planet;
 use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::LogDiagnosticsPlugin;
@@ -32,7 +32,10 @@ impl Plugin for GamePlugin {
                 MenuPlugin,
                 UIPlugin,
             ))
-            .add_systems(OnEnter(GameState::InGame), spawn_planet)
+            .add_systems(OnEnter(GameState::InGame), (spawn_planet, transition_to_planet_menu))
+            .add_systems(OnExit(GameState::InGame), despawn_planet)
+            .add_systems(OnEnter(GameState::PlanetWithMenu), spawn_planet)
+            .add_systems(OnExit(GameState::PlanetWithMenu), despawn_planet)
             .add_systems(OnEnter(GameState::Loading), || {
                 // Transition to MainMenu after loading
             });
@@ -42,4 +45,9 @@ impl Plugin for GamePlugin {
             app.add_plugins(LogDiagnosticsPlugin::default());
         }
     }
+}
+
+fn transition_to_planet_menu(mut next_state: ResMut<NextState<GameState>>) {
+    // Immediately transition back to PlanetWithMenu after spawning planet
+    next_state.set(GameState::PlanetWithMenu);
 }
