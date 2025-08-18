@@ -1,6 +1,5 @@
 use crate::ui::components::*;
 use bevy::color::Color;
-use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
@@ -115,7 +114,7 @@ pub fn update_value_displays(
 }
 
 pub fn handle_slider_interactions(
-    mut slider_handle_query: Query<
+    slider_handle_query: Query<
         (&Interaction, &SliderTarget),
         (Changed<Interaction>, With<SliderHandle>),
     >,
