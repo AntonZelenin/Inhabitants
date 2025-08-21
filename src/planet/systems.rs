@@ -170,7 +170,6 @@ fn spawn_plate_direction_arrows(
             // Get the movement direction of the plate
             let direction =
                 Vec3::new(plate.direction.x, plate.direction.y, plate.direction.z).normalize();
-            info!("Plate {} direction: {:?}", plate_idx, direction);
 
             // Get the surface normal at this position (pointing outward from center)
             let surface_normal = center.normalize();

@@ -3,11 +3,16 @@ use crate::ui::components::*;
 use crate::ui::widgets::*;
 use bevy::prelude::*;
 
+// Event for when any settings value changes
+#[derive(Event)]
+pub struct SettingsChanged;
+
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlanetGenerationSettings>()
+            .add_event::<SettingsChanged>()
             .add_systems(
                 OnEnter(GameState::MainMenu),
                 (setup_main_menu, add_markers).chain(),
@@ -20,7 +25,11 @@ impl Plugin for MenuPlugin {
             .add_systems(OnExit(GameState::PlanetWithMenu), cleanup_planet_menu)
             .add_systems(
                 Update,
-                (handle_buttons, sync_settings_with_sliders)
+                (
+                    handle_buttons,
+                    detect_settings_changes,
+                    update_settings_on_change,
+                )
                     .run_if(in_state(GameState::MainMenu).or(in_state(GameState::PlanetWithMenu))),
             );
     }
@@ -301,38 +310,55 @@ fn handle_buttons(
     }
 }
 
-fn sync_settings_with_sliders(
-    toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
-    // All slider queries
+// System to detect settings changes and send event
+fn detect_settings_changes(
+    mut settings_changed_events: EventWriter<SettingsChanged>,
     radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
     cells_slider_query: Query<&Slider, (With<CellsPerUnitSlider>, Changed<Slider>)>,
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
-    mut settings: ResMut<PlanetGenerationSettings>,
+    toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
 ) {
-    // Update radius from slider
-    for slider in &radius_slider_query {
-        settings.radius = slider.current_value;
-    }
+    // Check if any slider or toggle has changed and send event
+    let has_changes = !radius_slider_query.is_empty()
+        || !cells_slider_query.is_empty()
+        || !plates_slider_query.is_empty()
+        || !micro_plates_slider_query.is_empty()
+        || !toggle_query.is_empty();
 
-    // Update cells per unit from slider
-    for slider in &cells_slider_query {
-        settings.cells_per_unit = slider.current_value;
+    if has_changes {
+        info!("HAS CHANGES!!!");
+        settings_changed_events.write(SettingsChanged);
     }
+}
 
-    // Update number of plates from slider
-    for slider in &plates_slider_query {
-        settings.num_plates = slider.current_value as usize;
-    }
-
-    // Update number of micro plates from slider
-    for slider in &micro_plates_slider_query {
-        settings.num_micro_plates = slider.current_value as usize;
-    }
-
-    // Update show arrows toggle
-    for toggle_state in &toggle_query {
-        settings.show_arrows = toggle_state.is_on;
+fn update_settings_on_change(
+    mut settings_changed_events: EventReader<SettingsChanged>,
+    mut settings: ResMut<PlanetGenerationSettings>,
+    radius_slider_query: Query<&Slider, With<RadiusSlider>>,
+    cells_slider_query: Query<&Slider, With<CellsPerUnitSlider>>,
+    plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
+    micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
+    toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+) {
+    // Only update settings if we received a change event
+    for _ in settings_changed_events.read() {
+        // Update settings from current slider and toggle values
+        for slider in &radius_slider_query {
+            settings.radius = slider.current_value;
+        }
+        for slider in &cells_slider_query {
+            settings.cells_per_unit = slider.current_value;
+        }
+        for slider in &plates_slider_query {
+            settings.num_plates = slider.current_value as usize;
+        }
+        for slider in &micro_plates_slider_query {
+            settings.num_micro_plates = slider.current_value as usize;
+        }
+        for toggle_state in &toggle_query {
+            settings.show_arrows = toggle_state.is_on;
+        }
     }
 }
 
