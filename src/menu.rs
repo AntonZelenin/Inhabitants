@@ -10,23 +10,18 @@ impl Plugin for MenuPlugin {
         app.init_resource::<PlanetGenerationSettings>()
             .add_systems(
                 OnEnter(GameState::MainMenu),
-                (setup_main_menu, add_menu_markers).chain(),
+                (setup_main_menu, add_markers).chain(),
             )
             .add_systems(OnExit(GameState::MainMenu), cleanup_menu)
             .add_systems(
                 OnEnter(GameState::PlanetWithMenu),
-                (setup_planet_with_menu, add_planet_menu_markers).chain(),
+                (setup_planet_with_menu, add_markers).chain(),
             )
             .add_systems(OnExit(GameState::PlanetWithMenu), cleanup_planet_menu)
             .add_systems(
                 Update,
-                (handle_menu_buttons, sync_settings_with_sliders)
-                    .run_if(in_state(GameState::MainMenu)),
-            )
-            .add_systems(
-                Update,
-                (handle_planet_menu_buttons, sync_planet_settings_with_sliders)
-                    .run_if(in_state(GameState::PlanetWithMenu)),
+                (handle_buttons, sync_settings_with_sliders)
+                    .run_if(in_state(GameState::MainMenu).or(in_state(GameState::PlanetWithMenu))),
             );
     }
 }
@@ -55,10 +50,10 @@ impl Default for PlanetGenerationSettings {
 #[derive(Component)]
 struct MainMenuUI;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct GeneratePlanetButton;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct QuitButton;
 
 #[derive(Component)]
@@ -199,11 +194,11 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
 }
 
 // System to add marker components after UI is created
-fn add_menu_markers(
+fn add_markers(
     mut commands: Commands,
-    sliders: Query<(Entity, &Slider), Without<RadiusSlider>>,
-    toggles: Query<(Entity, &ToggleState), Without<ShowArrowsToggle>>,
-    buttons: Query<(Entity, &UIButton), (Without<GeneratePlanetButton>, Without<QuitButton>)>,
+    sliders: Query<(Entity, &Slider), (Without<RadiusSlider>, Without<PlanetRadiusSlider>)>,
+    toggles: Query<(Entity, &ToggleState), (Without<ShowArrowsToggle>, Without<PlanetShowArrowsToggle>)>,
+    buttons: Query<(Entity, &UIButton), (Without<GeneratePlanetButton>, Without<QuitButton>, Without<BackToMainMenuButton>)>,
     text_query: Query<&Text>,
     children_query: Query<&Children>,
 ) {
@@ -211,24 +206,29 @@ fn add_menu_markers(
     for (entity, slider) in sliders.iter() {
         let value = slider.current_value;
         if (value - 20.0).abs() < 0.1 && !slider.is_integer {
+            // Could be either main menu or planet menu radius slider
             commands.entity(entity).insert(RadiusSlider);
+            commands.entity(entity).insert(PlanetRadiusSlider);
         } else if (value - 2.0).abs() < 0.1 && !slider.is_integer {
             commands.entity(entity).insert(CellsPerUnitSlider);
+            commands.entity(entity).insert(PlanetCellsPerUnitSlider);
         } else if (value - 15.0).abs() < 0.1 && slider.is_integer {
             commands.entity(entity).insert(NumPlatesSlider);
+            commands.entity(entity).insert(PlanetNumPlatesSlider);
         } else if (value - 5.0).abs() < 0.1 && slider.is_integer {
             commands.entity(entity).insert(NumMicroPlatesSlider);
+            commands.entity(entity).insert(PlanetNumMicroPlatesSlider);
         }
     }
 
     // Add marker to toggle (there should be only one)
     for (entity, _) in toggles.iter() {
         commands.entity(entity).insert(ShowArrowsToggle);
+        commands.entity(entity).insert(PlanetShowArrowsToggle);
     }
 
     // Add markers to buttons - we need to check their text content
     for (entity, _) in buttons.iter() {
-        // Check if this button has "Generate Planet" or "Quit" text in its children
         if let Ok(children) = children_query.get(entity) {
             for child in children.iter() {
                 if let Ok(text) = text_query.get(child) {
@@ -237,6 +237,9 @@ fn add_menu_markers(
                         break;
                     } else if text.0.contains("Quit") {
                         commands.entity(entity).insert(QuitButton);
+                        break;
+                    } else if text.0.contains("Back to Main Menu") {
+                        commands.entity(entity).insert(BackToMainMenuButton);
                         break;
                     }
                 }
@@ -251,16 +254,35 @@ fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MainMenuUI>>) 
     }
 }
 
-fn handle_menu_buttons(
+fn handle_buttons(
     generate_query: Query<&Interaction, (Changed<Interaction>, With<GeneratePlanetButton>)>,
     quit_query: Query<&Interaction, (Changed<Interaction>, With<QuitButton>)>,
+    back_query: Query<&Interaction, (Changed<Interaction>, With<BackToMainMenuButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
     mut app_exit_events: EventWriter<AppExit>,
+    current_state: Res<State<GameState>>,
+    mut commands: Commands,
+    planet_entities: Query<Entity, With<crate::planet::PlanetEntity>>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
         if *interaction == Interaction::Pressed {
-            next_state.set(GameState::PlanetWithMenu);
+            match current_state.get() {
+                GameState::MainMenu => {
+                    // From main menu: go to planet with menu
+                    next_state.set(GameState::PlanetWithMenu);
+                }
+                GameState::PlanetWithMenu => {
+                    // From planet menu: regenerate planet
+                    // Despawn existing planet entities
+                    for entity in planet_entities.iter() {
+                        commands.entity(entity).despawn();
+                    }
+                    // Trigger planet regeneration by transitioning to InGame
+                    next_state.set(GameState::InGame);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -268,6 +290,13 @@ fn handle_menu_buttons(
     for interaction in &quit_query {
         if *interaction == Interaction::Pressed {
             app_exit_events.write(AppExit::Success);
+        }
+    }
+
+    // Handle Back to Main Menu button
+    for interaction in &back_query {
+        if *interaction == Interaction::Pressed {
+            next_state.set(GameState::MainMenu);
         }
     }
 }
@@ -309,9 +338,6 @@ fn sync_settings_with_sliders(
 
 #[derive(Component)]
 struct PlanetMenuUI;
-
-#[derive(Component)]
-struct RegeneratePlanetButton;
 
 #[derive(Component)]
 struct BackToMainMenuButton;
@@ -438,10 +464,10 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                         ..default()
                     });
 
-                    // Regenerate Planet button
+                    // Generate Planet button (changed from Regenerate)
                     spawn_button(
                         parent,
-                        "Regenerate Planet",
+                        "Generate Planet",
                         Color::srgb(0.2, 0.7, 0.2),
                         Color::srgb(0.3, 0.8, 0.3),
                         Color::srgb(0.1, 0.6, 0.1),
@@ -459,117 +485,8 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
         });
 }
 
-// System to add marker components for planet menu
-fn add_planet_menu_markers(
-    mut commands: Commands,
-    sliders: Query<(Entity, &Slider), Without<PlanetRadiusSlider>>,
-    toggles: Query<(Entity, &ToggleState), Without<PlanetShowArrowsToggle>>,
-    buttons: Query<(Entity, &UIButton), (Without<RegeneratePlanetButton>, Without<BackToMainMenuButton>)>,
-    text_query: Query<&Text>,
-    children_query: Query<&Children>,
-) {
-    // Add marker components to sliders based on their initial values
-    for (entity, slider) in sliders.iter() {
-        let value = slider.current_value;
-        if (value - 20.0).abs() < 0.1 && !slider.is_integer {
-            commands.entity(entity).insert(PlanetRadiusSlider);
-        } else if (value - 2.0).abs() < 0.1 && !slider.is_integer {
-            commands.entity(entity).insert(PlanetCellsPerUnitSlider);
-        } else if (value - 15.0).abs() < 0.1 && slider.is_integer {
-            commands.entity(entity).insert(PlanetNumPlatesSlider);
-        } else if (value - 5.0).abs() < 0.1 && slider.is_integer {
-            commands.entity(entity).insert(PlanetNumMicroPlatesSlider);
-        }
-    }
-
-    // Add marker to toggle (there should be only one)
-    for (entity, _) in toggles.iter() {
-        commands.entity(entity).insert(PlanetShowArrowsToggle);
-    }
-
-    // Add markers to buttons - we need to check their text content
-    for (entity, _) in buttons.iter() {
-        if let Ok(children) = children_query.get(entity) {
-            for child in children.iter() {
-                if let Ok(text) = text_query.get(child) {
-                    if text.0.contains("Regenerate Planet") {
-                        commands.entity(entity).insert(RegeneratePlanetButton);
-                        break;
-                    } else if text.0.contains("Back to Main Menu") {
-                        commands.entity(entity).insert(BackToMainMenuButton);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn cleanup_planet_menu(mut commands: Commands, query: Query<Entity, With<PlanetMenuUI>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
 }
-
-fn handle_planet_menu_buttons(
-    regenerate_query: Query<&Interaction, (Changed<Interaction>, With<RegeneratePlanetButton>)>,
-    back_query: Query<&Interaction, (Changed<Interaction>, With<BackToMainMenuButton>)>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
-    planet_entities: Query<Entity, With<crate::planet::PlanetEntity>>,
-) {
-    // Handle Regenerate Planet button
-    for interaction in &regenerate_query {
-        if *interaction == Interaction::Pressed {
-            // Despawn existing planet entities
-            for entity in planet_entities.iter() {
-                commands.entity(entity).despawn();
-            }
-            // Trigger planet regeneration by transitioning states
-            next_state.set(GameState::InGame);
-        }
-    }
-
-    // Handle Back to Main Menu button
-    for interaction in &back_query {
-        if *interaction == Interaction::Pressed {
-            next_state.set(GameState::MainMenu);
-        }
-    }
-}
-
-fn sync_planet_settings_with_sliders(
-    toggle_query: Query<&ToggleState, (With<PlanetShowArrowsToggle>, Changed<ToggleState>)>,
-    // All slider queries for planet menu
-    radius_slider_query: Query<&Slider, (With<PlanetRadiusSlider>, Changed<Slider>)>,
-    cells_slider_query: Query<&Slider, (With<PlanetCellsPerUnitSlider>, Changed<Slider>)>,
-    plates_slider_query: Query<&Slider, (With<PlanetNumPlatesSlider>, Changed<Slider>)>,
-    micro_plates_slider_query: Query<&Slider, (With<PlanetNumMicroPlatesSlider>, Changed<Slider>)>,
-    mut settings: ResMut<PlanetGenerationSettings>,
-) {
-    // Update radius from slider
-    for slider in &radius_slider_query {
-        settings.radius = slider.current_value;
-    }
-
-    // Update cells per unit from slider
-    for slider in &cells_slider_query {
-        settings.cells_per_unit = slider.current_value;
-    }
-
-    // Update number of plates from slider
-    for slider in &plates_slider_query {
-        settings.num_plates = slider.current_value as usize;
-    }
-
-    // Update number of micro plates from slider
-    for slider in &micro_plates_slider_query {
-        settings.num_micro_plates = slider.current_value as usize;
-    }
-
-    // Update show arrows toggle
-    for toggle_state in &toggle_query {
-        settings.show_arrows = toggle_state.is_on;
-    }
-}
-
