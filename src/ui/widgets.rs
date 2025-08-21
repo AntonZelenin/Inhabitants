@@ -4,21 +4,18 @@ use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-pub fn spawn_button(
+pub fn spawn_button_with_marker<T: Component>(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
     text: &str,
     normal_color: Color,
     hover_color: Color,
     pressed_color: Color,
+    marker: T,
 ) -> Entity {
     parent
-        .spawn(ButtonBundle::new(
-            200.0,
-            50.0,
-            normal_color,
-            hover_color,
-            pressed_color,
-            8.0,
+        .spawn((
+            ButtonBundle::new(200.0, 50.0, normal_color, hover_color, pressed_color, 8.0),
+            marker,
         ))
         .with_children(|parent| {
             parent.spawn(LabelBundle::new(text, 18.0, Color::WHITE));
@@ -26,10 +23,11 @@ pub fn spawn_button(
         .id()
 }
 
-pub fn spawn_toggle(
+pub fn spawn_toggle_with_marker<T: Component>(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
     label: &str,
     initial_state: bool,
+    marker: T,
 ) -> Entity {
     let container_node = Node {
         flex_direction: FlexDirection::Row,
@@ -47,7 +45,7 @@ pub fn spawn_toggle(
 
             // Toggle button using the new bundle
             parent
-                .spawn(ToggleBundle::new(60.0, 30.0, initial_state, 15.0))
+                .spawn((ToggleBundle::new(60.0, 30.0, initial_state, 15.0), marker))
                 .with_children(|parent| {
                     let toggle_text = if initial_state { "ON" } else { "OFF" };
 
@@ -57,7 +55,7 @@ pub fn spawn_toggle(
         .id()
 }
 
-pub fn spawn_slider(
+pub fn spawn_slider_with_marker<T: Component>(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
     label: &str,
     initial_value: f32,
@@ -65,9 +63,13 @@ pub fn spawn_slider(
     max_value: f32,
     is_integer: bool,
     width: f32,
+    marker: T,
 ) -> Entity {
     parent
-        .spawn(SliderWidgetBundle::new(width, initial_value, min_value, max_value, is_integer))
+        .spawn((
+            SliderWidgetBundle::new(width, initial_value, min_value, max_value, is_integer),
+            marker,
+        ))
         .with_children(|parent| {
             let slider_entity = parent.target_entity();
 

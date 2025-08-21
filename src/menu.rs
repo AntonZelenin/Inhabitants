@@ -13,15 +13,9 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlanetGenerationSettings>()
             .add_event::<SettingsChanged>()
-            .add_systems(
-                OnEnter(GameState::MainMenu),
-                (setup_main_menu, add_markers).chain(),
-            )
+            .add_systems(OnEnter(GameState::MainMenu), setup_main_menu)
             .add_systems(OnExit(GameState::MainMenu), cleanup_menu)
-            .add_systems(
-                OnEnter(GameState::PlanetWithMenu),
-                (setup_planet_with_menu, add_markers).chain(),
-            )
+            .add_systems(OnEnter(GameState::PlanetWithMenu), setup_planet_with_menu)
             .add_systems(OnExit(GameState::PlanetWithMenu), cleanup_planet_menu)
             .add_systems(
                 Update,
@@ -125,7 +119,7 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                 ))
                 .with_children(|parent| {
                     // Planet Radius Slider (changed from value adjuster)
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Planet Radius",
                         settings.radius,
@@ -133,10 +127,11 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                         50.0,
                         false,
                         350.0,
+                        RadiusSlider,
                     );
 
                     // Cells Per Unit Slider (changed from value adjuster)
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Cells Per Unit",
                         settings.cells_per_unit,
@@ -144,10 +139,11 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                         5.0,
                         false,
                         350.0,
+                        CellsPerUnitSlider,
                     );
 
                     // Number of Plates Slider (changed from value adjuster)
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Number of Plates",
                         settings.num_plates as f32,
@@ -155,10 +151,11 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                         30.0,
                         true,
                         350.0,
+                        NumPlatesSlider,
                     );
 
                     // Number of Micro Plates Slider (changed from value adjuster)
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Number of Micro Plates",
                         settings.num_micro_plates as f32,
@@ -166,10 +163,11 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                         20.0,
                         true,
                         350.0,
+                        NumMicroPlatesSlider,
                     );
 
                     // Show Arrows Toggle
-                    spawn_toggle(parent, "Show Direction Arrows", settings.show_arrows);
+                    spawn_toggle_with_marker(parent, "Show Direction Arrows", settings.show_arrows, ShowArrowsToggle);
                 });
 
             // Buttons container
@@ -182,79 +180,26 @@ fn setup_main_menu(mut commands: Commands, settings: Res<PlanetGenerationSetting
                 })
                 .with_children(|parent| {
                     // Generate Planet button
-                    spawn_button(
+                    spawn_button_with_marker(
                         parent,
                         "Generate Planet",
                         Color::srgb(0.2, 0.7, 0.2),
                         Color::srgb(0.3, 0.8, 0.3),
                         Color::srgb(0.1, 0.6, 0.1),
+                        GeneratePlanetButton,
                     );
 
                     // Quit button
-                    spawn_button(
+                    spawn_button_with_marker(
                         parent,
                         "Quit",
                         Color::srgb(0.7, 0.2, 0.2),
                         Color::srgb(0.8, 0.3, 0.3),
                         Color::srgb(0.6, 0.1, 0.1),
+                        QuitButton,
                     );
                 });
         });
-}
-
-// System to add marker components after UI is created
-fn add_markers(
-    mut commands: Commands,
-    sliders: Query<(Entity, &Slider), (Without<RadiusSlider>, Without<PlanetRadiusSlider>)>,
-    toggles: Query<(Entity, &ToggleState), (Without<ShowArrowsToggle>, Without<PlanetShowArrowsToggle>)>,
-    buttons: Query<(Entity, &UIButton), (Without<GeneratePlanetButton>, Without<QuitButton>, Without<BackToMainMenuButton>)>,
-    text_query: Query<&Text>,
-    children_query: Query<&Children>,
-) {
-    // Add marker components to sliders based on their initial values
-    for (entity, slider) in sliders.iter() {
-        let value = slider.current_value;
-        if (value - 20.0).abs() < 0.1 && !slider.is_integer {
-            // Could be either main menu or planet menu radius slider
-            commands.entity(entity).insert(RadiusSlider);
-            commands.entity(entity).insert(PlanetRadiusSlider);
-        } else if (value - 2.0).abs() < 0.1 && !slider.is_integer {
-            commands.entity(entity).insert(CellsPerUnitSlider);
-            commands.entity(entity).insert(PlanetCellsPerUnitSlider);
-        } else if (value - 15.0).abs() < 0.1 && slider.is_integer {
-            commands.entity(entity).insert(NumPlatesSlider);
-            commands.entity(entity).insert(PlanetNumPlatesSlider);
-        } else if (value - 5.0).abs() < 0.1 && slider.is_integer {
-            commands.entity(entity).insert(NumMicroPlatesSlider);
-            commands.entity(entity).insert(PlanetNumMicroPlatesSlider);
-        }
-    }
-
-    // Add marker to toggle (there should be only one)
-    for (entity, _) in toggles.iter() {
-        commands.entity(entity).insert(ShowArrowsToggle);
-        commands.entity(entity).insert(PlanetShowArrowsToggle);
-    }
-
-    // Add markers to buttons - we need to check their text content
-    for (entity, _) in buttons.iter() {
-        if let Ok(children) = children_query.get(entity) {
-            for child in children.iter() {
-                if let Ok(text) = text_query.get(child) {
-                    if text.0.contains("Generate Planet") {
-                        commands.entity(entity).insert(GeneratePlanetButton);
-                        break;
-                    } else if text.0.contains("Quit") {
-                        commands.entity(entity).insert(QuitButton);
-                        break;
-                    } else if text.0.contains("Back to Main Menu") {
-                        commands.entity(entity).insert(BackToMainMenuButton);
-                        break;
-                    }
-                }
-            }
-        }
-    }
 }
 
 fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MainMenuUI>>) {
@@ -318,13 +263,24 @@ fn detect_settings_changes(
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    // Planet menu sliders
+    planet_radius_slider_query: Query<&Slider, (With<PlanetRadiusSlider>, Changed<Slider>)>,
+    planet_cells_slider_query: Query<&Slider, (With<PlanetCellsPerUnitSlider>, Changed<Slider>)>,
+    planet_plates_slider_query: Query<&Slider, (With<PlanetNumPlatesSlider>, Changed<Slider>)>,
+    planet_micro_plates_slider_query: Query<&Slider, (With<PlanetNumMicroPlatesSlider>, Changed<Slider>)>,
+    planet_toggle_query: Query<&ToggleState, (With<PlanetShowArrowsToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
     let has_changes = !radius_slider_query.is_empty()
         || !cells_slider_query.is_empty()
         || !plates_slider_query.is_empty()
         || !micro_plates_slider_query.is_empty()
-        || !toggle_query.is_empty();
+        || !toggle_query.is_empty()
+        || !planet_radius_slider_query.is_empty()
+        || !planet_cells_slider_query.is_empty()
+        || !planet_plates_slider_query.is_empty()
+        || !planet_micro_plates_slider_query.is_empty()
+        || !planet_toggle_query.is_empty();
 
     if has_changes {
         info!("HAS CHANGES!!!");
@@ -340,10 +296,16 @@ fn update_settings_on_change(
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+    // Planet menu sliders
+    planet_radius_slider_query: Query<&Slider, With<PlanetRadiusSlider>>,
+    planet_cells_slider_query: Query<&Slider, With<PlanetCellsPerUnitSlider>>,
+    planet_plates_slider_query: Query<&Slider, With<PlanetNumPlatesSlider>>,
+    planet_micro_plates_slider_query: Query<&Slider, With<PlanetNumMicroPlatesSlider>>,
+    planet_toggle_query: Query<&ToggleState, With<PlanetShowArrowsToggle>>,
 ) {
     // Only update settings if we received a change event
     for _ in settings_changed_events.read() {
-        // Update settings from current slider and toggle values
+        // Update settings from current slider and toggle values (main menu)
         for slider in &radius_slider_query {
             settings.radius = slider.current_value;
         }
@@ -357,6 +319,23 @@ fn update_settings_on_change(
             settings.num_micro_plates = slider.current_value as usize;
         }
         for toggle_state in &toggle_query {
+            settings.show_arrows = toggle_state.is_on;
+        }
+
+        // Update settings from planet menu sliders
+        for slider in &planet_radius_slider_query {
+            settings.radius = slider.current_value;
+        }
+        for slider in &planet_cells_slider_query {
+            settings.cells_per_unit = slider.current_value;
+        }
+        for slider in &planet_plates_slider_query {
+            settings.num_plates = slider.current_value as usize;
+        }
+        for slider in &planet_micro_plates_slider_query {
+            settings.num_micro_plates = slider.current_value as usize;
+        }
+        for toggle_state in &planet_toggle_query {
             settings.show_arrows = toggle_state.is_on;
         }
     }
@@ -438,7 +417,7 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                     ));
 
                     // Planet Radius Slider
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Planet Radius",
                         settings.radius,
@@ -446,10 +425,11 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                         50.0,
                         false,
                         200.0,
+                        PlanetRadiusSlider,
                     );
 
                     // Cells Per Unit Slider
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Cells Per Unit",
                         settings.cells_per_unit,
@@ -457,10 +437,11 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                         5.0,
                         false,
                         200.0,
+                        PlanetCellsPerUnitSlider,
                     );
 
                     // Number of Plates Slider
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Number of Plates",
                         settings.num_plates as f32,
@@ -468,10 +449,11 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                         30.0,
                         true,
                         200.0,
+                        PlanetNumPlatesSlider,
                     );
 
                     // Number of Micro Plates Slider
-                    spawn_slider(
+                    spawn_slider_with_marker(
                         parent,
                         "Number of Micro Plates",
                         settings.num_micro_plates as f32,
@@ -479,10 +461,11 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                         20.0,
                         true,
                         200.0,
+                        PlanetNumMicroPlatesSlider,
                     );
 
                     // Show Arrows Toggle
-                    spawn_toggle(parent, "Show Direction Arrows", settings.show_arrows);
+                    spawn_toggle_with_marker(parent, "Show Direction Arrows", settings.show_arrows, PlanetShowArrowsToggle);
 
                     // Spacer
                     parent.spawn(Node {
@@ -491,21 +474,23 @@ fn setup_planet_with_menu(mut commands: Commands, settings: Res<PlanetGeneration
                     });
 
                     // Generate Planet button (changed from Regenerate)
-                    spawn_button(
+                    spawn_button_with_marker(
                         parent,
                         "Generate Planet",
                         Color::srgb(0.2, 0.7, 0.2),
                         Color::srgb(0.3, 0.8, 0.3),
                         Color::srgb(0.1, 0.6, 0.1),
+                        GeneratePlanetButton,
                     );
 
                     // Back to Main Menu button
-                    spawn_button(
+                    spawn_button_with_marker(
                         parent,
                         "Back to Main Menu",
                         Color::srgb(0.7, 0.2, 0.2),
                         Color::srgb(0.8, 0.3, 0.3),
                         Color::srgb(0.6, 0.1, 0.1),
+                        BackToMainMenuButton,
                     );
                 });
         });
