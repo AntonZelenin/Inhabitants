@@ -23,7 +23,7 @@ impl Plugin for CameraPlugin {
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(4.0, 60.0, 12.0).looking_at(Vec3::new(0.0, 0.0, 0.5), Vec3::Y),
+        Transform::from_xyz(-10.0, 60.0, 0.0).looking_at(Vec3::new(-10.0, 0.0, 0.5), Vec3::Y),
         MainCamera,
     ));
 
