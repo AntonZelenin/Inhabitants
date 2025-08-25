@@ -9,7 +9,6 @@ pub(crate) enum GameState {
     // and if I use save event the system runs multiple times
     SaveGame,
     InGame,
-    MainMenu,
-    /// New state for showing both menu and planet simultaneously
-    PlanetWithMenu,
+    /// Single state that always shows menu on the right side
+    MenuWithPlanet,
 }

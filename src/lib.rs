@@ -10,8 +10,8 @@ mod ui;
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
 use crate::menu::MenuPlugin;
+use crate::planet::systems::spawn_planet;
 use crate::ui::UIPlugin;
-use crate::planet::systems::{despawn_planet, spawn_planet};
 
 use crate::core::camera::CameraPlugin;
 use crate::core::state::GameState;
@@ -32,13 +32,15 @@ impl Plugin for GamePlugin {
                 MenuPlugin,
                 UIPlugin,
             ))
-            .add_systems(OnEnter(GameState::InGame), (spawn_planet, transition_to_planet_menu))
-            .add_systems(OnExit(GameState::InGame), despawn_planet)
-            .add_systems(OnEnter(GameState::PlanetWithMenu), spawn_planet)
-            .add_systems(OnExit(GameState::PlanetWithMenu), despawn_planet)
-            .add_systems(OnEnter(GameState::Loading), || {
-                // Transition to MainMenu after loading
-            });
+            .add_systems(OnEnter(GameState::MenuWithPlanet), setup_menu_with_planet)
+            .add_systems(
+                OnEnter(GameState::InGame),
+                (spawn_planet, transition_to_menu_after_planet),
+            )
+            .add_systems(
+                OnEnter(GameState::Loading),
+                transition_to_menu_after_loading,
+            );
 
         #[cfg(debug_assertions)]
         {
@@ -47,7 +49,16 @@ impl Plugin for GamePlugin {
     }
 }
 
-fn transition_to_planet_menu(mut next_state: ResMut<NextState<GameState>>) {
-    // Immediately transition back to PlanetWithMenu after spawning planet
-    next_state.set(GameState::PlanetWithMenu);
+fn setup_menu_with_planet() {
+    // This system will be handled by the MenuPlugin
+}
+
+fn transition_to_menu_after_loading(mut next_state: ResMut<NextState<GameState>>) {
+    // Transition to MenuWithPlanet after loading
+    next_state.set(GameState::MenuWithPlanet);
+}
+
+fn transition_to_menu_after_planet(mut next_state: ResMut<NextState<GameState>>) {
+    // Immediately transition back to MenuWithPlanet after spawning planet
+    next_state.set(GameState::MenuWithPlanet);
 }
