@@ -14,8 +14,8 @@ fn main() {
         .insert_resource(ClearColor(Color::linear_rgb(0.4, 0.4, 0.4)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Expeditions".into(),
-                // resolution: (1500.0, 850.0).into(),
+                title: "Inhabitants".into(),
+                resolution: (1500.0, 900.0).into(),
                 present_mode: PresentMode::AutoVsync,
                 resize_constraints: WindowResizeConstraints {
                     min_width: 800.0,

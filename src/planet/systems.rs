@@ -1,4 +1,6 @@
 use crate::helpers::mesh::arrow_mesh;
+use crate::menu::PlanetGenerationSettings;
+use crate::planet::PlanetEntity;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::math::{Quat, Vec3};
@@ -13,8 +15,13 @@ pub fn spawn_planet(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    settings: Res<PlanetGenerationSettings>,
 ) {
-    let generator = PlanetGenerator::new(20.0);
+    let mut generator = PlanetGenerator::new(settings.radius);
+    generator.cells_per_unit = settings.cells_per_unit;
+    generator.num_plates = settings.num_plates;
+    generator.num_micro_plates = settings.num_micro_plates;
+
     let planet_data = generator.generate();
 
     let mesh = build_stitched_planet_mesh(&planet_data);
@@ -30,9 +37,12 @@ pub fn spawn_planet(
         MeshMaterial3d(material_handle),
         Transform::from_xyz(0.0, 0.0, 0.0),
         GlobalTransform::default(),
+        PlanetEntity, // Add marker component
     ));
 
-    spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+    if settings.show_arrows {
+        spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+    }
 }
 
 fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
@@ -160,7 +170,6 @@ fn spawn_plate_direction_arrows(
             // Get the movement direction of the plate
             let direction =
                 Vec3::new(plate.direction.x, plate.direction.y, plate.direction.z).normalize();
-            info!("Plate {} direction: {:?}", plate_idx, direction);
 
             // Get the surface normal at this position (pointing outward from center)
             let surface_normal = center.normalize();
@@ -181,7 +190,18 @@ fn spawn_plate_direction_arrows(
                     .with_rotation(rotation)
                     .with_scale(Vec3::splat(arrow_scale)),
                 GlobalTransform::default(),
+                PlanetEntity, // Add marker component to arrows too
             ));
         }
+    }
+}
+
+/// System to despawn all planet entities
+pub fn despawn_planet(
+    mut commands: Commands,
+    planet_entities: Query<Entity, With<PlanetEntity>>,
+) {
+    for entity in planet_entities.iter() {
+        commands.entity(entity).despawn();
     }
 }
