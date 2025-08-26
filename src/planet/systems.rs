@@ -8,40 +8,80 @@ use bevy::render::mesh::{Indices, PrimitiveTopology};
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
-use crate::planet::components::PlanetEntity;
-use crate::planet::ui::menu::PlanetGenerationSettings;
+use crate::planet::components::{PlanetEntity, ArrowEntity};
+use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
+use crate::planet::resources::*;
 
-pub fn spawn_planet(
+pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
+    mut events: EventReader<GeneratePlanetEvent>,
+    planet_entities: Query<Entity, With<PlanetEntity>>,
+    mut current_planet_data: ResMut<CurrentPlanetData>,
 ) {
-    let mut generator = PlanetGenerator::new(settings.radius);
-    generator.cells_per_unit = settings.cells_per_unit;
-    generator.num_plates = settings.num_plates;
-    generator.num_micro_plates = settings.num_micro_plates;
+    for _ in events.read() {
+        // Despawn existing planet entities before generating new ones
+        for entity in planet_entities.iter() {
+            commands.entity(entity).despawn();
+        }
 
-    let planet_data = generator.generate();
+        let mut generator = PlanetGenerator::new(settings.radius);
+        generator.cells_per_unit = settings.cells_per_unit;
+        generator.num_plates = settings.num_plates;
+        generator.num_micro_plates = settings.num_micro_plates;
 
-    let mesh = build_stitched_planet_mesh(&planet_data);
-    let mesh_handle = meshes.add(mesh);
+        let planet_data = generator.generate();
 
-    let material_handle = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.3, 0.8, 0.4),
-        ..default()
-    });
+        // Store planet data for arrow generation (move instead of clone)
+        let mesh = build_stitched_planet_mesh(&planet_data);
+        let mesh_handle = meshes.add(mesh);
 
-    commands.spawn((
-        Mesh3d(mesh_handle),
-        MeshMaterial3d(material_handle),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-        GlobalTransform::default(),
-        PlanetEntity,
-    ));
+        let material_handle = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.3, 0.8, 0.4),
+            ..default()
+        });
 
-    if settings.show_arrows {
-        spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+        commands.spawn((
+            Mesh3d(mesh_handle),
+            MeshMaterial3d(material_handle),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            GlobalTransform::default(),
+            PlanetEntity,
+        ));
+
+        if settings.show_arrows {
+            spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+        }
+
+        // Store planet data after using it for generation
+        current_planet_data.planet_data = Some(planet_data);
+    }
+}
+
+pub fn handle_arrow_toggle(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut events: EventReader<ToggleArrowsEvent>,
+    arrow_entities: Query<Entity, With<ArrowEntity>>,
+    current_planet_data: Res<CurrentPlanetData>,
+) {
+    for event in events.read() {
+        if event.show_arrows {
+            // Only spawn arrows if we have planet data and no arrows currently exist
+            if let Some(ref planet_data) = current_planet_data.planet_data {
+                if arrow_entities.is_empty() {
+                    spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, planet_data);
+                }
+            }
+        } else {
+            // Despawn all existing arrows
+            for entity in arrow_entities.iter() {
+                commands.entity(entity).despawn();
+            }
+        }
     }
 }
 
@@ -191,6 +231,7 @@ fn spawn_plate_direction_arrows(
                     .with_scale(Vec3::splat(arrow_scale)),
                 GlobalTransform::default(),
                 PlanetEntity, // Add marker component to arrows too
+                ArrowEntity, // Add ArrowEntity component
             ));
         }
     }
