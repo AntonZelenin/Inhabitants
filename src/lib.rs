@@ -2,14 +2,12 @@ mod audio;
 mod core;
 mod helpers;
 mod loading;
-mod menu;
 mod planet;
 mod player;
 mod ui;
 
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
-use crate::menu::MenuPlugin;
 use crate::planet::systems::spawn_planet;
 use crate::ui::UIPlugin;
 
@@ -19,6 +17,7 @@ use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
+use crate::planet::ui::menu::PlanetGenMenuPlugin;
 
 pub struct GamePlugin;
 
@@ -29,10 +28,10 @@ impl Plugin for GamePlugin {
                 CameraPlugin,
                 LoadingPlugin,
                 InternalAudioPlugin,
-                MenuPlugin,
+                PlanetGenMenuPlugin,
                 UIPlugin,
             ))
-            .add_systems(OnEnter(GameState::MenuWithPlanet), setup_menu_with_planet)
+            .add_systems(OnEnter(GameState::WorldGeneration), setup_menu_with_planet)
             .add_systems(
                 OnEnter(GameState::InGame),
                 (spawn_planet, transition_to_menu_after_planet),
@@ -55,10 +54,10 @@ fn setup_menu_with_planet() {
 
 fn transition_to_menu_after_loading(mut next_state: ResMut<NextState<GameState>>) {
     // Transition to MenuWithPlanet after loading
-    next_state.set(GameState::MenuWithPlanet);
+    next_state.set(GameState::WorldGeneration);
 }
 
 fn transition_to_menu_after_planet(mut next_state: ResMut<NextState<GameState>>) {
     // Immediately transition back to MenuWithPlanet after spawning planet
-    next_state.set(GameState::MenuWithPlanet);
+    next_state.set(GameState::WorldGeneration);
 }

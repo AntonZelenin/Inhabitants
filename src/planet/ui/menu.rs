@@ -2,19 +2,19 @@ use crate::core::state::GameState;
 use crate::ui::components::*;
 use crate::ui::widgets::*;
 use bevy::prelude::*;
+use crate::planet::components::PlanetEntity;
 
-// Event for when any settings value changes
 #[derive(Event)]
 pub struct SettingsChanged;
 
-pub struct MenuPlugin;
+pub struct PlanetGenMenuPlugin;
 
-impl Plugin for MenuPlugin {
+impl Plugin for PlanetGenMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlanetGenerationSettings>()
             .add_event::<SettingsChanged>()
-            .add_systems(OnEnter(GameState::MenuWithPlanet), setup_menu_with_planet)
-            .add_systems(OnExit(GameState::MenuWithPlanet), cleanup_menu)
+            .add_systems(OnEnter(GameState::WorldGeneration), setup_world_generation_menu)
+            .add_systems(OnExit(GameState::WorldGeneration), cleanup_world_generation_menu)
             .add_systems(
                 Update,
                 (
@@ -23,7 +23,7 @@ impl Plugin for MenuPlugin {
                     update_settings_on_change,
                     update_main_area_content,
                 )
-                    .run_if(in_state(GameState::MenuWithPlanet)),
+                    .run_if(in_state(GameState::WorldGeneration)),
             );
     }
 }
@@ -50,7 +50,7 @@ impl Default for PlanetGenerationSettings {
 }
 
 #[derive(Component)]
-struct MainMenuUI;
+struct WorldGenerationMenu;
 
 #[derive(Component, Default)]
 struct GeneratePlanetButton;
@@ -79,7 +79,7 @@ struct MainArea;
 #[derive(Component)]
 struct PlaceholderText;
 
-fn setup_menu_with_planet(mut commands: Commands, settings: Res<PlanetGenerationSettings>) {
+fn setup_world_generation_menu(mut commands: Commands, settings: Res<PlanetGenerationSettings>) {
     // Create a side panel layout instead of full screen
     commands
         .spawn((
@@ -89,7 +89,7 @@ fn setup_menu_with_planet(mut commands: Commands, settings: Res<PlanetGeneration
                 flex_direction: FlexDirection::Row,
                 ..default()
             },
-            MainMenuUI,
+            WorldGenerationMenu,
         ))
         .with_children(|parent| {
             // Main 3D view area (left side)
@@ -235,7 +235,7 @@ fn setup_menu_with_planet(mut commands: Commands, settings: Res<PlanetGeneration
         });
 }
 
-fn cleanup_menu(mut commands: Commands, query: Query<Entity, With<MainMenuUI>>) {
+fn cleanup_world_generation_menu(mut commands: Commands, query: Query<Entity, With<WorldGenerationMenu>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
@@ -248,13 +248,13 @@ fn handle_buttons(
     mut app_exit_events: EventWriter<AppExit>,
     current_state: Res<State<GameState>>,
     mut commands: Commands,
-    planet_entities: Query<Entity, With<crate::planet::PlanetEntity>>,
+    planet_entities: Query<Entity, With<PlanetEntity>>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
         if *interaction == Interaction::Pressed {
             match current_state.get() {
-                GameState::MenuWithPlanet => {
+                GameState::WorldGeneration => {
                     // Despawn existing planet entities before generating new ones
                     for entity in planet_entities.iter() {
                         commands.entity(entity).despawn();
@@ -327,7 +327,7 @@ fn update_settings_on_change(
 }
 
 fn update_main_area_content(
-    planet_entities: Query<Entity, With<crate::planet::PlanetEntity>>,
+    planet_entities: Query<Entity, With<PlanetEntity>>,
     mut placeholder_query: Query<&mut Node, With<PlaceholderText>>,
     mut main_area_query: Query<&mut BackgroundColor, With<MainArea>>,
 ) {

@@ -9,6 +9,5 @@ pub(crate) enum GameState {
     // and if I use save event the system runs multiple times
     SaveGame,
     InGame,
-    /// Single state that always shows menu on the right side
-    MenuWithPlanet,
+    WorldGeneration,
 }

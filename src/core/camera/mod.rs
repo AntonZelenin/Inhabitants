@@ -15,7 +15,7 @@ impl Plugin for CameraPlugin {
             .add_systems(Startup, spawn_camera)
             .add_systems(
                 PostUpdate,
-                camera_control.run_if(in_state(GameState::InGame).or(in_state(GameState::MenuWithPlanet))),
+                camera_control.run_if(in_state(GameState::InGame).or(in_state(GameState::WorldGeneration))),
             );
     }
 }

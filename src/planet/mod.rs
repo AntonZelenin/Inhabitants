@@ -1,7 +1,3 @@
+pub mod components;
 pub mod systems;
-
-use bevy::prelude::*;
-
-/// Marker component for planet entities to enable despawning
-#[derive(Component)]
-pub struct PlanetEntity;
+pub mod ui;
