@@ -4,15 +4,18 @@ pub mod resources;
 pub mod systems;
 pub mod ui;
 
-use crate::planet::events::GeneratePlanetEvent;
-use crate::planet::systems::spawn_planet_on_event;
+use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
+use crate::planet::systems::*;
 use bevy::prelude::*;
+use crate::planet::resources::CurrentPlanetData;
 
-pub struct PlanetGenerationPlugin;
+pub struct PlanetPlugin;
 
-impl Plugin for PlanetGenerationPlugin {
+impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GeneratePlanetEvent>()
-            .add_systems(Update, spawn_planet_on_event);
+            .add_event::<ToggleArrowsEvent>()
+            .init_resource::<CurrentPlanetData>()
+            .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle));
     }
 }

@@ -8,30 +8,29 @@ mod ui;
 
 use crate::audio::InternalAudioPlugin;
 use crate::loading::LoadingPlugin;
+use crate::planet::PlanetPlugin;
 use crate::ui::UIPlugin;
-use crate::planet::PlanetGenerationPlugin;
 
 use crate::core::camera::CameraPlugin;
 use crate::core::state::GameState;
+use crate::planet::ui::menu::PlanetGenMenuPlugin;
 use bevy::app::App;
 #[cfg(debug_assertions)]
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
-use crate::planet::ui::menu::PlanetGenMenuPlugin;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameState>()
-            .add_plugins((
-                CameraPlugin,
-                LoadingPlugin,
-                InternalAudioPlugin,
-                PlanetGenerationPlugin,
-                PlanetGenMenuPlugin,
-                UIPlugin,
-            ));
+        app.init_state::<GameState>().add_plugins((
+            CameraPlugin,
+            LoadingPlugin,
+            InternalAudioPlugin,
+            PlanetPlugin,
+            PlanetGenMenuPlugin,
+            UIPlugin,
+        ));
 
         #[cfg(debug_assertions)]
         {

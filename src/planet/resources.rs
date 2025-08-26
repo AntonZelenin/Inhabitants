@@ -1,4 +1,5 @@
 use bevy::prelude::Resource;
+use planetgen::planet::PlanetData;
 
 #[derive(Resource, Clone)]
 pub struct PlanetGenerationSettings {
@@ -18,5 +19,16 @@ impl Default for PlanetGenerationSettings {
             num_micro_plates: 5,
             show_arrows: true,
         }
+    }
+}
+
+#[derive(Resource)]
+pub struct CurrentPlanetData {
+    pub planet_data: Option<PlanetData>,
+}
+
+impl Default for CurrentPlanetData {
+    fn default() -> Self {
+        Self { planet_data: None }
     }
 }

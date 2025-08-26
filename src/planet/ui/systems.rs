@@ -1,5 +1,5 @@
 use crate::planet::components::PlanetEntity;
-use crate::planet::events::GeneratePlanetEvent;
+use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
 use crate::planet::ui::menu::SettingsChanged;
@@ -272,5 +272,17 @@ pub fn update_main_area_content(
         } else {
             BackgroundColor(Color::srgb(0.05, 0.05, 0.1)) // Dark background
         };
+    }
+}
+
+pub fn handle_arrow_toggle_change(
+    mut toggle_arrows_events: EventWriter<ToggleArrowsEvent>,
+    toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+) {
+    // Send arrow toggle event immediately when the toggle changes
+    for toggle_state in &toggle_query {
+        toggle_arrows_events.write(ToggleArrowsEvent {
+            show_arrows: toggle_state.is_on,
+        });
     }
 }
