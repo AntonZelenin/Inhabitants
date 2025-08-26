@@ -1,8 +1,11 @@
 use crate::core::state::GameState;
+use crate::planet::components::*;
+use crate::planet::events::*;
+use crate::planet::resources::*;
+use crate::planet::ui::components::*;
 use crate::ui::components::*;
 use crate::ui::widgets::*;
 use bevy::prelude::*;
-use crate::planet::components::PlanetEntity;
 
 #[derive(Event)]
 pub struct SettingsChanged;
@@ -13,8 +16,14 @@ impl Plugin for PlanetGenMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlanetGenerationSettings>()
             .add_event::<SettingsChanged>()
-            .add_systems(OnEnter(GameState::WorldGeneration), setup_world_generation_menu)
-            .add_systems(OnExit(GameState::WorldGeneration), cleanup_world_generation_menu)
+            .add_systems(
+                OnEnter(GameState::PlanetGeneration),
+                setup_world_generation_menu,
+            )
+            .add_systems(
+                OnExit(GameState::PlanetGeneration),
+                cleanup_world_generation_menu,
+            )
             .add_systems(
                 Update,
                 (
@@ -23,61 +32,10 @@ impl Plugin for PlanetGenMenuPlugin {
                     update_settings_on_change,
                     update_main_area_content,
                 )
-                    .run_if(in_state(GameState::WorldGeneration)),
+                    .run_if(in_state(GameState::PlanetGeneration)),
             );
     }
 }
-
-#[derive(Resource, Clone)]
-pub struct PlanetGenerationSettings {
-    pub radius: f32,
-    pub cells_per_unit: f32,
-    pub num_plates: usize,
-    pub num_micro_plates: usize,
-    pub show_arrows: bool,
-}
-
-impl Default for PlanetGenerationSettings {
-    fn default() -> Self {
-        Self {
-            radius: 20.0,
-            cells_per_unit: 2.0,
-            num_plates: 15,
-            num_micro_plates: 5,
-            show_arrows: true,
-        }
-    }
-}
-
-#[derive(Component)]
-struct WorldGenerationMenu;
-
-#[derive(Component, Default)]
-struct GeneratePlanetButton;
-
-#[derive(Component, Default)]
-struct QuitButton;
-
-#[derive(Component)]
-struct RadiusSlider;
-
-#[derive(Component)]
-struct CellsPerUnitSlider;
-
-#[derive(Component)]
-struct NumPlatesSlider;
-
-#[derive(Component)]
-struct NumMicroPlatesSlider;
-
-#[derive(Component)]
-struct ShowArrowsToggle;
-
-#[derive(Component)]
-struct MainArea;
-
-#[derive(Component)]
-struct PlaceholderText;
 
 fn setup_world_generation_menu(mut commands: Commands, settings: Res<PlanetGenerationSettings>) {
     // Create a side panel layout instead of full screen
@@ -235,7 +193,10 @@ fn setup_world_generation_menu(mut commands: Commands, settings: Res<PlanetGener
         });
 }
 
-fn cleanup_world_generation_menu(mut commands: Commands, query: Query<Entity, With<WorldGenerationMenu>>) {
+fn cleanup_world_generation_menu(
+    mut commands: Commands,
+    query: Query<Entity, With<WorldGenerationMenu>>,
+) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
@@ -244,26 +205,14 @@ fn cleanup_world_generation_menu(mut commands: Commands, query: Query<Entity, Wi
 fn handle_buttons(
     generate_query: Query<&Interaction, (Changed<Interaction>, With<GeneratePlanetButton>)>,
     quit_query: Query<&Interaction, (Changed<Interaction>, With<QuitButton>)>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut app_exit_events: EventWriter<AppExit>,
-    current_state: Res<State<GameState>>,
-    mut commands: Commands,
-    planet_entities: Query<Entity, With<PlanetEntity>>,
+    mut planet_generation_events: EventWriter<GeneratePlanetEvent>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
         if *interaction == Interaction::Pressed {
-            match current_state.get() {
-                GameState::WorldGeneration => {
-                    // Despawn existing planet entities before generating new ones
-                    for entity in planet_entities.iter() {
-                        commands.entity(entity).despawn();
-                    }
-                    // Trigger planet generation by transitioning to InGame
-                    next_state.set(GameState::InGame);
-                }
-                _ => {}
-            }
+            // Send event to generate planet instead of changing state
+            planet_generation_events.write(GeneratePlanetEvent);
         }
     }
 
@@ -275,7 +224,6 @@ fn handle_buttons(
     }
 }
 
-// System to detect settings changes and send event
 fn detect_settings_changes(
     mut settings_changed_events: EventWriter<SettingsChanged>,
     radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,

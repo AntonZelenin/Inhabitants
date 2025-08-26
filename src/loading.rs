@@ -8,7 +8,7 @@ impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_loading_state(
             LoadingState::new(GameState::Loading)
-                .continue_to_state(GameState::WorldGeneration)
+                .continue_to_state(GameState::PlanetGeneration)
                 .load_collection::<ModelAssets>(),
         );
     }
