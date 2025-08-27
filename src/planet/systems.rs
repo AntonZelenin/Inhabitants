@@ -1,5 +1,5 @@
 use crate::helpers::mesh::arrow_mesh;
-use crate::planet::components::{ArrowEntity, PlanetControls, PlanetEntity};
+use crate::planet::components::{ArrowEntity, PlanetControls, PlanetEntity, CameraLerp};
 use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent, SetCameraPositionEvent};
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -272,11 +272,11 @@ pub fn planet_control(
         (&mut Transform, &mut PlanetControls),
         (With<PlanetEntity>, With<PlanetControls>),
     >,
-    mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlanetEntity>)>,
+    mut camera_query: Query<&mut CameraLerp, With<Camera3d>>,
     windows: Query<&Window>,
 ) {
     if let Ok((mut planet_transform, mut controls)) = planet_query.single_mut() {
-        if let Ok(mut camera_transform) = camera_query.single_mut() {
+        if let Ok(mut camera_lerp) = camera_query.single_mut() {
             let window = windows.single().unwrap();
             let cursor_position = window.cursor_position();
 
@@ -304,15 +304,38 @@ pub fn planet_control(
                     controls.zoom -= wheel.y * 0.5;
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
-                    // Position camera to account for UI on the right
-                    // Move camera to the right and look slightly right of planet center
-                    let camera_x_offset = controls.zoom * 0.25; // Move camera right based on zoom distance
-                    let look_at_x_offset = controls.zoom * 0.15; // Look slightly right of center
+                    // Calculate target camera position for smooth movement
+                    let camera_x_offset = controls.zoom * 0.25;
+                    let look_at_x_offset = controls.zoom * 0.15;
 
-                    let camera_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
-                    camera_transform.translation = camera_position;
-                    camera_transform.look_at(Vec3::new(look_at_x_offset, 0.0, 0.0), Vec3::Y);
+                    // Set target positions for smooth lerping
+                    camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                    camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+                    camera_lerp.is_lerping = true;
                 }
+            }
+        }
+    }
+}
+
+pub fn smooth_camera_movement(
+    time: Res<Time>,
+    mut camera_query: Query<(&mut Transform, &mut CameraLerp), With<Camera3d>>,
+) {
+    if let Ok((mut camera_transform, mut camera_lerp)) = camera_query.single_mut() {
+        if camera_lerp.is_lerping {
+            let dt = time.delta_secs();
+            let lerp_factor = (camera_lerp.lerp_speed * dt).min(1.0);
+
+            camera_transform.translation = camera_transform.translation.lerp(camera_lerp.target_position, lerp_factor);
+
+            camera_transform.look_at(camera_lerp.target_look_at, Vec3::Y);
+
+            // Check if we're close enough to stop lerping
+            let distance = camera_transform.translation.distance(camera_lerp.target_position);
+            if distance < 0.1 {
+                camera_transform.translation = camera_lerp.target_position;
+                camera_lerp.is_lerping = false;
             }
         }
     }

@@ -5,7 +5,7 @@ pub mod systems;
 pub mod ui;
 
 use crate::core::state::GameState;
-use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent, SetCameraPositionEvent};
+use crate::planet::events::{GeneratePlanetEvent, SetCameraPositionEvent, ToggleArrowsEvent};
 use crate::planet::resources::CurrentPlanetData;
 use crate::planet::systems::*;
 use bevy::prelude::*;
@@ -21,7 +21,8 @@ impl Plugin for PlanetPlugin {
             .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle))
             .add_systems(
                 Update,
-                planet_control.run_if(in_state(GameState::PlanetGeneration)),
+                (planet_control, smooth_camera_movement)
+                    .run_if(in_state(GameState::PlanetGeneration)),
             );
     }
 }

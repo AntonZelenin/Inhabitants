@@ -2,6 +2,7 @@ pub(crate) mod components;
 
 use crate::core::camera::components::{MainCamera, MainCameraTarget};
 use crate::core::state::GameState;
+use crate::planet::components::CameraLerp;
 use crate::planet::events::SetCameraPositionEvent;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
@@ -27,6 +28,12 @@ fn spawn_camera(mut commands: Commands) {
         Camera3d::default(),
         Transform::from_xyz(0.0, 0.0, 60.0).looking_at(Vec3::ZERO, Vec3::Y),
         MainCamera,
+        CameraLerp {
+            target_position: Vec3::new(0.0, 0.0, 60.0),
+            target_look_at: Vec3::ZERO,
+            lerp_speed: 3.0,
+            is_lerping: false,
+        },
     ));
 
     commands.spawn((
@@ -88,18 +95,18 @@ fn camera_control(
 
 fn handle_camera_position_events(
     mut events: EventReader<SetCameraPositionEvent>,
-    mut camera_query: Query<&mut Transform, With<MainCamera>>,
+    mut camera_query: Query<&mut CameraLerp, With<MainCamera>>,
 ) {
     for event in events.read() {
-        if let Ok(mut camera_transform) = camera_query.single_mut() {
-            // Position camera to account for UI on the right
-            // Move camera to the right and look slightly right of planet center
-            let camera_x_offset = event.position.z * 0.25; // Move camera right based on zoom distance
-            let look_at_x_offset = event.position.z * 0.15; // Look slightly right of center
+        if let Ok(mut camera_lerp) = camera_query.single_mut() {
+            // Calculate target position for smooth movement to account for UI
+            let camera_x_offset = event.position.z * 0.25;
+            let look_at_x_offset = event.position.z * 0.15;
 
-            let adjusted_position = Vec3::new(camera_x_offset, event.position.y, event.position.z);
-            camera_transform.translation = adjusted_position;
-            camera_transform.look_at(Vec3::new(look_at_x_offset, 0.0, 0.0), Vec3::Y);
+            camera_lerp.target_position =
+                Vec3::new(camera_x_offset, event.position.y, event.position.z);
+            camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+            camera_lerp.is_lerping = true;
         }
     }
 }
