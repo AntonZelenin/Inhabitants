@@ -279,9 +279,8 @@ pub fn planet_control(
             // Handle mouse dragging for planet rotation (only Y-axis)
             if mouse_input.pressed(MouseButton::Left) {
                 for motion in mouse_motion.read() {
-                    // Only rotate around Y-axis (horizontal movement)
-                    // Positive mouse delta.x (moving right) should rotate clockwise around Y
-                    let yaw = Quat::from_rotation_y(motion.delta.x * 0.01);
+                    let sensitivity = 0.002 * (controls.zoom / 60.0); // Base sensitivity scaled by zoom
+                    let yaw = Quat::from_rotation_y(motion.delta.x * sensitivity);
 
                     // Apply rotation to planet (only Y-axis rotation)
                     controls.rotation = controls.rotation * yaw;
