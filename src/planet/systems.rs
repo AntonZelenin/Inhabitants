@@ -273,30 +273,46 @@ pub fn planet_control(
         (With<PlanetEntity>, With<PlanetControls>),
     >,
     mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlanetEntity>)>,
+    windows: Query<&Window>,
 ) {
     if let Ok((mut planet_transform, mut controls)) = planet_query.single_mut() {
         if let Ok(mut camera_transform) = camera_query.single_mut() {
-            // Handle mouse dragging for planet rotation (only Y-axis)
-            if mouse_input.pressed(MouseButton::Left) {
+            let window = windows.single().unwrap();
+            let cursor_position = window.cursor_position();
+
+            // Check if cursor is over UI (right 25% of screen)
+            let is_over_ui = if let Some(cursor_pos) = cursor_position {
+                cursor_pos.x > window.width() * 0.75
+            } else {
+                false
+            };
+
+            // Handle mouse dragging for planet rotation (only Y-axis) - only if not over UI
+            if mouse_input.pressed(MouseButton::Left) && !is_over_ui {
                 for motion in mouse_motion.read() {
-                    let sensitivity = 0.002 * (controls.zoom / 60.0); // Base sensitivity scaled by zoom
+                    let sensitivity = 0.002 * (controls.zoom / 60.0);
                     let yaw = Quat::from_rotation_y(motion.delta.x * sensitivity);
 
-                    // Apply rotation to planet (only Y-axis rotation)
                     controls.rotation = controls.rotation * yaw;
                     planet_transform.rotation = controls.rotation;
                 }
             }
 
-            // Handle mouse wheel for zoom
-            for wheel in mouse_wheel.read() {
-                controls.zoom -= wheel.y * 0.5;
-                controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
+            // Handle mouse wheel for zoom - only if not over UI
+            if !is_over_ui {
+                for wheel in mouse_wheel.read() {
+                    controls.zoom -= wheel.y * 0.5;
+                    controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
-                // Position camera at zoom distance, looking at planet center (0,0,0)
-                let camera_position = Vec3::new(0.0, 0.0, controls.zoom);
-                camera_transform.translation = camera_position;
-                camera_transform.look_at(Vec3::ZERO, Vec3::Y);
+                    // Position camera to account for UI on the right
+                    // Move camera to the right and look slightly right of planet center
+                    let camera_x_offset = controls.zoom * 0.25; // Move camera right based on zoom distance
+                    let look_at_x_offset = controls.zoom * 0.15; // Look slightly right of center
+
+                    let camera_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                    camera_transform.translation = camera_position;
+                    camera_transform.look_at(Vec3::new(look_at_x_offset, 0.0, 0.0), Vec3::Y);
+                }
             }
         }
     }
