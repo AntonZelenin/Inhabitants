@@ -7,3 +7,8 @@ pub struct GeneratePlanetEvent;
 pub struct ToggleArrowsEvent {
     pub show_arrows: bool,
 }
+
+#[derive(Event)]
+pub struct SetCameraPositionEvent {
+    pub position: Vec3,
+}

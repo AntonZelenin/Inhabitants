@@ -1,6 +1,10 @@
 use crate::helpers::mesh::arrow_mesh;
+use crate::planet::components::{ArrowEntity, PlanetControls, PlanetEntity};
+use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent, SetCameraPositionEvent};
+use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
+use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
@@ -8,18 +12,16 @@ use bevy::render::mesh::{Indices, PrimitiveTopology};
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
-use crate::planet::components::{PlanetEntity, ArrowEntity};
-use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
-use crate::planet::resources::*;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
+    mut camera_events: EventWriter<SetCameraPositionEvent>,
+    mut events: EventReader<GeneratePlanetEvent>,
+    mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
-    mut events: EventReader<GeneratePlanetEvent>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
-    mut current_planet_data: ResMut<CurrentPlanetData>,
 ) {
     for _ in events.read() {
         // Despawn existing planet entities before generating new ones
@@ -43,16 +45,29 @@ pub fn spawn_planet_on_event(
             ..default()
         });
 
-        commands.spawn((
+        let expected_zoom = settings.radius * 3.0;
+
+        let planet_entity = commands.spawn((
             Mesh3d(mesh_handle),
             MeshMaterial3d(material_handle),
             Transform::from_xyz(0.0, 0.0, 0.0),
             GlobalTransform::default(),
             PlanetEntity,
-        ));
+            PlanetControls {
+                rotation: Quat::IDENTITY,
+                zoom: expected_zoom,
+                min_zoom: settings.radius * 1.5,
+                max_zoom: settings.radius * 10.0,
+            },
+        )).id();
+
+        // Emit camera position event
+        camera_events.write(SetCameraPositionEvent {
+            position: Vec3::new(0.0, 0.0, expected_zoom),
+        });
 
         if settings.show_arrows {
-            spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data);
+            spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data, planet_entity);
         }
 
         // Store planet data after using it for generation
@@ -66,6 +81,7 @@ pub fn handle_arrow_toggle(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<ToggleArrowsEvent>,
     arrow_entities: Query<Entity, With<ArrowEntity>>,
+    planet_entities: Query<Entity, (With<PlanetEntity>, With<PlanetControls>)>,
     current_planet_data: Res<CurrentPlanetData>,
 ) {
     for event in events.read() {
@@ -73,7 +89,15 @@ pub fn handle_arrow_toggle(
             // Only spawn arrows if we have planet data and no arrows currently exist
             if let Some(ref planet_data) = current_planet_data.planet_data {
                 if arrow_entities.is_empty() {
-                    spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, planet_data);
+                    if let Ok(planet_entity) = planet_entities.single() {
+                        spawn_plate_direction_arrows(
+                            &mut commands,
+                            &mut meshes,
+                            &mut materials,
+                            planet_data,
+                            planet_entity,
+                        );
+                    }
                 }
             }
         } else {
@@ -163,6 +187,7 @@ fn spawn_plate_direction_arrows(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
     planet: &PlanetData,
+    planet_entity: Entity,
 ) {
     let arrow_mesh = arrow_mesh();
     let arrow_mesh_handle = meshes.add(arrow_mesh);
@@ -223,16 +248,57 @@ fn spawn_plate_direction_arrows(
             let default_direction = Vec3::Z;
             let rotation = Quat::from_rotation_arc(default_direction, tangent_direction);
 
-            commands.spawn((
+            let arrow_entity = commands.spawn((
                 Mesh3d(arrow_mesh_handle.clone()),
                 MeshMaterial3d(arrow_material.clone()),
                 Transform::from_translation(center)
                     .with_rotation(rotation)
                     .with_scale(Vec3::splat(arrow_scale)),
                 GlobalTransform::default(),
-                PlanetEntity, // Add marker component to arrows too
-                ArrowEntity, // Add ArrowEntity component
-            ));
+                ArrowEntity,
+            )).id();
+
+            // Make the arrow a child of the planet entity
+            commands.entity(planet_entity).add_child(arrow_entity);
+        }
+    }
+}
+
+pub fn planet_control(
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    mut mouse_motion: EventReader<MouseMotion>,
+    mut mouse_wheel: EventReader<MouseWheel>,
+    mut planet_query: Query<
+        (&mut Transform, &mut PlanetControls),
+        (With<PlanetEntity>, With<PlanetControls>),
+    >,
+    mut camera_query: Query<&mut Transform, (With<Camera3d>, Without<PlanetEntity>)>,
+) {
+    if let Ok((mut planet_transform, mut controls)) = planet_query.single_mut() {
+        if let Ok(mut camera_transform) = camera_query.single_mut() {
+            // Handle mouse dragging for planet rotation (only Y-axis)
+            if mouse_input.pressed(MouseButton::Left) {
+                for motion in mouse_motion.read() {
+                    // Only rotate around Y-axis (horizontal movement)
+                    // Positive mouse delta.x (moving right) should rotate clockwise around Y
+                    let yaw = Quat::from_rotation_y(motion.delta.x * 0.01);
+
+                    // Apply rotation to planet (only Y-axis rotation)
+                    controls.rotation = controls.rotation * yaw;
+                    planet_transform.rotation = controls.rotation;
+                }
+            }
+
+            // Handle mouse wheel for zoom
+            for wheel in mouse_wheel.read() {
+                controls.zoom -= wheel.y * 0.5;
+                controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
+
+                // Position camera at zoom distance, looking at planet center (0,0,0)
+                let camera_position = Vec3::new(0.0, 0.0, controls.zoom);
+                camera_transform.translation = camera_position;
+                camera_transform.look_at(Vec3::ZERO, Vec3::Y);
+            }
         }
     }
 }

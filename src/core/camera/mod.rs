@@ -2,6 +2,7 @@ pub(crate) mod components;
 
 use crate::core::camera::components::{MainCamera, MainCameraTarget};
 use crate::core::state::GameState;
+use crate::planet::events::SetCameraPositionEvent;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use std::f32::consts::PI;
@@ -15,15 +16,16 @@ impl Plugin for CameraPlugin {
             .add_systems(Startup, spawn_camera)
             .add_systems(
                 PostUpdate,
-                camera_control.run_if(in_state(GameState::InGame).or(in_state(GameState::PlanetGeneration))),
-            );
+                camera_control.run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(Update, handle_camera_position_events);
     }
 }
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(-10.0, 60.0, 0.0).looking_at(Vec3::new(-10.0, 0.0, 0.5), Vec3::Y),
+        Transform::from_xyz(0.0, 0.0, 60.0).looking_at(Vec3::ZERO, Vec3::Y),
         MainCamera,
     ));
 
@@ -81,5 +83,17 @@ fn camera_control(
 
     for ev in mouse_wheel.read() {
         transform.translation += forward * ev.y * 0.5;
+    }
+}
+
+fn handle_camera_position_events(
+    mut events: EventReader<SetCameraPositionEvent>,
+    mut camera_query: Query<&mut Transform, With<MainCamera>>,
+) {
+    for event in events.read() {
+        if let Ok(mut camera_transform) = camera_query.single_mut() {
+            camera_transform.translation = event.position;
+            camera_transform.look_at(Vec3::ZERO, Vec3::Y);
+        }
     }
 }
