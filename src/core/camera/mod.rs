@@ -32,6 +32,8 @@ fn spawn_camera(mut commands: Commands) {
             target_position: Vec3::new(0.0, 0.0, 60.0),
             target_look_at: Vec3::ZERO,
             current_look_at: Vec3::ZERO,
+            pivot: Vec3::ZERO,
+            dir: Vec3::Z,
             lerp_speed: 3.0,
             is_lerping: false,
         },
@@ -100,16 +102,21 @@ fn handle_camera_position_events(
 ) {
     for event in events.read() {
         if let Ok(mut camera_lerp) = camera_query.single_mut() {
-            // Calculate target position for smooth movement to account for UI
-            let camera_x_offset = event.position.z * 0.25;
-            let look_at_x_offset = event.position.z * 0.15;
+            let distance = event.position.z.max(0.0);
 
-            camera_lerp.target_position =
-                Vec3::new(camera_x_offset, event.position.y, event.position.z);
+            // Recompute offsets from current distance to keep composition stable
+            let camera_x_offset = distance * 0.25;
+            let look_at_x_offset = distance * 0.15;
+
+            camera_lerp.target_position = Vec3::new(camera_x_offset, event.position.y, distance);
             camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
 
-            // Immediately align current look to the new target to prevent curved lateral motion
+            // Immediately align the current look to new target to prevent sideways motion on regen
             camera_lerp.current_look_at = camera_lerp.target_look_at;
+
+            // Helper values (not used for zoom path now, but kept for clarity)
+            camera_lerp.pivot = camera_lerp.target_look_at;
+            camera_lerp.dir = Vec3::Z;
 
             camera_lerp.is_lerping = true;
         }

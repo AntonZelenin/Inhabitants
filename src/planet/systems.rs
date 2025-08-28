@@ -311,14 +311,16 @@ pub fn planet_control(
             // Handle mouse wheel for zoom - only if not over UI
             if !is_over_ui {
                 for wheel in mouse_wheel.read() {
-                    controls.zoom -= wheel.y * 2.0;
+                    controls.zoom -= wheel.y * 0.5;
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
-                    // Calculate target camera position for smooth movement; keep look_at fixed
+                    // Recompute composition offsets from current distance
                     let camera_x_offset = controls.zoom * 0.25;
+                    let look_at_x_offset = controls.zoom * 0.15;
 
-                    // Set target position for smooth lerping; don't modify target_look_at here
-                    camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                    camera_lerp.target_position =
+                        Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                    camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
                     camera_lerp.is_lerping = true;
                 }
             }
