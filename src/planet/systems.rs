@@ -311,7 +311,7 @@ pub fn planet_control(
             // Handle mouse wheel for zoom - only if not over UI
             if !is_over_ui {
                 for wheel in mouse_wheel.read() {
-                    controls.zoom -= wheel.y * 0.5;
+                    controls.zoom -= wheel.y * 2.0;
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
                     // Recompute composition offsets from current distance
