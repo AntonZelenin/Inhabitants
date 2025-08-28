@@ -31,6 +31,7 @@ fn spawn_camera(mut commands: Commands) {
         CameraLerp {
             target_position: Vec3::new(0.0, 0.0, 60.0),
             target_look_at: Vec3::ZERO,
+            current_look_at: Vec3::ZERO,
             lerp_speed: 3.0,
             is_lerping: false,
         },
@@ -106,6 +107,10 @@ fn handle_camera_position_events(
             camera_lerp.target_position =
                 Vec3::new(camera_x_offset, event.position.y, event.position.z);
             camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+
+            // Immediately align current look to the new target to prevent curved lateral motion
+            camera_lerp.current_look_at = camera_lerp.target_look_at;
+
             camera_lerp.is_lerping = true;
         }
     }

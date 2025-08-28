@@ -1,6 +1,7 @@
 use crate::helpers::mesh::arrow_mesh;
-use crate::planet::components::{ArrowEntity, PlanetControls, PlanetEntity, CameraLerp};
-use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent, SetCameraPositionEvent};
+use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
+use crate::planet::constants::PLANET_MAX_RADIUS;
+use crate::planet::events::{GeneratePlanetEvent, SetCameraPositionEvent, ToggleArrowsEvent};
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
@@ -47,27 +48,34 @@ pub fn spawn_planet_on_event(
 
         let expected_zoom = settings.radius * 3.0;
 
-        let planet_entity = commands.spawn((
-            Mesh3d(mesh_handle),
-            MeshMaterial3d(material_handle),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            GlobalTransform::default(),
-            PlanetEntity,
-            PlanetControls {
-                rotation: Quat::IDENTITY,
-                zoom: expected_zoom,
-                min_zoom: settings.radius * 1.5,
-                max_zoom: settings.radius * 10.0,
-            },
-        )).id();
+        let planet_entity = commands
+            .spawn((
+                Mesh3d(mesh_handle),
+                MeshMaterial3d(material_handle),
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                GlobalTransform::default(),
+                PlanetEntity,
+                PlanetControls {
+                    rotation: Quat::IDENTITY,
+                    zoom: expected_zoom,
+                    min_zoom: settings.radius * 1.5,
+                    max_zoom: PLANET_MAX_RADIUS * 3.5,
+                },
+            ))
+            .id();
 
-        // Emit camera position event
         camera_events.write(SetCameraPositionEvent {
             position: Vec3::new(0.0, 0.0, expected_zoom),
         });
 
         if settings.show_arrows {
-            spawn_plate_direction_arrows(&mut commands, &mut meshes, &mut materials, &planet_data, planet_entity);
+            spawn_plate_direction_arrows(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &planet_data,
+                planet_entity,
+            );
         }
 
         // Store planet data after using it for generation
@@ -248,15 +256,17 @@ fn spawn_plate_direction_arrows(
             let default_direction = Vec3::Z;
             let rotation = Quat::from_rotation_arc(default_direction, tangent_direction);
 
-            let arrow_entity = commands.spawn((
-                Mesh3d(arrow_mesh_handle.clone()),
-                MeshMaterial3d(arrow_material.clone()),
-                Transform::from_translation(center)
-                    .with_rotation(rotation)
-                    .with_scale(Vec3::splat(arrow_scale)),
-                GlobalTransform::default(),
-                ArrowEntity,
-            )).id();
+            let arrow_entity = commands
+                .spawn((
+                    Mesh3d(arrow_mesh_handle.clone()),
+                    MeshMaterial3d(arrow_material.clone()),
+                    Transform::from_translation(center)
+                        .with_rotation(rotation)
+                        .with_scale(Vec3::splat(arrow_scale)),
+                    GlobalTransform::default(),
+                    ArrowEntity,
+                ))
+                .id();
 
             // Make the arrow a child of the planet entity
             commands.entity(planet_entity).add_child(arrow_entity);
@@ -301,16 +311,14 @@ pub fn planet_control(
             // Handle mouse wheel for zoom - only if not over UI
             if !is_over_ui {
                 for wheel in mouse_wheel.read() {
-                    controls.zoom -= wheel.y * 0.5;
+                    controls.zoom -= wheel.y * 2.0;
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
-                    // Calculate target camera position for smooth movement
+                    // Calculate target camera position for smooth movement; keep look_at fixed
                     let camera_x_offset = controls.zoom * 0.25;
-                    let look_at_x_offset = controls.zoom * 0.15;
 
-                    // Set target positions for smooth lerping
+                    // Set target position for smooth lerping; don't modify target_look_at here
                     camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
-                    camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
                     camera_lerp.is_lerping = true;
                 }
             }
@@ -327,14 +335,32 @@ pub fn smooth_camera_movement(
             let dt = time.delta_secs();
             let lerp_factor = (camera_lerp.lerp_speed * dt).min(1.0);
 
-            camera_transform.translation = camera_transform.translation.lerp(camera_lerp.target_position, lerp_factor);
+            // Lerp position directly toward target
+            camera_transform.translation = camera_transform
+                .translation
+                .lerp(camera_lerp.target_position, lerp_factor);
 
-            camera_transform.look_at(camera_lerp.target_look_at, Vec3::Y);
+            // Lerp look_at independently toward target to avoid sudden direction changes
+            camera_lerp.current_look_at = camera_lerp
+                .current_look_at
+                .lerp(camera_lerp.target_look_at, lerp_factor);
 
-            // Check if we're close enough to stop lerping
-            let distance = camera_transform.translation.distance(camera_lerp.target_position);
-            if distance < 0.1 {
+            // Apply the smoothed look_at every frame
+            camera_transform.look_at(camera_lerp.current_look_at, Vec3::Y);
+
+            // Stop when both position and look_at are effectively at target
+            let pos_dist = camera_transform
+                .translation
+                .distance(camera_lerp.target_position);
+            let look_dist = camera_lerp
+                .current_look_at
+                .distance(camera_lerp.target_look_at);
+
+            if pos_dist < 0.001 && look_dist < 0.001 {
+                // Snap the last tiny epsilon to avoid drift (imperceptible)
                 camera_transform.translation = camera_lerp.target_position;
+                camera_lerp.current_look_at = camera_lerp.target_look_at;
+                camera_transform.look_at(camera_lerp.current_look_at, Vec3::Y);
                 camera_lerp.is_lerping = false;
             }
         }
