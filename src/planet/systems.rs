@@ -1,3 +1,4 @@
+use crate::core::camera::components::MainCamera;
 use crate::helpers::mesh::arrow_mesh;
 use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
 use crate::planet::constants::PLANET_MAX_RADIUS;
@@ -318,8 +319,7 @@ pub fn planet_control(
                     let camera_x_offset = controls.zoom * 0.25;
                     let look_at_x_offset = controls.zoom * 0.15;
 
-                    camera_lerp.target_position =
-                        Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                    camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
                     camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
                     camera_lerp.is_lerping = true;
                 }
@@ -365,6 +365,33 @@ pub fn smooth_camera_movement(
                 camera_transform.look_at(camera_lerp.current_look_at, Vec3::Y);
                 camera_lerp.is_lerping = false;
             }
+        }
+    }
+}
+
+pub fn handle_camera_position_events(
+    mut events: EventReader<SetCameraPositionEvent>,
+    mut camera_query: Query<&mut CameraLerp, With<MainCamera>>,
+) {
+    for event in events.read() {
+        if let Ok(mut camera_lerp) = camera_query.single_mut() {
+            let distance = event.position.z.max(0.0);
+
+            // Recompute offsets from current distance to keep composition stable
+            let camera_x_offset = distance * 0.25;
+            let look_at_x_offset = distance * 0.15;
+
+            camera_lerp.target_position = Vec3::new(camera_x_offset, event.position.y, distance);
+            camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+
+            // Immediately align the current look to new target to prevent sideways motion on regen
+            camera_lerp.current_look_at = camera_lerp.target_look_at;
+
+            // Helper values (not used for zoom path now, but kept for clarity)
+            camera_lerp.pivot = camera_lerp.target_look_at;
+            camera_lerp.dir = Vec3::Z;
+
+            camera_lerp.is_lerping = true;
         }
     }
 }

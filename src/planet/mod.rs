@@ -22,7 +22,7 @@ impl Plugin for PlanetPlugin {
             .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle))
             .add_systems(
                 Update,
-                (planet_control, smooth_camera_movement)
+                (planet_control, smooth_camera_movement, handle_camera_position_events)
                     .run_if(in_state(GameState::PlanetGeneration)),
             );
     }
