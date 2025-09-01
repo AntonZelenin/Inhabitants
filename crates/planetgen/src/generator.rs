@@ -78,6 +78,10 @@ impl PlanetGenerator {
         }
     }
 
+    /// Generates the main tectonic plates for the planet
+    ///
+    /// Creates random continental and oceanic plates with appropriate noise parameters.
+    /// Each plate gets a random seed direction on the unit sphere.
     fn generate_plates(&self) -> Vec<TectonicPlate> {
         (0..self.num_plates)
             .map(|id| {
@@ -101,6 +105,10 @@ impl PlanetGenerator {
             .collect()
     }
 
+    /// Generates smaller microplates along the boundaries of major plates
+    ///
+    /// Microplates are placed at locations where different major plates meet,
+    /// creating more detailed terrain features along plate boundaries.
     fn generate_microplates(
         &self,
         face_grid_size: usize,
@@ -150,11 +158,17 @@ impl PlanetGenerator {
     }
 
     /// Assigns a plate ID to every cell on each cube face by:
-    /// - iterating over each (x, y) grid point on every face.
-    /// - computing the corresponding 3D direction on the unit sphere.
-    /// - finding the nearest plate’s seed_dir (based on angular distance).
-    /// - writing that plate’s ID into plate_map[face][y][x].
-    /// Result: a 3D array (plate_map) where each cell knows which plate it belongs to.
+    ///
+    /// The planet is represented as a cube with 6 faces. Each face is divided into a grid.
+    /// Each tectonic plate has a direction pointing from the center of the planet to
+    /// somewhere on its surface.
+    ///
+    /// For every grid cell on every cube face:
+    /// - take the (x,y) coordinates on the cube face and convert them to a 3D direction vector
+    ///   pointing from planet center to that surface point;
+    /// - compare this grid cell's direction with ALL tectonic plates' direction vectors.
+    /// - the plate whose direction is closest (smallest angular distance) "wins" that grid cell
+    /// - store the winner: Put that winning plate's ID into map[face][y][x]
     fn assign_plates(
         &self,
         face_grid_size: usize,
@@ -191,6 +205,10 @@ impl PlanetGenerator {
         map
     }
 
+    /// Generates heightmaps for all six cube faces of the planet
+    ///
+    /// For each face, samples the noise function of the assigned tectonic plate
+    /// to create terrain height values at each grid point.
     fn generate_faces(
         &self,
         face_grid_size: usize,
@@ -224,6 +242,10 @@ impl PlanetGenerator {
     }
 }
 
+/// Converts 2D cube face coordinates to 3D world coordinates
+///
+/// Maps normalized coordinates (u, v) in range [-1, 1] on a specific cube face
+/// to 3D coordinates on the unit cube surface.
 pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
     match face_idx {
         0 => (1.0, v, -u),
