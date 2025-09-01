@@ -83,7 +83,7 @@ impl PlanetGenerator {
     fn generate_plates(&self) -> Vec<TectonicPlate> {
         (0..self.num_plates)
             .map(|id| {
-                let seed_dir = Vec3::new(
+                let direction = Vec3::new(
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
@@ -98,7 +98,14 @@ impl PlanetGenerator {
                     PlateType::Continental => (CONTINENTAL_FREQ, CONTINENTAL_AMP),
                     PlateType::Oceanic => (OCEANIC_FREQ, OCEANIC_AMP),
                 };
-                self.make_plate(id, seed_dir, plate_type, PlateSizeClass::Regular, freq, amp)
+                self.make_plate(
+                    id,
+                    direction,
+                    plate_type,
+                    PlateSizeClass::Regular,
+                    freq,
+                    amp,
+                )
             })
             .collect()
     }
@@ -167,36 +174,38 @@ impl PlanetGenerator {
     /// - compare this grid cell's direction with ALL tectonic plates' direction vectors.
     /// - the plate whose direction is closest (smallest angular distance) "wins" that grid cell
     /// - store the winner: Put that winning plate's ID into map[face][y][x]
-    fn assign_plates(
-        &self,
-        face_grid_size: usize,
-        plates: &[TectonicPlate],
-    ) -> PlateMap {
+    fn assign_plates(&self, face_grid_size: usize, plates: &[TectonicPlate]) -> PlateMap {
         let mut map = vec![vec![vec![0; face_grid_size]; face_grid_size]; 6];
+
+        let pre: Vec<(Vec3, f32, usize)> = plates
+            .iter()
+            .map(|p| {
+                let w = match p.size_class {
+                    PlateSizeClass::Regular => 1.0,
+                    PlateSizeClass::Micro => 2.7,
+                };
+                (p.direction.normalize(), w * w, p.id)
+            })
+            .collect();
+
+        let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for f in 0..6 {
             for y in 0..face_grid_size {
-                let v = y as f32 / (face_grid_size - 1) as f32 * 2.0 - 1.0;
+                let v = y as f32 * inv * 2.0 - 1.0;
                 for x in 0..face_grid_size {
-                    let u = x as f32 / (face_grid_size - 1) as f32 * 2.0 - 1.0;
+                    let u = x as f32 * inv * 2.0 - 1.0;
                     let dir = Vec3::from(cube_face_point(f, u, v)).normalize();
-                    let winner = plates
-                        .iter()
-                        .min_by(|a, b| {
-                            let w1 = match a.size_class {
-                                PlateSizeClass::Regular => 1.0,
-                                PlateSizeClass::Micro => 2.7,
-                            };
-                            let w2 = match b.size_class {
-                                PlateSizeClass::Regular => 1.0,
-                                PlateSizeClass::Micro => 2.7,
-                            };
-                            let d1 = dir.distance(a.direction) * w1;
-                            let d2 = dir.distance(b.direction) * w2;
-                            d1.partial_cmp(&d2).unwrap()
-                        })
-                        .unwrap()
-                        .id;
-                    map[f][y][x] = winner;
+                    let mut best_id = 0usize;
+                    let mut best_score = f32::INFINITY;
+                    for (pdir, w2, pid) in &pre {
+                        let dot = dir.dot(*pdir).clamp(-1.0, 1.0);
+                        let score = w2 * (1.0 - dot);
+                        if score < best_score {
+                            best_score = score;
+                            best_id = *pid;
+                        }
+                    }
+                    map[f][y][x] = best_id;
                 }
             }
         }
