@@ -1,8 +1,6 @@
 use crate::config::NoiseConfig;
-use crate::constants::{
-    CELLS_PER_UNIT, CONTINENTAL_AMP, CONTINENTAL_FREQ, DEBUG_COLORS, OCEANIC_AMP, OCEANIC_FREQ,
-};
-use crate::planet::{CubeFace, PlanetData, PlateSizeClass, PlateType};
+use crate::constants::*;
+use crate::planet::*;
 use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
@@ -113,7 +111,7 @@ impl PlanetGenerator {
         &self,
         face_grid_size: usize,
         plates: &[TectonicPlate],
-        plate_map: &Vec<Vec<Vec<usize>>>,
+        plate_map: &PlateMap,
     ) -> Vec<TectonicPlate> {
         (0..self.num_micro_plates)
             .map(|i| {
@@ -173,7 +171,7 @@ impl PlanetGenerator {
         &self,
         face_grid_size: usize,
         plates: &[TectonicPlate],
-    ) -> Vec<Vec<Vec<usize>>> {
+    ) -> PlateMap {
         let mut map = vec![vec![vec![0; face_grid_size]; face_grid_size]; 6];
         for f in 0..6 {
             for y in 0..face_grid_size {
@@ -213,7 +211,7 @@ impl PlanetGenerator {
         &self,
         face_grid_size: usize,
         plates: &[TectonicPlate],
-        plate_map: &Vec<Vec<Vec<usize>>>,
+        plate_map: &PlateMap,
     ) -> [CubeFace; 6] {
         let blank = CubeFace {
             heightmap: vec![vec![0.0; face_grid_size]; face_grid_size],
