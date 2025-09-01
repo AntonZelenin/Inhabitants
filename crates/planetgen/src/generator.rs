@@ -128,48 +128,46 @@ impl PlanetGenerator {
     /// Uses a relaxation algorithm to move plates apart when they're too close.
     /// Continues until all plates meet the minimum distance requirement or max iterations reached.
     fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
-        let min_allowed_distance = MIN_PLATE_DISTANCE_COEFF * self.radius;
+        let theta_min = MIN_PLATE_ANGULAR_DISTANCE;
+        let cos_min = theta_min.cos();
+        let eta = 0.5;
+        let eps = 1e-6_f32;
         let max_iterations = 50;
 
         for _ in 0..max_iterations {
-            let mut any_moved = false;
+            let mut moved = false;
             let mut adjustments = vec![Vec3::ZERO; directions.len()];
 
-            // Calculate position adjustments between all pairs of plates
             for i in 0..directions.len() {
                 for j in (i + 1)..directions.len() {
-                    let dir_i = directions[i];
-                    let dir_j = directions[j];
-
-                    // Calculate distance on unit sphere surface
-                    let dot = dir_i.dot(dir_j).clamp(-1.0, 1.0);
-                    let chord_distance = (2.0 * (1.0 - dot)).sqrt();
-
-                    // If too close, calculate position adjustments
-                    if chord_distance < min_allowed_distance {
-                        any_moved = true;
-
-                        let diff = dir_j - dir_i;
-                        let distance_deficit = min_allowed_distance - chord_distance;
-                        // Each plate moves half the distance needed to meet the criteria
-                        let adjustment_magnitude = distance_deficit * 0.5;
-
-                        // Apply adjustments to both plates (equal and opposite)
-                        adjustments[i] -= diff.normalize() * adjustment_magnitude;
-                        adjustments[j] += diff.normalize() * adjustment_magnitude;
+                    let a = directions[i];
+                    let b = directions[j];
+                    let dot = a.dot(b).clamp(-1.0, 1.0);
+                    if dot > cos_min {
+                        moved = true;
+                        let ti_raw = b - a * dot;
+                        let tj_raw = a - b * dot;
+                        let ni = ti_raw.length();
+                        let nj = tj_raw.length();
+                        if ni > eps && nj > eps {
+                            let delta = (cos_min - dot) * eta;
+                            let ti = ti_raw / ni;
+                            let tj = tj_raw / nj;
+                            adjustments[i] -= ti * delta;
+                            adjustments[j] -= tj * delta;
+                        }
                     }
                 }
             }
 
-            // Apply position adjustments and re-normalize to sphere surface
             for i in 0..directions.len() {
-                if adjustments[i].length_squared() > 0.0 {
-                    directions[i] = (directions[i] + adjustments[i]).normalize();
+                let v = directions[i] + adjustments[i];
+                if v.length_squared() > 0.0 {
+                    directions[i] = v.normalize();
                 }
             }
 
-            // If no plates moved significantly, we're done
-            if !any_moved {
+            if !moved {
                 break;
             }
         }
