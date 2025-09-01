@@ -5,6 +5,8 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
+pub const MIN_PLATE_ANGULAR_DISTANCE: f32 = 0.3;
+
 pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,

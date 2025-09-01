@@ -4,8 +4,6 @@ pub const CONTINENTAL_AMP: f32 = 0.7;
 pub const OCEANIC_FREQ: f32 = CONTINENTAL_FREQ / 2.0;
 pub const OCEANIC_AMP: f32 = CONTINENTAL_AMP / 10.0;
 
-pub const MIN_PLATE_ANGULAR_DISTANCE: f32 = 100.0;
-
 pub const DEBUG_COLORS: &[[f32; 4]] = &[
     [1.0, 0.0, 0.0, 1.0], // red
     [0.0, 1.0, 0.0, 1.0], // green
