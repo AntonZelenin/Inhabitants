@@ -123,10 +123,31 @@ impl PlanetGenerator {
             .collect()
     }
 
-    /// Iteratively enforces minimum distance between tectonic plate centers
+    /// Iteratively moves tectonic plate centres away from each other on the unit sphere
+    /// to avoid elongated thin plates.
     ///
-    /// Uses a relaxation algorithm to move plates apart when they're too close.
-    /// Continues until all plates meet the minimum distance requirement or max iterations reached.
+    /// Each plate centre is a unit `Vec3` pointing from the planet’s centre to the surface.
+    /// The routine enforces a minimum angular separation between all centres by repeatedly:
+    /// - scanning all unordered pairs of centres;
+    /// - identifying pairs whose angular distance is below the threshold `θ_min`;
+    /// - pushing each member of a pair away from the other along its
+    ///   local tangent (great-circle) direction;
+    /// - re-normalising all centres back onto the unit sphere;
+    /// - stopping early if no centre moves in an iteration or when the iteration cap is reached.
+    ///
+    /// Angular proximity is tested via the dot product: “too close” ⇔ `a·b > cos(θ_min)`.
+    /// The threshold is controlled by the constant `MIN_PLATE_SEPARATION_ANGLE` (radians).
+    ///
+    /// This reduces long, stringy plates by discouraging clustered centres
+    /// without forcing perfect uniformity.
+    ///
+    /// # Complexity
+    /// `O(P² · I)`, where `P` is the number of plates and `I` is the number of iterations.
+    ///
+    /// # Notes
+    /// - Inputs should be unit vectors; the function renormalises after each relaxation step.
+    /// - Convergence depends on the threshold and internal damping; if oscillations appear,
+    /// lower the threshold slightly or increase the iteration cap.
     fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
         let theta_min = MIN_PLATE_ANGULAR_DISTANCE;
         let cos_min = theta_min.cos();
