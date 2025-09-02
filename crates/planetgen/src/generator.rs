@@ -125,72 +125,67 @@ impl PlanetGenerator {
             .collect()
     }
 
-    /// Iteratively moves tectonic plate centres away from each other on the unit sphere
-    /// to avoid elongated thin plates.
+    /// Iteratively enforces minimum distance between tectonic plate centers.
     ///
-    /// Each plate centre is a unit `Vec3` pointing from the planet’s centre to the surface.
-    /// The routine enforces a minimum angular separation between all centres by repeatedly:
-    /// - scanning all unordered pairs of centres;
-    /// - identifying pairs whose angular distance is below the threshold `θ_min`;
-    /// - pushing each member of a pair away from the other along its
-    ///   local tangent (great-circle) direction;
-    /// - re-normalising all centres back onto the unit sphere;
-    /// - stopping early if no centre moves in an iteration or when the iteration cap is reached.
-    ///
-    /// Angular proximity is tested via the dot product: “too close” ⇔ `a·b > cos(θ_min)`.
-    /// The threshold is controlled by the constant `MIN_PLATE_SEPARATION_ANGLE` (radians).
-    ///
-    /// This reduces long, stringy plates by discouraging clustered centres
-    /// without forcing perfect uniformity.
+    /// Uses a relaxation algorithm to move plates apart when they're too close.
+    /// Continues until all plates meet the minimum distance requirement or max iterations reached.
     ///
     /// # Complexity
     /// `O(P² · I)`, where `P` is the number of plates and `I` is the number of iterations.
     ///
     /// # Notes
-    /// - Inputs should be unit vectors; the function renormalises after each relaxation step.
-    /// - Convergence depends on the threshold and internal damping; if oscillations appear,
-    /// lower the threshold slightly or increase the iteration cap.
+    /// - Inputs should be unit vectors; the function re-normalises after each relaxation step.
+    /// - Uses chord distance on unit sphere for more intuitive distance calculations.
     fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
-        let theta_min = MIN_PLATE_ANGULAR_DISTANCE;
-        let cos_min = theta_min.cos();
-        let eta = 0.5;
-        let eps = 1e-6_f32;
+        let min_allowed_distance = MIN_PLATE_ANGULAR_DISTANCE;
         let max_iterations = 50;
+        let eps = 1e-6_f32;
 
         for _ in 0..max_iterations {
-            let mut moved = false;
+            let mut any_moved = false;
             let mut adjustments = vec![Vec3::ZERO; directions.len()];
 
+            // Calculate position adjustments between all pairs of plates
             for i in 0..directions.len() {
                 for j in (i + 1)..directions.len() {
-                    let a = directions[i];
-                    let b = directions[j];
-                    let dot = a.dot(b).clamp(-1.0, 1.0);
-                    if dot > cos_min {
-                        moved = true;
-                        let ti_raw = b - a * dot;
-                        let tj_raw = a - b * dot;
-                        let ni = ti_raw.length();
-                        let nj = tj_raw.length();
-                        if ni > eps && nj > eps {
-                            let delta = (cos_min - dot) * eta;
-                            let ti = ti_raw / ni;
-                            let tj = tj_raw / nj;
-                            adjustments[i] -= ti * delta;
-                            adjustments[j] -= tj * delta;
+                    let dir_i = directions[i];
+                    let dir_j = directions[j];
+
+                    // Calculate chord distance on unit sphere surface
+                    let dot = dir_i.dot(dir_j).clamp(-1.0, 1.0);
+                    let chord_distance = (2.0 * (1.0 - dot)).sqrt();
+
+                    // If too close, calculate position adjustments
+                    if chord_distance < min_allowed_distance {
+                        any_moved = true;
+
+                        // Calculate the vector between the two points
+                        let diff = dir_j - dir_i;
+                        let diff_length = diff.length();
+
+                        if diff_length > eps {
+                            let distance_deficit = min_allowed_distance - chord_distance;
+                            // Each plate moves half the distance needed to meet the criteria
+                            let adjustment_magnitude = distance_deficit * 0.5;
+                            let diff_normalized = diff / diff_length;
+
+                            // Apply adjustments to both plates (equal and opposite)
+                            adjustments[i] -= diff_normalized * adjustment_magnitude;
+                            adjustments[j] += diff_normalized * adjustment_magnitude;
                         }
                     }
                 }
             }
 
+            // Apply position adjustments and re-normalize to sphere surface
             for i in 0..directions.len() {
-                let v = directions[i] + adjustments[i];
-                if v.length_squared() > 0.0 {
-                    directions[i] = v.normalize();
+                if adjustments[i].length_squared() > eps * eps {
+                    directions[i] = (directions[i] + adjustments[i]).normalize();
                 }
             }
 
-            if !moved {
+            // If no plates moved significantly, we're done
+            if !any_moved {
                 break;
             }
         }
