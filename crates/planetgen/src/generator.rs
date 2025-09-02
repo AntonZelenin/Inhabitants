@@ -4,6 +4,7 @@ use crate::planet::*;
 use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
+use std::collections::HashMap;
 
 // 0.3-0.5: Tight packing, some elongation risk
 // 0.6-0.8: Good balance (current: 0.8)
@@ -11,6 +12,7 @@ use rand::{random_bool, random_range};
 // 1.3-1.5: Very spread out
 // 1.6+: Too restrictive, may not converge
 pub const MIN_PLATE_SEPARATION_CHORD_DISTANCE: f32 = 0.5;
+pub const STRIDE: usize = 1;
 
 pub struct PlanetGenerator {
     pub radius: f32,
@@ -345,4 +347,66 @@ pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
         5 => (-u, v, -1.0),
         _ => (0.0, 0.0, 0.0),
     }
+}
+
+/// A fast hash function (SplitMix64) for pseudo-random uniform distribution.
+fn splitmix64(mut z: u64) -> u64 {
+    z = z.wrapping_add(0x9E3779B97F4A7C15);
+    let mut r = z;
+    r = (r ^ (r >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+    r = (r ^ (r >> 27)).wrapping_mul(0x94D049BB133111EB);
+    r ^ (r >> 31)
+}
+
+/// Hashes a single cell uniquely given its face, coordinates and seed.
+/// Ensures reproducible pseudo-random ordering of cells per plate.
+fn hash_cell(face: usize, x: usize, y: usize, seed: u64) -> u64 {
+    let a = splitmix64(seed ^ (face as u64).wrapping_mul(0x9E37));
+    let b = splitmix64(a ^ (x as u64).wrapping_mul(0xC2B2AE3D));
+    splitmix64(b ^ (y as u64).wrapping_mul(0x165667B1))
+}
+
+/// Returns one pseudo-random cell coordinate for each tectonic plate.
+///
+/// # Arguments
+/// * `face_grid_size` - The resolution of one cube face (number of cells per axis).
+/// * `plate_map` - The 3D map [6][face_grid_size][face_grid_size] assigning plate IDs to each cell.
+/// * `seed` - Random seed for reproducibility.
+///
+/// # Returns
+/// A `HashMap<plate_id, (face, x, y)>` with exactly one representative
+/// cell coordinate per plate.
+///
+/// - Runtime is O(N/STRIDE²) with N = total number of cells.
+pub fn random_cell_per_plate(
+    face_grid_size: usize,
+    plate_map: &PlateMap,
+    seed: u64,
+) -> HashMap<usize, (usize, usize, usize)> {
+    let mut best: HashMap<usize, (u64, usize, usize, usize)> = HashMap::new();
+    for face in 0..6 {
+        let mut y = 0;
+        while y < face_grid_size {
+            let mut x = 0;
+            while x < face_grid_size {
+                let pid = plate_map[face][y][x];
+                let h = hash_cell(face, x, y, seed);
+                match best.get_mut(&pid) {
+                    Some(entry) => {
+                        if h < entry.0 {
+                            *entry = (h, face, x, y);
+                        }
+                    }
+                    None => {
+                        best.insert(pid, (h, face, x, y));
+                    }
+                }
+                x += STRIDE;
+            }
+            y += STRIDE;
+        }
+    }
+    best.into_iter()
+        .map(|(pid, (_, f, x, y))| (pid, (f, x, y)))
+        .collect()
 }
