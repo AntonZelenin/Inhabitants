@@ -86,10 +86,8 @@ impl PlanetGenerator {
     /// Generates the main tectonic plates for the planet
     ///
     /// Creates random continental and oceanic plates with appropriate noise parameters.
-    /// Each plate gets a random seed direction on the unit sphere, ensuring minimum
-    /// distance between plate centers to prevent thin, elongated plates.
+    /// Each plate gets a random seed direction on the unit sphere
     fn generate_plates(&self) -> Vec<TectonicPlate> {
-        // Generate initial random positions
         let mut directions: Vec<Vec3> = (0..self.num_plates)
             .map(|_| {
                 Vec3::new(
@@ -101,10 +99,8 @@ impl PlanetGenerator {
             })
             .collect();
 
-        // Apply minimum distance constraint iteratively
         self.enforce_minimum_plate_distance(&mut directions);
 
-        // Create plates with the adjusted positions
         directions
             .into_iter()
             .enumerate()
@@ -136,7 +132,7 @@ impl PlanetGenerator {
     /// Continues until all plates meet the minimum distance requirement or max iterations reached.
     ///
     /// # Complexity
-    /// `O(P² · I)`, where `P` is the number of plates and `I` is the number of iterations.
+    /// `O(P² · I)`, where `P` is the number of plates and `I` is the number of iterations (<= max_iterations).
     ///
     /// # Notes
     /// - Inputs should be unit vectors; the function re-normalises after each relaxation step.
@@ -168,7 +164,8 @@ impl PlanetGenerator {
                         let diff_length = diff.length();
 
                         if diff_length > eps {
-                            let distance_deficit = MIN_PLATE_SEPARATION_CHORD_DISTANCE - chord_distance;
+                            let distance_deficit =
+                                MIN_PLATE_SEPARATION_CHORD_DISTANCE - chord_distance;
                             // Each plate moves half the distance needed to meet the criteria
                             let adjustment_magnitude = distance_deficit * 0.5;
                             let diff_normalized = diff / diff_length;
