@@ -11,8 +11,7 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use planetgen::generator::{PlanetGenerator, cube_face_point};
-use planetgen::planet::PlanetData;
+use planetgen::prelude::*;
 use std::collections::HashMap;
 
 pub fn spawn_planet_on_event(
@@ -31,12 +30,7 @@ pub fn spawn_planet_on_event(
             commands.entity(entity).despawn();
         }
 
-        let mut generator = PlanetGenerator::new(settings.radius);
-        generator.cells_per_unit = settings.cells_per_unit;
-        generator.num_plates = settings.num_plates;
-        generator.num_micro_plates = settings.num_micro_plates;
-
-        let planet_data = generator.generate();
+        let planet_data = generate((&*settings).into());
 
         // Store planet data for arrow generation (move instead of clone)
         let mesh = build_stitched_planet_mesh(&planet_data);
