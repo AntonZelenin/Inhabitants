@@ -5,7 +5,7 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
-pub const MIN_PLATE_ANGULAR_DISTANCE: f32 = 0.3;
+pub const MIN_PLATE_DISTANCE_COEFF: f32 = 0.05;
 
 pub struct PlanetGenerator {
     pub radius: f32,
@@ -137,7 +137,7 @@ impl PlanetGenerator {
     /// - Inputs should be unit vectors; the function re-normalises after each relaxation step.
     /// - Uses chord distance on unit sphere for more intuitive distance calculations.
     fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
-        let min_allowed_distance = MIN_PLATE_ANGULAR_DISTANCE;
+        let min_allowed_distance = MIN_PLATE_DISTANCE_COEFF * self.radius;
         let max_iterations = 50;
         let eps = 1e-6_f32;
 
