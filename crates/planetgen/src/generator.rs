@@ -5,6 +5,13 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
+// 0.3-0.5: Tight packing, some elongation risk
+// 0.6-0.8: Good balance (current: 0.8)
+// 0.9-1.2: Well-spaced, robust against elongation
+// 1.3-1.5: Very spread out
+// 1.6+: Too restrictive, may not converge
+pub const MIN_PLATE_SEPARATION_CHORD_DISTANCE: f32 = 0.5;
+
 pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,
@@ -79,16 +86,25 @@ impl PlanetGenerator {
     /// Generates the main tectonic plates for the planet
     ///
     /// Creates random continental and oceanic plates with appropriate noise parameters.
-    /// Each plate gets a random seed direction on the unit sphere.
+    /// Each plate gets a random seed direction on the unit sphere
     fn generate_plates(&self) -> Vec<TectonicPlate> {
-        (0..self.num_plates)
-            .map(|id| {
-                let direction = Vec3::new(
+        let mut directions: Vec<Vec3> = (0..self.num_plates)
+            .map(|_| {
+                Vec3::new(
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
                     random_range(-1.0..1.0),
                 )
-                .normalize();
+                .normalize()
+            })
+            .collect();
+
+        self.enforce_minimum_plate_distance(&mut directions);
+
+        directions
+            .into_iter()
+            .enumerate()
+            .map(|(id, direction)| {
                 let plate_type = if random_bool(0.5) {
                     PlateType::Continental
                 } else {
@@ -108,6 +124,72 @@ impl PlanetGenerator {
                 )
             })
             .collect()
+    }
+
+    /// Iteratively enforces minimum distance between tectonic plate centers.
+    ///
+    /// Uses a relaxation algorithm to move plates apart when they're too close.
+    /// Continues until all plates meet the minimum distance requirement or max iterations reached.
+    ///
+    /// # Complexity
+    /// `O(P² · I)`, where `P` is the number of plates and `I` is the number of iterations (<= max_iterations).
+    ///
+    /// # Notes
+    /// - Inputs should be unit vectors; the function re-normalises after each relaxation step.
+    /// - Uses chord distance on unit sphere scaled by radius for intuitive distance calculations.
+    fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
+        let max_iterations = 50;
+        let eps = 1e-6_f32;
+
+        for _ in 0..max_iterations {
+            let mut any_moved = false;
+            let mut adjustments = vec![Vec3::ZERO; directions.len()];
+
+            // Calculate position adjustments between all pairs of plates
+            for i in 0..directions.len() {
+                for j in (i + 1)..directions.len() {
+                    let dir_i = directions[i];
+                    let dir_j = directions[j];
+
+                    // Calculate chord distance on unit sphere surface
+                    let dot = dir_i.dot(dir_j).clamp(-1.0, 1.0);
+                    let chord_distance = (2.0 * (1.0 - dot)).sqrt();
+
+                    // If too close, calculate position adjustments
+                    if chord_distance < MIN_PLATE_SEPARATION_CHORD_DISTANCE {
+                        any_moved = true;
+
+                        // Calculate the vector between the two points
+                        let diff = dir_j - dir_i;
+                        let diff_length = diff.length();
+
+                        if diff_length > eps {
+                            let distance_deficit =
+                                MIN_PLATE_SEPARATION_CHORD_DISTANCE - chord_distance;
+                            // Each plate moves half the distance needed to meet the criteria
+                            let adjustment_magnitude = distance_deficit * 0.5;
+                            let diff_normalized = diff / diff_length;
+
+                            // Apply adjustments to both plates (equal and opposite)
+                            adjustments[i] -= diff_normalized * adjustment_magnitude;
+                            adjustments[j] += diff_normalized * adjustment_magnitude;
+                        }
+                    }
+                }
+            }
+
+            // Apply position adjustments and re-normalize to sphere surface
+            for i in 0..directions.len() {
+                if adjustments[i].length_squared() > eps * eps {
+                    directions[i] = (directions[i] + adjustments[i]).normalize();
+                }
+            }
+
+            // If no plates moved significantly, we're done
+            if !any_moved {
+                break;
+            }
+        }
     }
 
     /// Generates smaller microplates along the boundaries of major plates
