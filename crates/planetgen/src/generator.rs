@@ -5,7 +5,12 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
-pub const MIN_PLATE_DISTANCE_COEFF: f32 = 0.05;
+// 0.3-0.5: Tight packing, some elongation risk
+// 0.6-0.8: Good balance (current: 0.8)
+// 0.9-1.2: Well-spaced, robust against elongation
+// 1.3-1.5: Very spread out
+// 1.6+: Too restrictive, may not converge
+pub const MIN_PLATE_SEPARATION_CHORD_DISTANCE: f32 = 0.5;
 
 pub struct PlanetGenerator {
     pub radius: f32,
@@ -135,9 +140,8 @@ impl PlanetGenerator {
     ///
     /// # Notes
     /// - Inputs should be unit vectors; the function re-normalises after each relaxation step.
-    /// - Uses chord distance on unit sphere for more intuitive distance calculations.
+    /// - Uses chord distance on unit sphere scaled by radius for intuitive distance calculations.
     fn enforce_minimum_plate_distance(&self, directions: &mut Vec<Vec3>) {
-        let min_allowed_distance = MIN_PLATE_DISTANCE_COEFF * self.radius;
         let max_iterations = 50;
         let eps = 1e-6_f32;
 
@@ -156,7 +160,7 @@ impl PlanetGenerator {
                     let chord_distance = (2.0 * (1.0 - dot)).sqrt();
 
                     // If too close, calculate position adjustments
-                    if chord_distance < min_allowed_distance {
+                    if chord_distance < MIN_PLATE_SEPARATION_CHORD_DISTANCE {
                         any_moved = true;
 
                         // Calculate the vector between the two points
@@ -164,7 +168,7 @@ impl PlanetGenerator {
                         let diff_length = diff.length();
 
                         if diff_length > eps {
-                            let distance_deficit = min_allowed_distance - chord_distance;
+                            let distance_deficit = MIN_PLATE_SEPARATION_CHORD_DISTANCE - chord_distance;
                             // Each plate moves half the distance needed to meet the criteria
                             let adjustment_magnitude = distance_deficit * 0.5;
                             let diff_normalized = diff / diff_length;
