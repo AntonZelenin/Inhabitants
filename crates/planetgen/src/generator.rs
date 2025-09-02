@@ -333,23 +333,6 @@ pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
     }
 }
 
-/// A fast hash function (SplitMix64) for pseudo-random uniform distribution.
-fn splitmix64(mut z: u64) -> u64 {
-    z = z.wrapping_add(0x9E3779B97F4A7C15);
-    let mut r = z;
-    r = (r ^ (r >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
-    r = (r ^ (r >> 27)).wrapping_mul(0x94D049BB133111EB);
-    r ^ (r >> 31)
-}
-
-/// Hashes a single cell uniquely given its face, coordinates and seed.
-/// Ensures reproducible pseudo-random ordering of cells per plate.
-fn hash_cell(face: usize, x: usize, y: usize, seed: u64) -> u64 {
-    let a = splitmix64(seed ^ (face as u64).wrapping_mul(0x9E37));
-    let b = splitmix64(a ^ (x as u64).wrapping_mul(0xC2B2AE3D));
-    splitmix64(b ^ (y as u64).wrapping_mul(0x165667B1))
-}
-
 /// Returns one pseudo-random cell coordinate for each tectonic plate.
 ///
 /// # Arguments
@@ -393,4 +376,127 @@ pub fn random_cell_per_plate(
     best.into_iter()
         .map(|(pid, (_, f, x, y))| (pid, (f, x, y)))
         .collect()
+}
+
+/// A fast hash function (SplitMix64) for pseudo-random reproducible uniform distribution.
+fn splitmix64(mut z: u64) -> u64 {
+    z = z.wrapping_add(0x9E3779B97F4A7C15);
+    let mut r = z;
+    r = (r ^ (r >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+    r = (r ^ (r >> 27)).wrapping_mul(0x94D049BB133111EB);
+    r ^ (r >> 31)
+}
+
+/// Hashes a single cell uniquely given its face, coordinates and seed.
+fn hash_cell(face: usize, x: usize, y: usize, seed: u64) -> u64 {
+    let a = splitmix64(seed ^ (face as u64).wrapping_mul(0x9E37));
+    let b = splitmix64(a ^ (x as u64).wrapping_mul(0xC2B2AE3D));
+    splitmix64(b ^ (y as u64).wrapping_mul(0x165667B1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    type PlateMapLocal = Vec<Vec<Vec<usize>>>;
+
+    fn blank_map(n: usize, pid: usize) -> PlateMapLocal {
+        let face = vec![vec![pid; n]; n];
+        vec![
+            face.clone(),
+            face.clone(),
+            face.clone(),
+            face.clone(),
+            face.clone(),
+            face,
+        ]
+    }
+
+    /// Face 0 (4x4), two plates appear exactly once each.
+    ///
+    /// face=0
+    /// y
+    /// 3 | 0 0 0 0
+    /// 2 | 0 0 0 0
+    /// 1 | 0 1 0 0
+    /// 0 | 0 0 0 2
+    ///     0 1 2 3  x
+    ///
+    /// Expect:
+    /// - plate 0 → any of its many cells
+    /// - plate 1 → (0,1,1)
+    /// - plate 2 → (0,3,0)
+    #[test]
+    fn picks_known_singletons() {
+        let mut pm = blank_map(4, 0);
+        pm[0][1][1] = 1;
+        pm[0][0][3] = 2;
+
+        let out = random_cell_per_plate(4, &pm, 42);
+
+        assert_eq!(out.get(&1), Some(&(0, 1, 1)));
+        assert_eq!(out.get(&2), Some(&(0, 3, 0)));
+        assert!(out.get(&0).is_some());
+        assert_eq!(out.len(), 3);
+    }
+
+    /// Determinism per seed; change seed → likely different picks.
+    ///
+    /// face=0 (5x5), two plates interleaved in a plus shape:
+    ///
+    /// y
+    /// 4 | . . 2 . .
+    /// 3 | . . 2 . .
+    /// 2 | 1 1 1 1 1
+    /// 1 | . . 2 . .
+    /// 0 | . . 2 . .
+    ///     0 1 2 3 4  x
+    ///
+    /// '.' are plate 0 background.
+    #[test]
+    fn deterministic_and_seed_sensitive() {
+        let mut pm = blank_map(5, 0);
+        for x in 0..5 {
+            pm[0][2][x] = 1;
+        }
+        for y in 0..5 {
+            pm[0][y][2] = 2;
+        }
+
+        let a = random_cell_per_plate(5, &pm, 123456);
+        let b = random_cell_per_plate(5, &pm, 123456);
+        let c = random_cell_per_plate(5, &pm, 123457);
+
+        assert_eq!(a, b);
+
+        let mut diff = 0;
+        for pid in [0usize, 1, 2] {
+            if a.get(&pid) != c.get(&pid) {
+                diff += 1;
+            }
+        }
+        assert!(diff >= 1);
+    }
+
+    /// Single representative even when a plate spans multiple faces.
+    ///
+    /// face=0: plate 5 at (0,0)
+    /// face=1: plate 5 at (1,1)
+    #[test]
+    fn plate_spanning_faces_gets_single_sample() {
+        let mut pm = blank_map(3, 0);
+        pm[0][0][0] = 5;
+        pm[1][1][1] = 5;
+        pm[0][2][2] = 6;
+
+        let out = random_cell_per_plate(3, &pm, 9);
+
+        assert!(out.get(&5).is_some());
+        assert!(matches!(out.get(&5), Some(&(0, 0, 0)) | Some(&(1, 1, 1))));
+        assert!(out.get(&6).is_some());
+
+        let unique_plates: HashSet<_> = out.keys().cloned().collect();
+        assert_eq!(unique_plates.len(), out.len());
+    }
 }
