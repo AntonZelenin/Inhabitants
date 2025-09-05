@@ -1,4 +1,3 @@
-pub const CELLS_PER_UNIT: f32 = 3.0;
 pub const CONTINENTAL_FREQ: f32 = 3.0;
 pub const CONTINENTAL_AMP: f32 = 0.7;
 pub const OCEANIC_FREQ: f32 = CONTINENTAL_FREQ / 2.0;
