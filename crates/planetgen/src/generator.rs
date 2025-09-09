@@ -4,6 +4,7 @@ use crate::planet::*;
 use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
+use std::collections::HashMap;
 
 /// Spatial frequency of the flow field used to bend plate boundaries.
 /// Lower values produce larger, smoother swirls; higher values add finer detail.
@@ -51,6 +52,7 @@ impl PlanetGenerator {
         plates.extend(micros);
 
         plate_map = self.assign_plates(face_grid_size, &plates);
+        majority_smooth(face_grid_size, &mut plate_map);
 
         let faces = self.generate_faces(face_grid_size, &plates, &plate_map);
         PlanetData {
@@ -290,7 +292,17 @@ impl PlanetGenerator {
             })
             .collect();
 
-        let warp_cfg = NoiseConfig::new(
+        let warp_x = NoiseConfig::new(
+            random_range(0_u32..u32::MAX),
+            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
+            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+        );
+        let warp_y = NoiseConfig::new(
+            random_range(0_u32..u32::MAX),
+            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
+            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+        );
+        let warp_z = NoiseConfig::new(
             random_range(0_u32..u32::MAX),
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
@@ -306,8 +318,9 @@ impl PlanetGenerator {
                 for x in 0..face_grid_size {
                     let u = x as f32 * inv * 2.0 - 1.0;
                     let mut dir = Vec3::from(cube_face_point(f, u, v)).normalize();
-                    let offset = warp_cfg.sample(dir) * PLATE_BOUNDARY_WARP_MULTIPLIER;
-                    dir = (dir + Vec3::new(offset, offset, offset)).normalize();
+                    let r = Vec3::new(warp_x.sample(dir), warp_y.sample(dir), warp_z.sample(dir));
+                    let t = r - dir * dir.dot(r);
+                    dir = (dir + t * PLATE_BOUNDARY_WARP_MULTIPLIER).normalize();
                     let dir = self.advect_dir(dir, &flow_x, &flow_y, &flow_z);
 
                     let mut best_id = 0usize;
@@ -377,5 +390,61 @@ pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> (f32, f32, f32) {
         4 => (u, v, 1.0),
         5 => (-u, v, -1.0),
         _ => (0.0, 0.0, 0.0),
+    }
+}
+
+/// Smooths thin, noisy seams in the plate map using a single-pass majority vote.
+/// For each cell, counts its 8 neighbours plus itself (self counts double) and
+/// assigns the most frequent plate ID to the cell.
+///
+/// This removes 1–2 cell cracks while preserving large-scale shapes.
+/// Call once after the final `assign_plates`.
+///
+/// # Behaviour
+/// Neighbourhood: 8-connectivity. Self weight: 2.
+/// Ties: winner is the first plate ID reaching the max count during scan (stable).
+///
+/// # Complexity
+/// O(6 · face_n²) time, O(face_n²) extra per-face buffer.
+///
+/// # Notes
+/// If over-smoothing occurs, reduce self weight or drop the diagonal neighbours.
+fn majority_smooth(face_n: usize, map: &mut PlateMap) {
+    for f in 0..6 {
+        let mut out = map[f].clone();
+        for y in 0..face_n {
+            for x in 0..face_n {
+                let mut hist: HashMap<usize, u32> = HashMap::new();
+                let pid = map[f][y][x];
+                *hist.entry(pid).or_insert(0) += 2;
+                for (dx, dy) in [
+                    (-1i32, 0i32),
+                    (1, 0),
+                    (0, -1),
+                    (0, 1),
+                    (-1, -1),
+                    (-1, 1),
+                    (1, -1),
+                    (1, 1),
+                ] {
+                    let nx = x as i32 + dx;
+                    let ny = y as i32 + dy;
+                    if nx >= 0 && ny >= 0 && (nx as usize) < face_n && (ny as usize) < face_n {
+                        let q = map[f][ny as usize][nx as usize];
+                        *hist.entry(q).or_insert(0) += 1;
+                    }
+                }
+                let mut best = pid;
+                let mut best_v = 0u32;
+                for (k, v) in hist {
+                    if v > best_v {
+                        best_v = v;
+                        best = k;
+                    }
+                }
+                out[y][x] = best;
+            }
+        }
+        map[f] = out;
     }
 }

@@ -18,7 +18,7 @@ impl Default for PlanetGenerationSettings {
             cells_per_unit: 2.0,
             num_plates: 15,
             num_micro_plates: 5,
-            show_arrows: true,
+            show_arrows: false,
         }
     }
 }
