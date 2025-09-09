@@ -12,7 +12,7 @@ pub const PLANET_MAX_RADIUS: f32 = 80.0;
 // Frequency controls how wide the bends are: lower freq = big sweeping arcs, higher freq = more jagged.
 pub const PLATE_BOUNDARY_DISTORTION_FREQUENCY: f32 = 4.5;
 // Amplitude controls how “wiggly” the boundaries get: 0.1–0.3 is usually enough.
-pub const PLATE_BOUNDARY_DISTORTION_AMPLITUDE: f32 = 0.2;
+pub const PLATE_BOUNDARY_DISTORTION_AMPLITUDE: f32 = 0.25;
 // raw noise gives -1.0..1.0, which will lead to huge warps for dozens of degrees
 // 0.05–0.1: subtle wavy boundaries.
 // 0.3–0.5: wild distortions, noisy patches.
