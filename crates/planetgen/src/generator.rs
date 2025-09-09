@@ -5,13 +5,6 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
-// 0.3-0.5: Tight packing, some elongation risk
-// 0.6-0.8: Good balance (current: 0.8)
-// 0.9-1.2: Well-spaced, robust against elongation
-// 1.3-1.5: Very spread out
-// 1.6+: Too restrictive, may not converge
-pub const MIN_PLATE_SEPARATION_CHORD_DISTANCE: f32 = 0.5;
-
 pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,
@@ -24,8 +17,9 @@ impl PlanetGenerator {
         Self {
             radius,
             cells_per_unit: CELLS_PER_UNIT,
-            num_plates: Self::get_number_of_plates(),
-            num_micro_plates: Self::get_number_of_microplates(),
+            // default values, will be replaced by planet settings
+            num_plates: 0,
+            num_micro_plates: 0,
         }
     }
 
@@ -52,14 +46,6 @@ impl PlanetGenerator {
             plate_map,
             plates,
         }
-    }
-
-    fn get_number_of_plates() -> usize {
-        random_range(4..9)
-    }
-
-    fn get_number_of_microplates() -> usize {
-        random_range(5..10)
     }
 
     fn make_plate(
@@ -105,7 +91,7 @@ impl PlanetGenerator {
             .into_iter()
             .enumerate()
             .map(|(id, direction)| {
-                let plate_type = if random_bool(0.5) {
+                let plate_type = if random_bool(CONTINENTAL_PLATE_PROBABILITY) {
                     PlateType::Continental
                 } else {
                     PlateType::Oceanic
@@ -224,14 +210,14 @@ impl PlanetGenerator {
                 let base_dir = Vec3::new(dx, dy, dz).normalize();
                 // *tiny* jitter so seed stays close to boundary
                 let jitter = Vec3::new(
-                    random_range(-0.1..0.1),
-                    random_range(-0.1..0.1),
-                    random_range(-0.1..0.1),
+                    random_range(MICRO_PLATE_JITTER_RANGE),
+                    random_range(MICRO_PLATE_JITTER_RANGE),
+                    random_range(MICRO_PLATE_JITTER_RANGE),
                 );
                 let seed_dir = (base_dir + jitter).normalize();
                 // smaller scale noise
-                let freq = CONTINENTAL_FREQ * 1.5;
-                let amp = CONTINENTAL_AMP * 0.3;
+                let freq = CONTINENTAL_FREQ * MICRO_PLATE_FREQUENCY_MULTIPLIER;
+                let amp = CONTINENTAL_AMP * MICRO_PLATE_AMPLITUDE_MULTIPLIER;
                 self.make_plate(
                     id,
                     seed_dir,
@@ -253,22 +239,31 @@ impl PlanetGenerator {
     /// For every grid cell on every cube face:
     /// - take the (x,y) coordinates on the cube face and convert them to a 3D direction vector
     ///   pointing from planet center to that surface point;
-    /// - compare this grid cell's direction with ALL tectonic plates' direction vectors.
+    /// - compare this grid cell's direction with ALL tectonic plates' direction vectors (a small
+    ///   distortion is applied to the grid cell direction to make plate boundaries less square);
     /// - the plate whose direction is closest (smallest angular distance) "wins" that grid cell
     /// - store the winner: Put that winning plate's ID into map[face][y][x]
     fn assign_plates(&self, face_grid_size: usize, plates: &[TectonicPlate]) -> PlateMap {
         let mut map = vec![vec![vec![0; face_grid_size]; face_grid_size]; 6];
 
+        // Precompute plate vectors
         let pre: Vec<(Vec3, f32, usize)> = plates
             .iter()
             .map(|p| {
                 let w = match p.size_class {
                     PlateSizeClass::Regular => 1.0,
-                    PlateSizeClass::Micro => 2.7,
+                    PlateSizeClass::Micro => MICRO_PLATE_WEIGHT_FACTOR,
                 };
                 (p.direction.normalize(), w * w, p.id)
             })
             .collect();
+
+        // noise config for plate boundary warp
+        let warp_cfg = NoiseConfig::new(
+            random_range(0_u32..u32::MAX),
+            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
+            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+        );
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for f in 0..6 {
@@ -276,7 +271,12 @@ impl PlanetGenerator {
                 let v = y as f32 * inv * 2.0 - 1.0;
                 for x in 0..face_grid_size {
                     let u = x as f32 * inv * 2.0 - 1.0;
-                    let dir = Vec3::from(cube_face_point(f, u, v)).normalize();
+                    let mut dir = Vec3::from(cube_face_point(f, u, v)).normalize();
+
+                    // Apply small noise-based warp to direction
+                    let offset = warp_cfg.sample(dir) * PLATE_BOUNDARY_WARP_MULTIPLIER;
+                    dir = (dir + Vec3::new(offset, offset, offset)).normalize();
+
                     let mut best_id = 0usize;
                     let mut best_score = f32::INFINITY;
                     for (pdir, w2, pid) in &pre {

@@ -8,7 +8,7 @@ use crate::ui::widgets::*;
 use bevy::app::AppExit;
 use bevy::color::Color;
 use bevy::prelude::*;
-use crate::planet::constants::{PLANET_MAX_RADIUS, PLANET_MIN_RADIUS};
+use planetgen::constants::*;
 
 pub fn setup_world_generation_menu(
     mut commands: Commands,
