@@ -5,6 +5,20 @@ use crate::plate::TectonicPlate;
 use glam::Vec3;
 use rand::{random_bool, random_range};
 
+/// Spatial frequency of the flow field used to bend plate boundaries.
+/// Lower values produce larger, smoother swirls; higher values add finer detail.
+/// Examples: 0.15–0.40 = broad, plate-scale bends; 0.5–1.0 = medium; >1.5 = busy/jittery.
+pub const FLOW_WARP_FREQ: f32 = 0.45;
+/// Strength of the flow vectors before projection to the tangent plane.
+/// Controls how hard each step pushes. Examples: 0.10 subtle, 0.25 balanced (default), 0.40 strong, >0.60 chaotic.
+pub const FLOW_WARP_AMP: f32 = 0.25;
+/// Number of advection steps applied per cell. More steps = more coherent, larger-scale displacement (but slower).
+/// Examples: 1 minimal, 2–4 typical, 5–8 heavy warp.
+pub const FLOW_WARP_STEPS: usize = 3;
+/// Angular step size per advection step (radians). Sets the along-surface distance moved each step.
+/// Examples: 0.05 (~3°) subtle, 0.12 (~7°) default, 0.25 (~14°) strong, >0.50 (~29°) extreme.
+pub const FLOW_WARP_STEP_ANGLE: f32 = 0.12;
+
 pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,
@@ -178,6 +192,24 @@ impl PlanetGenerator {
         }
     }
 
+    fn advect_dir(&self, p: Vec3, nx: &NoiseConfig, ny: &NoiseConfig, nz: &NoiseConfig) -> Vec3 {
+        let mut d = p;
+        for _ in 0..FLOW_WARP_STEPS {
+            let v = Vec3::new(nx.sample(d), ny.sample(d), nz.sample(d));
+            let t = v - d * d.dot(v);
+            let tl = t.length();
+            if tl > 1e-6 {
+                let tn = t / tl;
+                let c = FLOW_WARP_STEP_ANGLE.cos();
+                let s = FLOW_WARP_STEP_ANGLE.sin();
+                d = (d * c + tn * s).normalize();
+            } else {
+                break;
+            }
+        }
+        d
+    }
+
     /// Generates smaller microplates along the boundaries of major plates
     ///
     /// Microplates are placed at locations where different major plates meet,
@@ -258,12 +290,14 @@ impl PlanetGenerator {
             })
             .collect();
 
-        // noise config for plate boundary warp
         let warp_cfg = NoiseConfig::new(
             random_range(0_u32..u32::MAX),
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
         );
+        let flow_x = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_y = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_z = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for f in 0..6 {
@@ -272,10 +306,9 @@ impl PlanetGenerator {
                 for x in 0..face_grid_size {
                     let u = x as f32 * inv * 2.0 - 1.0;
                     let mut dir = Vec3::from(cube_face_point(f, u, v)).normalize();
-
-                    // Apply small noise-based warp to direction
                     let offset = warp_cfg.sample(dir) * PLATE_BOUNDARY_WARP_MULTIPLIER;
                     dir = (dir + Vec3::new(offset, offset, offset)).normalize();
+                    let dir = self.advect_dir(dir, &flow_x, &flow_y, &flow_z);
 
                     let mut best_id = 0usize;
                     let mut best_score = f32::INFINITY;
