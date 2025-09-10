@@ -23,6 +23,64 @@ pub fn spawn_button_with_marker<T: Component>(
         .id()
 }
 
+pub fn spawn_text_input_with_marker<T: Component>(
+    parent: &mut RelatedSpawnerCommands<ChildOf>,
+    label: &str,
+    initial_text: String,
+    width: f32,
+    marker: T,
+) -> Entity {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(5.0),
+            width: Val::Percent(100.0),
+            ..default()
+        })
+        .with_children(|parent| {
+            // Label
+            parent.spawn(LabelBundle::new(label, 16.0, Color::WHITE));
+
+            // Input field with random button
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(5.0),
+                    width: Val::Percent(100.0),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // Text input field
+                    parent
+                        .spawn((
+                            Node {
+                                width: Val::Px(width - 80.0), // Leave space for random button
+                                height: Val::Px(30.0),
+                                padding: UiRect::all(Val::Px(8.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
+                            BorderColor(Color::srgb(0.3, 0.3, 0.3)),
+                            TextInput::new(initial_text.clone()),
+                            marker,
+                            Interaction::default(),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Text::new(&initial_text),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::WHITE),
+                            ));
+                        });
+                });
+        })
+        .id()
+}
+
 pub fn spawn_toggle_with_marker<T: Component>(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
     label: &str,
