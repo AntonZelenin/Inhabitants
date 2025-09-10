@@ -35,6 +35,7 @@ pub fn spawn_planet_on_event(
         generator.cells_per_unit = settings.cells_per_unit;
         generator.num_plates = settings.num_plates;
         generator.num_micro_plates = settings.num_micro_plates;
+        generator.seed = settings.seed;
 
         let planet_data = generator.generate();
 

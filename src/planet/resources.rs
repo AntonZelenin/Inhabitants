@@ -9,6 +9,7 @@ pub struct PlanetGenerationSettings {
     pub num_plates: usize,
     pub num_micro_plates: usize,
     pub show_arrows: bool,
+    pub seed: u64,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -19,6 +20,7 @@ impl Default for PlanetGenerationSettings {
             num_plates: 15,
             num_micro_plates: 5,
             show_arrows: false,
+            seed: 0,
         }
     }
 }

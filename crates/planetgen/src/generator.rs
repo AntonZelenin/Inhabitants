@@ -3,15 +3,16 @@ use crate::constants::*;
 use crate::planet::*;
 use crate::plate::TectonicPlate;
 use glam::Vec3;
-use rand::{random_bool, random_range};
+use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 use std::collections::HashMap;
-
 
 pub struct PlanetGenerator {
     pub radius: f32,
     pub cells_per_unit: f32,
     pub num_plates: usize,
     pub num_micro_plates: usize,
+    pub seed: u64,
 }
 
 impl PlanetGenerator {
@@ -22,7 +23,55 @@ impl PlanetGenerator {
             // default values, will be replaced by planet settings
             num_plates: 0,
             num_micro_plates: 0,
+            seed: 0,
         }
+    }
+
+    // --- Deterministic RNG helpers (domain-separated) ---
+    fn fnv1a64(mut acc: u64, bytes: &[u8]) -> u64 {
+        const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+        const FNV_PRIME: u64 = 0x100000001b3;
+        if acc == 0 { acc = FNV_OFFSET; }
+        let mut h = acc;
+        for &b in bytes {
+            h ^= b as u64;
+            h = h.wrapping_mul(FNV_PRIME);
+        }
+        h
+    }
+
+    fn splitmix64(mut x: u64) -> u64 {
+        x = x.wrapping_add(0x9E3779B97F4A7C15);
+        let mut z = x;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        z ^ (z >> 31)
+    }
+
+    fn seed32_for(&self, domain: &str) -> [u8; 32] {
+        // Mix master seed with domain label via FNV1a64, then expand with SplitMix64
+        let mut s = Self::fnv1a64(self.seed, domain.as_bytes());
+        let mut out = [0u8; 32];
+        for i in 0..4 {
+            let v = Self::splitmix64(s ^ (i as u64));
+            out[i * 8..(i + 1) * 8].copy_from_slice(&v.to_le_bytes());
+        }
+        out
+    }
+
+    fn seed_u32_for(&self, domain: &str) -> u32 {
+        // Take lower 32 bits of SplitMix64 expansion for quick u32 seeds
+        let v = Self::splitmix64(Self::fnv1a64(self.seed, domain.as_bytes()));
+        (v & 0xFFFF_FFFF) as u32
+    }
+
+    fn rng_for(&self, domain: &str) -> StdRng {
+        StdRng::from_seed(self.seed32_for(domain))
+    }
+
+    fn rng_for_indexed(&self, domain: &str, idx: u64) -> StdRng {
+        let key = format!("{domain}/{idx}");
+        StdRng::from_seed(self.seed32_for(&key))
     }
 
     pub fn generate(&self) -> PlanetData {
@@ -59,8 +108,8 @@ impl PlanetGenerator {
         size_class: PlateSizeClass,
         freq: f32,
         amp: f32,
+        noise_seed: u32,
     ) -> TectonicPlate {
-        let noise_seed = random_range(0_u32..u32::MAX);
         let color = DEBUG_COLORS[id % DEBUG_COLORS.len()];
         TectonicPlate {
             id,
@@ -77,12 +126,14 @@ impl PlanetGenerator {
     /// Creates random continental and oceanic plates with appropriate noise parameters.
     /// Each plate gets a random seed direction on the unit sphere
     fn generate_plates(&self) -> Vec<TectonicPlate> {
+        // Derive a separate RNG per-plate for directions and choices to avoid call-order coupling
         let mut directions: Vec<Vec3> = (0..self.num_plates)
-            .map(|_| {
+            .map(|i| {
+                let mut rng = self.rng_for_indexed("plates/direction", i as u64);
                 Vec3::new(
-                    random_range(-1.0..1.0),
-                    random_range(-1.0..1.0),
-                    random_range(-1.0..1.0),
+                    rng.random_range(-1.0..1.0),
+                    rng.random_range(-1.0..1.0),
+                    rng.random_range(-1.0..1.0),
                 )
                 .normalize()
             })
@@ -94,7 +145,8 @@ impl PlanetGenerator {
             .into_iter()
             .enumerate()
             .map(|(id, direction)| {
-                let plate_type = if random_bool(CONTINENTAL_PLATE_PROBABILITY) {
+                let mut rng_type = self.rng_for_indexed("plates/type", id as u64);
+                let plate_type = if rng_type.random::<f64>() < CONTINENTAL_PLATE_PROBABILITY {
                     PlateType::Continental
                 } else {
                     PlateType::Oceanic
@@ -103,6 +155,7 @@ impl PlanetGenerator {
                     PlateType::Continental => (CONTINENTAL_FREQ, CONTINENTAL_AMP),
                     PlateType::Oceanic => (OCEANIC_FREQ, OCEANIC_AMP),
                 };
+                let noise_seed = self.seed_u32_for(&format!("plates/noise/{id}"));
                 self.make_plate(
                     id,
                     direction,
@@ -110,6 +163,7 @@ impl PlanetGenerator {
                     PlateSizeClass::Regular,
                     freq,
                     amp,
+                    noise_seed,
                 )
             })
             .collect()
@@ -212,10 +266,14 @@ impl PlanetGenerator {
         (0..self.num_micro_plates)
             .map(|i| {
                 let id = plates.len() + i;
+
+                // RNG dedicated for placement sampling, stable per microplate index
+                let mut rng_pick = self.rng_for_indexed("microplates/pick", i as u64);
+
                 let (f, x, y) = loop {
-                    let f = random_range(0..6);
-                    let y = random_range(0..face_grid_size);
-                    let x = random_range(0..face_grid_size);
+                    let f: usize = rng_pick.random_range(0..6);
+                    let y: usize = rng_pick.random_range(0..face_grid_size);
+                    let x: usize = rng_pick.random_range(0..face_grid_size);
                     let c = plate_map[f][y][x];
                     let r = plate_map[f][y][(x + 1).min(face_grid_size - 1)];
                     let d = plate_map[f][(y + 1).min(face_grid_size - 1)][x];
@@ -229,16 +287,18 @@ impl PlanetGenerator {
                     y as f32 * 2.0 / (face_grid_size as f32 - 1.0) - 1.0,
                 );
                 let base_dir = Vec3::new(dx, dy, dz).normalize();
-                // *tiny* jitter so seed stays close to boundary
+                // tiny jitter so seed stays close to boundary; independent RNG for jitter per microplate
+                let mut rng_jitter = self.rng_for_indexed("microplates/jitter", i as u64);
                 let jitter = Vec3::new(
-                    random_range(MICRO_PLATE_JITTER_RANGE),
-                    random_range(MICRO_PLATE_JITTER_RANGE),
-                    random_range(MICRO_PLATE_JITTER_RANGE),
+                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
+                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
+                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
                 );
                 let seed_dir = (base_dir + jitter).normalize();
                 // smaller scale noise
                 let freq = CONTINENTAL_FREQ * MICRO_PLATE_FREQUENCY_MULTIPLIER;
                 let amp = CONTINENTAL_AMP * MICRO_PLATE_AMPLITUDE_MULTIPLIER;
+                let noise_seed = self.seed_u32_for(&format!("microplates/noise/{id}"));
                 self.make_plate(
                     id,
                     seed_dir,
@@ -246,6 +306,7 @@ impl PlanetGenerator {
                     PlateSizeClass::Micro,
                     freq,
                     amp,
+                    noise_seed,
                 )
             })
             .collect()
@@ -279,24 +340,25 @@ impl PlanetGenerator {
             })
             .collect();
 
+        // Deterministic warp and flow noise seeds per axis
         let warp_x = NoiseConfig::new(
-            random_range(0_u32..u32::MAX),
+            self.seed_u32_for("assign_plates/warp/x"),
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
         );
         let warp_y = NoiseConfig::new(
-            random_range(0_u32..u32::MAX),
+            self.seed_u32_for("assign_plates/warp/y"),
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
         );
         let warp_z = NoiseConfig::new(
-            random_range(0_u32..u32::MAX),
+            self.seed_u32_for("assign_plates/warp/z"),
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
         );
-        let flow_x = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
-        let flow_y = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
-        let flow_z = NoiseConfig::new(random_range(0_u32..u32::MAX), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_x = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/x"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_y = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/y"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_z = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/z"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for f in 0..6 {
