@@ -6,19 +6,6 @@ use glam::Vec3;
 use rand::{random_bool, random_range};
 use std::collections::HashMap;
 
-/// Spatial frequency of the flow field used to bend plate boundaries.
-/// Lower values produce larger, smoother swirls; higher values add finer detail.
-/// Examples: 0.15–0.40 = broad, plate-scale bends; 0.5–1.0 = medium; >1.5 = busy/jittery.
-pub const FLOW_WARP_FREQ: f32 = 0.45;
-/// Strength of the flow vectors before projection to the tangent plane.
-/// Controls how hard each step pushes. Examples: 0.10 subtle, 0.25 balanced (default), 0.40 strong, >0.60 chaotic.
-pub const FLOW_WARP_AMP: f32 = 0.25;
-/// Number of advection steps applied per cell. More steps = more coherent, larger-scale displacement (but slower).
-/// Examples: 1 minimal, 2–4 typical, 5–8 heavy warp.
-pub const FLOW_WARP_STEPS: usize = 3;
-/// Angular step size per advection step (radians). Sets the along-surface distance moved each step.
-/// Examples: 0.05 (~3°) subtle, 0.12 (~7°) default, 0.25 (~14°) strong, >0.50 (~29°) extreme.
-pub const FLOW_WARP_STEP_ANGLE: f32 = 0.12;
 
 pub struct PlanetGenerator {
     pub radius: f32,
