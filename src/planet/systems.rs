@@ -1,7 +1,6 @@
 use crate::core::camera::components::MainCamera;
 use crate::helpers::mesh::arrow_mesh;
 use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
-use crate::planet::constants::PLANET_MAX_RADIUS;
 use crate::planet::events::{GeneratePlanetEvent, SetCameraPositionEvent, ToggleArrowsEvent};
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -14,6 +13,7 @@ use bevy::render::mesh::{Indices, PrimitiveTopology};
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
+use planetgen::constants::PLANET_MAX_RADIUS;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,

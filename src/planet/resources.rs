@@ -1,4 +1,5 @@
 use bevy::prelude::Resource;
+use planetgen::constants::*;
 use planetgen::planet::PlanetData;
 
 #[derive(Resource, Clone)]
@@ -13,11 +14,11 @@ pub struct PlanetGenerationSettings {
 impl Default for PlanetGenerationSettings {
     fn default() -> Self {
         Self {
-            radius: 20.0,
+            radius: (PLANET_MAX_RADIUS + PLANET_MIN_RADIUS) / 2.0,
             cells_per_unit: 2.0,
             num_plates: 15,
             num_micro_plates: 5,
-            show_arrows: true,
+            show_arrows: false,
         }
     }
 }
