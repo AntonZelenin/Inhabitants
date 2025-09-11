@@ -2,7 +2,7 @@ use crate::planet::components::PlanetEntity;
 use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
-use crate::planet::ui::menu::{ReceivedCharacter, SettingsChanged};
+use crate::planet::ui::menu::SettingsChanged;
 use crate::ui::components::{Slider, TextInput, ToggleState};
 use crate::ui::widgets::*;
 use bevy::app::AppExit;
@@ -148,24 +148,16 @@ pub fn setup_world_generation_menu(
 
                         // Seed input row with text field and random button
                         parent.spawn(seed_row_node).with_children(|parent| {
-                            // Text input field for seed
-                            parent
-                                .spawn((
-                                    seed_input_node,
-                                    BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
-                                    BorderColor(Color::srgb(0.3, 0.3, 0.3)),
-                                    TextInput::new(settings.seed.to_string()),
-                                    SeedInput,
-                                    Interaction::default(),
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        seed_text,
-                                        seed_text_font,
-                                        TextColor(Color::WHITE),
-                                    ));
-                                });
-
+                            // label for seed, can be replaced with bevy_simple_text_input lib
+                            parent.spawn((
+                                Text::new(&settings.seed.to_string()),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::WHITE),
+                                SeedDisplay,
+                            ));
                             // Random seed button
                             spawn_button_with_marker(
                                 parent,
@@ -279,8 +271,8 @@ pub fn handle_buttons(
     mut app_exit_events: EventWriter<AppExit>,
     mut planet_generation_events: EventWriter<GeneratePlanetEvent>,
     mut settings_changed_events: EventWriter<SettingsChanged>,
-    mut seed_input_query: Query<(&mut TextInput, &Children), With<SeedInput>>,
-    mut text_query: Query<&mut Text>,
+    mut settings: ResMut<PlanetGenerationSettings>,
+    mut seed_display_query: Query<&mut Text, With<SeedDisplay>>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
@@ -295,16 +287,12 @@ pub fn handle_buttons(
         if *interaction == Interaction::Pressed {
             let new_seed = rand::rng().random::<u64>();
 
-            // Update the text input with new random seed
-            for (mut text_input, children) in seed_input_query.iter_mut() {
-                text_input.text = new_seed.to_string();
+            // Update the settings directly
+            settings.seed = new_seed;
 
-                // Update the displayed text
-                for child in children.iter() {
-                    if let Ok(mut text) = text_query.get_mut(child) {
-                        **text = new_seed.to_string();
-                    }
-                }
+            // Update the displayed text
+            for mut text in seed_display_query.iter_mut() {
+                **text = new_seed.to_string();
             }
 
             settings_changed_events.write(SettingsChanged);
@@ -412,106 +400,5 @@ pub fn handle_arrow_toggle_change(
         toggle_arrows_events.write(ToggleArrowsEvent {
             show_arrows: toggle_state.is_on,
         });
-    }
-}
-
-pub fn handle_seed_input(
-    mut seed_input_query: Query<
-        (&mut TextInput, &Children, &Interaction),
-        (With<SeedInput>, Changed<Interaction>),
-    >,
-    mut text_query: Query<&mut Text>,
-    mut settings_changed_events: EventWriter<SettingsChanged>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut char_events: EventReader<ReceivedCharacter>,
-) {
-    // Handle text input focus
-    for (mut text_input, children, interaction) in seed_input_query.iter_mut() {
-        if *interaction == Interaction::Pressed {
-            text_input.is_focused = true;
-            text_input.cursor_position = text_input.text.len();
-        }
-    }
-
-    // Handle keyboard input for focused text field
-    for (mut text_input, children, _) in seed_input_query.iter_mut() {
-        if !text_input.is_focused {
-            continue;
-        }
-
-        let mut text_changed = false;
-
-        // Handle backspace
-        if keys.just_pressed(KeyCode::Backspace) && !text_input.text.is_empty() {
-            text_input.text.pop();
-            if text_input.cursor_position > 0 {
-                text_input.cursor_position -= 1;
-            }
-            text_changed = true;
-        }
-
-        // Handle enter (confirm input and lose focus)
-        if keys.just_pressed(KeyCode::Enter) {
-            text_input.is_focused = false;
-            text_changed = true;
-        }
-
-        // Handle escape (lose focus)
-        if keys.just_pressed(KeyCode::Escape) {
-            text_input.is_focused = false;
-        }
-
-        // Handle character input
-        for char_event in char_events.read() {
-            let ch = char_event.char;
-            if ch.is_ascii_digit() && text_input.text.len() < 20 {
-                // Only allow digits and limit length for u64
-                text_input.text.push(ch);
-                text_input.cursor_position += 1;
-                text_changed = true;
-            }
-        }
-
-        // Update displayed text if changed
-        if text_changed {
-            for child in children.iter() {
-                if let Ok(mut text) = text_query.get_mut(child) {
-                    **text = text_input.text.clone();
-                }
-            }
-            settings_changed_events.write(SettingsChanged);
-        }
-    }
-
-    // Lose focus when clicking elsewhere
-    for (mut text_input, _, interaction) in seed_input_query.iter_mut() {
-        if text_input.is_focused && *interaction == Interaction::None {
-            text_input.is_focused = false;
-        }
-    }
-}
-
-pub fn generate_char_events(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut char_events: EventWriter<ReceivedCharacter>,
-) {
-    // Generate character events from keyboard input
-    let digits = [
-        (KeyCode::Digit0, '0'),
-        (KeyCode::Digit1, '1'),
-        (KeyCode::Digit2, '2'),
-        (KeyCode::Digit3, '3'),
-        (KeyCode::Digit4, '4'),
-        (KeyCode::Digit5, '5'),
-        (KeyCode::Digit6, '6'),
-        (KeyCode::Digit7, '7'),
-        (KeyCode::Digit8, '8'),
-        (KeyCode::Digit9, '9'),
-    ];
-
-    for (key, ch) in digits {
-        if keys.just_pressed(key) {
-            char_events.write(ReceivedCharacter { char: ch });
-        }
     }
 }

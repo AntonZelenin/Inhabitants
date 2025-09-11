@@ -28,6 +28,9 @@ pub struct ShowArrowsToggle;
 pub struct SeedInput;
 
 #[derive(Component)]
+pub struct SeedDisplay;
+
+#[derive(Component)]
 pub struct RandomSeedButton;
 
 #[derive(Component)]

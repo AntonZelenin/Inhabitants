@@ -75,3 +75,12 @@ impl TextInput {
         }
     }
 }
+
+#[derive(Component)]
+pub struct TextInputField;
+
+#[derive(Component, Default)]
+pub struct TextInputModel(pub String);
+
+#[derive(Resource, Default)]
+pub struct TextInputFocus(pub Option<Entity>);
