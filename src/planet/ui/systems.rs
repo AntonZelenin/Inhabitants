@@ -104,23 +104,6 @@ pub fn setup_world_generation_menu(
         ..default()
     };
 
-    // Random seed button
-    let random_button_node = Node {
-        width: Val::Px(55.0),
-        height: Val::Px(30.0),
-        border: UiRect::all(Val::Px(1.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-
-    // Random button text
-    let random_button_text = Text::new("RND");
-    let random_button_font = TextFont {
-        font_size: 12.0,
-        ..default()
-    };
-
     // Spacer node
     let spacer_node = Node {
         height: Val::Px(20.0),
@@ -184,21 +167,17 @@ pub fn setup_world_generation_menu(
                                 });
 
                             // Random seed button
-                            parent
-                                .spawn((
-                                    random_button_node,
-                                    BackgroundColor(Color::srgb(0.3, 0.5, 0.7)),
-                                    BorderColor(Color::srgb(0.4, 0.6, 0.8)),
-                                    RandomSeedButton,
-                                    Interaction::default(),
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        random_button_text,
-                                        random_button_font,
-                                        TextColor(Color::WHITE),
-                                    ));
-                                });
+                            spawn_button_with_marker(
+                                parent,
+                                "RND",
+                                55.0,
+                                30.0,
+                                Color::srgb(0.3, 0.5, 0.7),
+                                Color::srgb(0.4, 0.6, 0.8),
+                                Color::srgb(0.2, 0.4, 0.6),
+                                0.0,
+                                RandomSeedButton,
+                            );
                         });
                     });
 
@@ -262,7 +241,7 @@ pub fn setup_world_generation_menu(
                     parent.spawn(spacer_node);
 
                     // Generate Planet button
-                    spawn_button_with_marker(
+                    spawn_default_button_with_marker(
                         parent,
                         "Generate Planet",
                         Color::srgb(0.2, 0.7, 0.2),
@@ -272,7 +251,7 @@ pub fn setup_world_generation_menu(
                     );
 
                     // Quit button
-                    spawn_button_with_marker(
+                    spawn_default_button_with_marker(
                         parent,
                         "Quit",
                         Color::srgb(0.7, 0.2, 0.2),
