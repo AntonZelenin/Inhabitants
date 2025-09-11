@@ -3,7 +3,7 @@ use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
 use crate::planet::ui::menu::SettingsChanged;
-use crate::ui::components::{Slider, TextInput, ToggleState};
+use crate::ui::components::{Slider, ToggleState};
 use crate::ui::widgets::*;
 use bevy::app::AppExit;
 use bevy::color::Color;
@@ -335,7 +335,6 @@ pub fn update_settings_on_change(
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
-    seed_input_query: Query<&TextInput, With<SeedInput>>,
 ) {
     // Only update settings if we received a change event
     for _ in settings_changed_events.read() {
@@ -354,13 +353,6 @@ pub fn update_settings_on_change(
         }
         for toggle_state in &toggle_query {
             settings.show_arrows = toggle_state.is_on;
-        }
-
-        // Update seed from text input
-        for text_input in &seed_input_query {
-            if let Ok(parsed_seed) = text_input.text.parse::<u64>() {
-                settings.seed = parsed_seed;
-            }
         }
     }
 }

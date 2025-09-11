@@ -25,9 +25,6 @@ pub struct NumMicroPlatesSlider;
 pub struct ShowArrowsToggle;
 
 #[derive(Component)]
-pub struct SeedInput;
-
-#[derive(Component)]
 pub struct SeedDisplay;
 
 #[derive(Component)]
