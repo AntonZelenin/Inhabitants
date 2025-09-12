@@ -24,6 +24,7 @@ impl Plugin for PlanetGenMenuPlugin {
                     update_settings_on_change,
                     update_main_area_content,
                     handle_arrow_toggle_change,
+                    update_seed_display_on_change,
                 )
                     .run_if(in_state(GameState::PlanetGeneration)),
             );

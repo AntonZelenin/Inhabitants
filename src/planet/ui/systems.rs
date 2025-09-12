@@ -264,7 +264,6 @@ pub fn handle_buttons(
     // Handle Random Seed button
     for interaction in &random_seed_query {
         if *interaction == Interaction::Pressed {
-            // Send event to generate new seed using planetgen functions
             generate_new_seed_events.write(GenerateNewSeedEvent);
         }
     }
@@ -362,5 +361,16 @@ pub fn handle_arrow_toggle_change(
         toggle_arrows_events.write(ToggleArrowsEvent {
             show_arrows: toggle_state.is_on,
         });
+    }
+}
+
+pub fn update_seed_display_on_change(
+    settings: Res<PlanetGenerationSettings>,
+    mut seed_display_query: Query<&mut Text, With<SeedDisplay>>,
+) {
+    if settings.is_changed() {
+        for mut text in seed_display_query.iter_mut() {
+            **text = settings.user_seed.to_string();
+        }
     }
 }
