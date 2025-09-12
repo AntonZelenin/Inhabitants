@@ -4,7 +4,7 @@ use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-pub fn spawn_button_with_marker<T: Component>(
+pub fn spawn_default_button_with_marker<T: Component>(
     parent: &mut RelatedSpawnerCommands<ChildOf>,
     text: &str,
     normal_color: Color,
@@ -15,6 +15,35 @@ pub fn spawn_button_with_marker<T: Component>(
     parent
         .spawn((
             ButtonBundle::new(200.0, 50.0, normal_color, hover_color, pressed_color, 8.0),
+            marker,
+        ))
+        .with_children(|parent| {
+            parent.spawn(LabelBundle::new(text, 18.0, Color::WHITE));
+        })
+        .id()
+}
+
+pub fn spawn_button_with_marker<T: Component>(
+    parent: &mut RelatedSpawnerCommands<ChildOf>,
+    text: &str,
+    width: f32,
+    height: f32,
+    normal_color: Color,
+    hover_color: Color,
+    pressed_color: Color,
+    border_radius: f32,
+    marker: T,
+) -> Entity {
+    parent
+        .spawn((
+            ButtonBundle::new(
+                width,
+                height,
+                normal_color,
+                hover_color,
+                pressed_color,
+                border_radius,
+            ),
             marker,
         ))
         .with_children(|parent| {

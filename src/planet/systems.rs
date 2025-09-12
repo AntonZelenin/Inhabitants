@@ -1,7 +1,7 @@
 use crate::core::camera::components::MainCamera;
 use crate::helpers::mesh::arrow_mesh;
 use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
-use crate::planet::events::{GeneratePlanetEvent, SetCameraPositionEvent, ToggleArrowsEvent};
+use crate::planet::events::*;
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
@@ -10,10 +10,10 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
+use planetgen::constants::PLANET_MAX_RADIUS;
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
-use planetgen::constants::PLANET_MAX_RADIUS;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
@@ -35,6 +35,7 @@ pub fn spawn_planet_on_event(
         generator.cells_per_unit = settings.cells_per_unit;
         generator.num_plates = settings.num_plates;
         generator.num_micro_plates = settings.num_micro_plates;
+        generator.seed = settings.seed;
 
         let planet_data = generator.generate();
 
@@ -393,5 +394,21 @@ pub fn handle_camera_position_events(
 
             camera_lerp.is_lerping = true;
         }
+    }
+}
+
+pub fn handle_generate_new_seed(
+    mut events: EventReader<GenerateNewSeedEvent>,
+    mut settings: ResMut<PlanetGenerationSettings>,
+    mut settings_changed_events: EventWriter<SettingsChanged>,
+) {
+    for _ in events.read() {
+        // Generate a new 8-bit user seed using planetgen
+        let new_user_seed = planetgen::tools::generate_seed8();
+
+        // Update both user seed and the expanded 64-bit seed
+        settings.user_seed = new_user_seed;
+        settings.seed = planetgen::tools::expand_seed64(new_user_seed);
+        settings_changed_events.write(SettingsChanged);
     }
 }

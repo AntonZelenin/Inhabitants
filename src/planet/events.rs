@@ -4,6 +4,9 @@ use bevy::prelude::*;
 pub struct GeneratePlanetEvent;
 
 #[derive(Event)]
+pub struct GenerateNewSeedEvent;
+
+#[derive(Event)]
 pub struct ToggleArrowsEvent {
     pub show_arrows: bool,
 }
@@ -12,3 +15,6 @@ pub struct ToggleArrowsEvent {
 pub struct SetCameraPositionEvent {
     pub position: Vec3,
 }
+
+#[derive(Event)]
+pub struct SettingsChanged;
