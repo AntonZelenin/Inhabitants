@@ -2,9 +2,10 @@ use crate::config::NoiseConfig;
 use crate::constants::*;
 use crate::planet::*;
 use crate::plate::TectonicPlate;
+use crate::tools::splitmix64;
 use glam::Vec3;
-use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 
 pub struct PlanetGenerator {
@@ -31,7 +32,9 @@ impl PlanetGenerator {
     fn fnv1a64(mut acc: u64, bytes: &[u8]) -> u64 {
         const FNV_OFFSET: u64 = 0xcbf29ce484222325;
         const FNV_PRIME: u64 = 0x100000001b3;
-        if acc == 0 { acc = FNV_OFFSET; }
+        if acc == 0 {
+            acc = FNV_OFFSET;
+        }
         let mut h = acc;
         for &b in bytes {
             h ^= b as u64;
@@ -40,20 +43,12 @@ impl PlanetGenerator {
         h
     }
 
-    fn splitmix64(mut x: u64) -> u64 {
-        x = x.wrapping_add(0x9E3779B97F4A7C15);
-        let mut z = x;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
-        z ^ (z >> 31)
-    }
-
     fn seed32_for(&self, domain: &str) -> [u8; 32] {
         // Mix master seed with domain label via FNV1a64, then expand with SplitMix64
-        let mut s = Self::fnv1a64(self.seed, domain.as_bytes());
+        let s = Self::fnv1a64(self.seed, domain.as_bytes());
         let mut out = [0u8; 32];
         for i in 0..4 {
-            let v = Self::splitmix64(s ^ (i as u64));
+            let v = splitmix64(s ^ (i as u64));
             out[i * 8..(i + 1) * 8].copy_from_slice(&v.to_le_bytes());
         }
         out
@@ -61,12 +56,8 @@ impl PlanetGenerator {
 
     fn seed_u32_for(&self, domain: &str) -> u32 {
         // Take lower 32 bits of SplitMix64 expansion for quick u32 seeds
-        let v = Self::splitmix64(Self::fnv1a64(self.seed, domain.as_bytes()));
+        let v = splitmix64(Self::fnv1a64(self.seed, domain.as_bytes()));
         (v & 0xFFFF_FFFF) as u32
-    }
-
-    fn rng_for(&self, domain: &str) -> StdRng {
-        StdRng::from_seed(self.seed32_for(domain))
     }
 
     fn rng_for_indexed(&self, domain: &str, idx: u64) -> StdRng {
@@ -356,9 +347,21 @@ impl PlanetGenerator {
             PLATE_BOUNDARY_DISTORTION_FREQUENCY,
             PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
         );
-        let flow_x = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/x"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
-        let flow_y = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/y"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
-        let flow_z = NoiseConfig::new(self.seed_u32_for("assign_plates/flow/z"), FLOW_WARP_FREQ, FLOW_WARP_AMP);
+        let flow_x = NoiseConfig::new(
+            self.seed_u32_for("assign_plates/flow/x"),
+            FLOW_WARP_FREQ,
+            FLOW_WARP_AMP,
+        );
+        let flow_y = NoiseConfig::new(
+            self.seed_u32_for("assign_plates/flow/y"),
+            FLOW_WARP_FREQ,
+            FLOW_WARP_AMP,
+        );
+        let flow_z = NoiseConfig::new(
+            self.seed_u32_for("assign_plates/flow/z"),
+            FLOW_WARP_FREQ,
+            FLOW_WARP_AMP,
+        );
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for f in 0..6 {

@@ -1,21 +1,18 @@
 use crate::planet::components::PlanetEntity;
-use crate::planet::events::{GeneratePlanetEvent, ToggleArrowsEvent};
+use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
-use crate::planet::ui::menu::SettingsChanged;
 use crate::ui::components::{Slider, ToggleState};
 use crate::ui::widgets::*;
 use bevy::app::AppExit;
 use bevy::color::Color;
 use bevy::prelude::*;
 use planetgen::constants::*;
-use rand::Rng;
 
 pub fn setup_world_generation_menu(
     mut commands: Commands,
     settings: Res<PlanetGenerationSettings>,
 ) {
-    // Root container node
     let root_node = Node {
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
@@ -88,22 +85,6 @@ pub fn setup_world_generation_menu(
         ..default()
     };
 
-    // Seed text input field
-    let seed_input_node = Node {
-        width: Val::Px(140.0),
-        height: Val::Px(30.0),
-        padding: UiRect::all(Val::Px(8.0)),
-        border: UiRect::all(Val::Px(1.0)),
-        ..default()
-    };
-
-    // Seed input text
-    let seed_text = Text::new(&settings.seed.to_string());
-    let seed_text_font = TextFont {
-        font_size: 14.0,
-        ..default()
-    };
-
     // Spacer node
     let spacer_node = Node {
         height: Val::Px(20.0),
@@ -150,7 +131,7 @@ pub fn setup_world_generation_menu(
                         parent.spawn(seed_row_node).with_children(|parent| {
                             // label for seed, can be replaced with bevy_simple_text_input lib
                             parent.spawn((
-                                Text::new(&settings.seed.to_string()),
+                                Text::new(&settings.user_seed.to_string()),
                                 TextFont {
                                     font_size: 14.0,
                                     ..default()
@@ -270,9 +251,7 @@ pub fn handle_buttons(
     random_seed_query: Query<&Interaction, (Changed<Interaction>, With<RandomSeedButton>)>,
     mut app_exit_events: EventWriter<AppExit>,
     mut planet_generation_events: EventWriter<GeneratePlanetEvent>,
-    mut settings_changed_events: EventWriter<SettingsChanged>,
-    mut settings: ResMut<PlanetGenerationSettings>,
-    mut seed_display_query: Query<&mut Text, With<SeedDisplay>>,
+    mut generate_new_seed_events: EventWriter<GenerateNewSeedEvent>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
@@ -285,17 +264,8 @@ pub fn handle_buttons(
     // Handle Random Seed button
     for interaction in &random_seed_query {
         if *interaction == Interaction::Pressed {
-            let new_seed = rand::rng().random::<u64>();
-
-            // Update the settings directly
-            settings.seed = new_seed;
-
-            // Update the displayed text
-            for mut text in seed_display_query.iter_mut() {
-                **text = new_seed.to_string();
-            }
-
-            settings_changed_events.write(SettingsChanged);
+            // Send event to generate new seed using planetgen functions
+            generate_new_seed_events.write(GenerateNewSeedEvent);
         }
     }
 
