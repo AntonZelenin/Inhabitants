@@ -32,7 +32,6 @@ pub fn spawn_planet_on_event(
         }
 
         let mut generator = PlanetGenerator::new(settings.radius);
-        generator.cells_per_unit = settings.cells_per_unit;
         generator.num_plates = settings.num_plates;
         generator.num_micro_plates = settings.num_micro_plates;
         generator.seed = settings.seed;

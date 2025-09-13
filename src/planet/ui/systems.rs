@@ -166,18 +166,6 @@ pub fn setup_world_generation_menu(
                         RadiusSlider,
                     );
 
-                    // Cells Per Unit Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Cells Per Unit",
-                        settings.cells_per_unit,
-                        0.5,
-                        5.0,
-                        false,
-                        200.0,
-                        CellsPerUnitSlider,
-                    );
-
                     // Number of Plates Slider
                     spawn_slider_with_marker(
                         parent,
@@ -279,14 +267,12 @@ pub fn handle_buttons(
 pub fn detect_settings_changes(
     mut settings_changed_events: EventWriter<SettingsChanged>,
     radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
-    cells_slider_query: Query<&Slider, (With<CellsPerUnitSlider>, Changed<Slider>)>,
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
     let has_changes = !radius_slider_query.is_empty()
-        || !cells_slider_query.is_empty()
         || !plates_slider_query.is_empty()
         || !micro_plates_slider_query.is_empty()
         || !toggle_query.is_empty();
@@ -300,7 +286,6 @@ pub fn update_settings_on_change(
     mut settings_changed_events: EventReader<SettingsChanged>,
     mut settings: ResMut<PlanetGenerationSettings>,
     radius_slider_query: Query<&Slider, With<RadiusSlider>>,
-    cells_slider_query: Query<&Slider, With<CellsPerUnitSlider>>,
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
@@ -310,9 +295,6 @@ pub fn update_settings_on_change(
         // Update settings from current slider and toggle values
         for slider in &radius_slider_query {
             settings.radius = slider.current_value;
-        }
-        for slider in &cells_slider_query {
-            settings.cells_per_unit = slider.current_value;
         }
         for slider in &plates_slider_query {
             settings.num_plates = slider.current_value as usize;

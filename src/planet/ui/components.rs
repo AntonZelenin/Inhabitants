@@ -13,9 +13,6 @@ pub struct QuitButton;
 pub struct RadiusSlider;
 
 #[derive(Component)]
-pub struct CellsPerUnitSlider;
-
-#[derive(Component)]
 pub struct NumPlatesSlider;
 
 #[derive(Component)]
