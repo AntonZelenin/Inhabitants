@@ -13,13 +13,22 @@ pub struct QuitButton;
 pub struct RadiusSlider;
 
 #[derive(Component)]
-pub struct CellsPerUnitSlider;
-
-#[derive(Component)]
 pub struct NumPlatesSlider;
 
 #[derive(Component)]
 pub struct NumMicroPlatesSlider;
+
+#[derive(Component)]
+pub struct FlowWarpFreqSlider;
+
+#[derive(Component)]
+pub struct FlowWarpAmpSlider;
+
+#[derive(Component)]
+pub struct FlowWarpStepsSlider;
+
+#[derive(Component)]
+pub struct FlowWarpStepAngleSlider;
 
 #[derive(Component)]
 pub struct ShowArrowsToggle;

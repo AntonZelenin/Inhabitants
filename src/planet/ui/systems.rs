@@ -166,25 +166,13 @@ pub fn setup_world_generation_menu(
                         RadiusSlider,
                     );
 
-                    // Cells Per Unit Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Cells Per Unit",
-                        settings.cells_per_unit,
-                        0.5,
-                        5.0,
-                        false,
-                        200.0,
-                        CellsPerUnitSlider,
-                    );
-
                     // Number of Plates Slider
                     spawn_slider_with_marker(
                         parent,
                         "Number of Plates",
                         settings.num_plates as f32,
-                        5.0,
-                        30.0,
+                        3.0,
+                        20.0,
                         true,
                         200.0,
                         NumPlatesSlider,
@@ -201,6 +189,45 @@ pub fn setup_world_generation_menu(
                         200.0,
                         NumMicroPlatesSlider,
                     );
+
+                    // I used this code to conveniently determine good coefficients for plate
+                    // boundary distortion, for now they're constant, but I want to keep
+                    // the code in case I need more tweaking in the future
+                    // // Flow Warp Frequency Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Flow Warp Frequency",
+                    //     settings.flow_warp_freq,
+                    //     0.1,
+                    //     1.0,
+                    //     false,
+                    //     200.0,
+                    //     FlowWarpFreqSlider,
+                    // );
+                    //
+                    // // Flow Warp Steps Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Flow Warp Steps",
+                    //     settings.flow_warp_steps as f32,
+                    //     1.0,
+                    //     10.0,
+                    //     true,
+                    //     200.0,
+                    //     FlowWarpStepsSlider,
+                    // );
+                    //
+                    // // Flow Warp Step Angle Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Flow Warp Step Angle",
+                    //     settings.flow_warp_step_angle,
+                    //     0.05,
+                    //     0.5,
+                    //     false,
+                    //     200.0,
+                    //     FlowWarpStepAngleSlider,
+                    // );
 
                     // Show Arrows Toggle
                     spawn_toggle_with_marker(
@@ -279,16 +306,22 @@ pub fn handle_buttons(
 pub fn detect_settings_changes(
     mut settings_changed_events: EventWriter<SettingsChanged>,
     radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
-    cells_slider_query: Query<&Slider, (With<CellsPerUnitSlider>, Changed<Slider>)>,
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
+    // flow_freq_slider_query: Query<&Slider, (With<FlowWarpFreqSlider>, Changed<Slider>)>,
+    // flow_amp_slider_query: Query<&Slider, (With<FlowWarpAmpSlider>, Changed<Slider>)>,
+    // flow_steps_slider_query: Query<&Slider, (With<FlowWarpStepsSlider>, Changed<Slider>)>,
+    // flow_angle_slider_query: Query<&Slider, (With<FlowWarpStepAngleSlider>, Changed<Slider>)>,
     toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
     let has_changes = !radius_slider_query.is_empty()
-        || !cells_slider_query.is_empty()
         || !plates_slider_query.is_empty()
         || !micro_plates_slider_query.is_empty()
+        // || !flow_freq_slider_query.is_empty()
+        // || !flow_amp_slider_query.is_empty()
+        // || !flow_steps_slider_query.is_empty()
+        // || !flow_angle_slider_query.is_empty()
         || !toggle_query.is_empty();
 
     if has_changes {
@@ -300,9 +333,11 @@ pub fn update_settings_on_change(
     mut settings_changed_events: EventReader<SettingsChanged>,
     mut settings: ResMut<PlanetGenerationSettings>,
     radius_slider_query: Query<&Slider, With<RadiusSlider>>,
-    cells_slider_query: Query<&Slider, With<CellsPerUnitSlider>>,
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
+    // flow_freq_slider_query: Query<&Slider, With<FlowWarpFreqSlider>>,
+    // flow_steps_slider_query: Query<&Slider, With<FlowWarpStepsSlider>>,
+    // flow_angle_slider_query: Query<&Slider, With<FlowWarpStepAngleSlider>>,
     toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
 ) {
     // Only update settings if we received a change event
@@ -311,15 +346,21 @@ pub fn update_settings_on_change(
         for slider in &radius_slider_query {
             settings.radius = slider.current_value;
         }
-        for slider in &cells_slider_query {
-            settings.cells_per_unit = slider.current_value;
-        }
         for slider in &plates_slider_query {
             settings.num_plates = slider.current_value as usize;
         }
         for slider in &micro_plates_slider_query {
             settings.num_micro_plates = slider.current_value as usize;
         }
+        // for slider in &flow_freq_slider_query {
+        //     settings.flow_warp_freq = slider.current_value;
+        // }
+        // for slider in &flow_steps_slider_query {
+        //     settings.flow_warp_steps = slider.current_value as usize;
+        // }
+        // for slider in &flow_angle_slider_query {
+        //     settings.flow_warp_step_angle = slider.current_value;
+        // }
         for toggle_state in &toggle_query {
             settings.show_arrows = toggle_state.is_on;
         }

@@ -14,6 +14,10 @@ pub struct PlanetGenerator {
     pub num_plates: usize,
     pub num_micro_plates: usize,
     pub seed: u64,
+    pub flow_warp_freq: f32,
+    pub flow_warp_amp: f32,
+    pub flow_warp_steps: usize,
+    pub flow_warp_step_angle: f32,
 }
 
 impl PlanetGenerator {
@@ -25,6 +29,10 @@ impl PlanetGenerator {
             num_plates: 0,
             num_micro_plates: 0,
             seed: 0,
+            flow_warp_freq: 0.0,
+            flow_warp_amp: DEFAULT_FLOW_WARP_AMP,
+            flow_warp_steps: 0,
+            flow_warp_step_angle: 0.0,
         }
     }
 
@@ -228,14 +236,14 @@ impl PlanetGenerator {
 
     fn advect_dir(&self, p: Vec3, nx: &NoiseConfig, ny: &NoiseConfig, nz: &NoiseConfig) -> Vec3 {
         let mut d = p;
-        for _ in 0..FLOW_WARP_STEPS {
+        for _ in 0..self.flow_warp_steps {
             let v = Vec3::new(nx.sample(d), ny.sample(d), nz.sample(d));
             let t = v - d * d.dot(v);
             let tl = t.length();
             if tl > 1e-6 {
                 let tn = t / tl;
-                let c = FLOW_WARP_STEP_ANGLE.cos();
-                let s = FLOW_WARP_STEP_ANGLE.sin();
+                let c = self.flow_warp_step_angle.cos();
+                let s = self.flow_warp_step_angle.sin();
                 d = (d * c + tn * s).normalize();
             } else {
                 break;
@@ -349,18 +357,18 @@ impl PlanetGenerator {
         );
         let flow_x = NoiseConfig::new(
             self.seed_u32_for("assign_plates/flow/x"),
-            FLOW_WARP_FREQ,
-            FLOW_WARP_AMP,
+            self.flow_warp_freq,
+            self.flow_warp_amp,
         );
         let flow_y = NoiseConfig::new(
             self.seed_u32_for("assign_plates/flow/y"),
-            FLOW_WARP_FREQ,
-            FLOW_WARP_AMP,
+            self.flow_warp_freq,
+            self.flow_warp_amp,
         );
         let flow_z = NoiseConfig::new(
             self.seed_u32_for("assign_plates/flow/z"),
-            FLOW_WARP_FREQ,
-            FLOW_WARP_AMP,
+            self.flow_warp_freq,
+            self.flow_warp_amp,
         );
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
