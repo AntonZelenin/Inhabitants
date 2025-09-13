@@ -24,8 +24,16 @@ pub fn spawn_planet_on_event(
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
+    planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
 ) {
     for _ in events.read() {
+        // Capture current rotation before despawning
+        let current_rotation = planet_controls_query
+            .iter()
+            .next()
+            .map(|controls| controls.rotation)
+            .unwrap_or(Quat::IDENTITY);
+
         // Despawn existing planet entities before generating new ones
         for entity in planet_entities.iter() {
             commands.entity(entity).despawn();
@@ -35,6 +43,9 @@ pub fn spawn_planet_on_event(
         generator.num_plates = settings.num_plates;
         generator.num_micro_plates = settings.num_micro_plates;
         generator.seed = settings.seed;
+        generator.flow_warp_freq = settings.flow_warp_freq;
+        generator.flow_warp_steps = settings.flow_warp_steps;
+        generator.flow_warp_step_angle = settings.flow_warp_step_angle;
 
         let planet_data = generator.generate();
 
@@ -53,11 +64,11 @@ pub fn spawn_planet_on_event(
             .spawn((
                 Mesh3d(mesh_handle),
                 MeshMaterial3d(material_handle),
-                Transform::from_xyz(0.0, 0.0, 0.0),
+                Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(current_rotation),
                 GlobalTransform::default(),
                 PlanetEntity,
                 PlanetControls {
-                    rotation: Quat::IDENTITY,
+                    rotation: current_rotation,
                     zoom: expected_zoom,
                     min_zoom: settings.radius * 1.5,
                     max_zoom: PLANET_MAX_RADIUS * 3.5,

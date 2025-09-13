@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+// cells per unit influences the performance of the planet generation quite a lot
 pub const CELLS_PER_UNIT: f32 = 5.0;
 pub const CONTINENTAL_FREQ: f32 = 3.0;
 pub const CONTINENTAL_AMP: f32 = 0.7;
@@ -8,6 +9,9 @@ pub const OCEANIC_AMP: f32 = CONTINENTAL_AMP / 10.0;
 
 pub const PLANET_MIN_RADIUS: f32 = 30.0;
 pub const PLANET_MAX_RADIUS: f32 = 80.0;
+
+pub const DEFAULT_NUM_PLATES: usize = 7;
+pub const DEFAULT_NUM_MICRO_PLATES: usize = 6;
 
 /// Frequency controls how wide the bends are: lower freq = big sweeping arcs, higher freq = more jagged.
 pub const PLATE_BOUNDARY_DISTORTION_FREQUENCY: f32 = 7.0;
@@ -21,16 +25,17 @@ pub const PLATE_BOUNDARY_WARP_MULTIPLIER: f32 = 0.2;
 /// Spatial frequency of the flow field used to bend plate boundaries.
 /// Lower values produce larger, smoother swirls; higher values add finer detail.
 /// Examples: 0.15–0.40 = broad, plate-scale bends; 0.5–1.0 = medium; >1.5 = busy/jittery.
-pub const FLOW_WARP_FREQ: f32 = 0.25;
+pub const DEFAULT_FLOW_WARP_FREQ: f32 = 0.8;
+/// Actually doesn't influence anything
 /// Strength of the flow vectors before projection to the tangent plane.
 /// Controls how hard each step pushes. Examples: 0.10 subtle, 0.25 balanced (default), 0.40 strong, >0.60 chaotic.
-pub const FLOW_WARP_AMP: f32 = 0.25;
+pub const DEFAULT_FLOW_WARP_AMP: f32 = 0.25;
 /// Number of advection steps applied per cell. More steps = more coherent, larger-scale displacement (but slower).
 /// Examples: 1 minimal, 2–4 typical, 5–8 heavy warp.
-pub const FLOW_WARP_STEPS: usize = 3;
+pub const DEFAULT_FLOW_WARP_STEPS: usize = 2;
 /// Angular step size per advection step (radians). Sets the along-surface distance moved each step.
 /// Examples: 0.05 (~3°) subtle, 0.12 (~7°) default, 0.25 (~14°) strong, >0.50 (~29°) extreme.
-pub const FLOW_WARP_STEP_ANGLE: f32 = 0.12;
+pub const DEFAULT_FLOW_WARP_STEP_ANGLE: f32 = 0.1;
 
 /// 0.3-0.5: Tight packing, some elongation risk
 /// 0.6-0.8: Good balance (current: 0.8)

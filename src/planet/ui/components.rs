@@ -19,6 +19,18 @@ pub struct NumPlatesSlider;
 pub struct NumMicroPlatesSlider;
 
 #[derive(Component)]
+pub struct FlowWarpFreqSlider;
+
+#[derive(Component)]
+pub struct FlowWarpAmpSlider;
+
+#[derive(Component)]
+pub struct FlowWarpStepsSlider;
+
+#[derive(Component)]
+pub struct FlowWarpStepAngleSlider;
+
+#[derive(Component)]
 pub struct ShowArrowsToggle;
 
 #[derive(Component)]
