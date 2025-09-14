@@ -1,4 +1,4 @@
-use crate::config::NoiseConfig;
+use crate::config::{NoiseConfig, PlanetGenConfig};
 use crate::constants::*;
 use crate::planet::*;
 use crate::plate::TectonicPlate;
@@ -18,21 +18,24 @@ pub struct PlanetGenerator {
     pub flow_warp_amp: f32,
     pub flow_warp_steps: usize,
     pub flow_warp_step_angle: f32,
+    config: PlanetGenConfig,
 }
 
 impl PlanetGenerator {
     pub fn new(radius: f32) -> Self {
+        let config = crate::get_config();
         Self {
             radius,
-            cells_per_unit: CELLS_PER_UNIT,
+            cells_per_unit: config.generation.cells_per_unit,
             // default values, will be replaced by planet settings
-            num_plates: 0,
-            num_micro_plates: 0,
+            num_plates: config.generation.default_num_plates,
+            num_micro_plates: config.generation.default_num_micro_plates,
             seed: 0,
-            flow_warp_freq: 0.0,
-            flow_warp_amp: DEFAULT_FLOW_WARP_AMP,
-            flow_warp_steps: 0,
-            flow_warp_step_angle: 0.0,
+            flow_warp_freq: config.flow_warp.default_freq,
+            flow_warp_amp: config.flow_warp.default_amp,
+            flow_warp_steps: config.flow_warp.default_steps,
+            flow_warp_step_angle: config.flow_warp.default_step_angle,
+            config,
         }
     }
 
@@ -149,14 +152,14 @@ impl PlanetGenerator {
             .enumerate()
             .map(|(id, direction)| {
                 let mut rng_type = self.rng_for_indexed("plates/type", id as u64);
-                let plate_type = if rng_type.random::<f64>() < CONTINENTAL_PLATE_PROBABILITY {
+                let plate_type = if rng_type.random::<f64>() < self.config.plates.continental_plate_probability {
                     PlateType::Continental
                 } else {
                     PlateType::Oceanic
                 };
                 let (freq, amp) = match plate_type {
-                    PlateType::Continental => (CONTINENTAL_FREQ, CONTINENTAL_AMP),
-                    PlateType::Oceanic => (OCEANIC_FREQ, OCEANIC_AMP),
+                    PlateType::Continental => (self.config.generation.continental_freq, self.config.generation.continental_amp),
+                    PlateType::Oceanic => (self.config.generation.oceanic_freq, self.config.generation.oceanic_amp),
                 };
                 let noise_seed = self.seed_u32_for(&format!("plates/noise/{id}"));
                 self.make_plate(
@@ -202,7 +205,7 @@ impl PlanetGenerator {
                     let chord_distance = (2.0 * (1.0 - dot)).sqrt();
 
                     // If too close, calculate position adjustments
-                    if chord_distance < MIN_PLATE_SEPARATION_CHORD_DISTANCE {
+                    if chord_distance < self.config.plates.min_separation_chord_distance {
                         any_moved = true;
 
                         // Calculate the vector between the two points
@@ -211,7 +214,7 @@ impl PlanetGenerator {
 
                         if diff_length > eps {
                             let distance_deficit =
-                                MIN_PLATE_SEPARATION_CHORD_DISTANCE - chord_distance;
+                                self.config.plates.min_separation_chord_distance - chord_distance;
                             // Each plate moves half the distance needed to meet the criteria
                             let adjustment_magnitude = distance_deficit * 0.5;
                             let diff_normalized = diff / diff_length;
@@ -293,14 +296,14 @@ impl PlanetGenerator {
                 // tiny jitter so seed stays close to boundary; independent RNG for jitter per microplate
                 let mut rng_jitter = self.rng_for_indexed("microplates/jitter", i as u64);
                 let jitter = Vec3::new(
-                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
-                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
-                    rng_jitter.random_range(MICRO_PLATE_JITTER_RANGE),
+                    rng_jitter.random_range(self.config.microplate_jitter_range()),
+                    rng_jitter.random_range(self.config.microplate_jitter_range()),
+                    rng_jitter.random_range(self.config.microplate_jitter_range()),
                 );
                 let seed_dir = (base_dir + jitter).normalize();
                 // smaller scale noise
-                let freq = CONTINENTAL_FREQ * MICRO_PLATE_FREQUENCY_MULTIPLIER;
-                let amp = CONTINENTAL_AMP * MICRO_PLATE_AMPLITUDE_MULTIPLIER;
+                let freq = self.config.generation.continental_freq * self.config.microplates.frequency_multiplier;
+                let amp = self.config.generation.continental_amp * self.config.microplates.amplitude_multiplier;
                 let noise_seed = self.seed_u32_for(&format!("microplates/noise/{id}"));
                 self.make_plate(
                     id,
@@ -337,7 +340,7 @@ impl PlanetGenerator {
             .map(|p| {
                 let w = match p.size_class {
                     PlateSizeClass::Regular => 1.0,
-                    PlateSizeClass::Micro => MICRO_PLATE_WEIGHT_FACTOR,
+                    PlateSizeClass::Micro => self.config.plates.micro_plate_weight_factor,
                 };
                 (p.direction.normalize(), w * w, p.id)
             })
@@ -346,18 +349,18 @@ impl PlanetGenerator {
         // Deterministic warp and flow noise seeds per axis
         let warp_x = NoiseConfig::new(
             self.seed_u32_for("assign_plates/warp/x"),
-            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
-            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+            self.config.boundaries.distortion_frequency,
+            self.config.boundaries.distortion_amplitude,
         );
         let warp_y = NoiseConfig::new(
             self.seed_u32_for("assign_plates/warp/y"),
-            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
-            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+            self.config.boundaries.distortion_frequency,
+            self.config.boundaries.distortion_amplitude,
         );
         let warp_z = NoiseConfig::new(
             self.seed_u32_for("assign_plates/warp/z"),
-            PLATE_BOUNDARY_DISTORTION_FREQUENCY,
-            PLATE_BOUNDARY_DISTORTION_AMPLITUDE,
+            self.config.boundaries.distortion_frequency,
+            self.config.boundaries.distortion_amplitude,
         );
         let flow_x = NoiseConfig::new(
             self.seed_u32_for("assign_plates/flow/x"),
@@ -384,7 +387,7 @@ impl PlanetGenerator {
                     let mut dir = Vec3::from(cube_face_point(f, u, v)).normalize();
                     let r = Vec3::new(warp_x.sample(dir), warp_y.sample(dir), warp_z.sample(dir));
                     let t = r - dir * dir.dot(r);
-                    dir = (dir + t * PLATE_BOUNDARY_WARP_MULTIPLIER).normalize();
+                    dir = (dir + t * self.config.boundaries.warp_multiplier).normalize();
                     let dir = self.advect_dir(dir, &flow_x, &flow_y, &flow_z);
 
                     let mut best_id = 0usize;
@@ -541,7 +544,7 @@ impl PlanetGenerator {
             }
 
             // 10% chance to select this plate as a primary for merging
-            if selection_rng.random::<f64>() > PLATE_MERGE_SELECTION_PROBABILITY {
+            if selection_rng.random::<f64>() > self.config.merging.selection_probability {
                 continue;
             }
 
@@ -557,7 +560,7 @@ impl PlanetGenerator {
             }
 
             // Determine number of neighbors to merge: 30% chance for 2, otherwise 1
-            let max_neighbors = if selection_rng.random::<f64>() < PLATE_MERGE_TWO_NEIGHBORS_PROBABILITY {
+            let max_neighbors = if selection_rng.random::<f64>() < self.config.merging.two_neighbors_probability {
                 2
             } else {
                 1

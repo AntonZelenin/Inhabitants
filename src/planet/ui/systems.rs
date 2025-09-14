@@ -7,12 +7,12 @@ use crate::ui::widgets::*;
 use bevy::app::AppExit;
 use bevy::color::Color;
 use bevy::prelude::*;
-use planetgen::constants::*;
 
 pub fn setup_world_generation_menu(
     mut commands: Commands,
     settings: Res<PlanetGenerationSettings>,
 ) {
+    let config = planetgen::get_config();
     let root_node = Node {
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
@@ -159,8 +159,8 @@ pub fn setup_world_generation_menu(
                         parent,
                         "Planet Radius",
                         settings.radius,
-                        PLANET_MIN_RADIUS,
-                        PLANET_MAX_RADIUS,
+                        config.generation.planet_min_radius,
+                        config.generation.planet_max_radius,
                         false,
                         200.0,
                         RadiusSlider,

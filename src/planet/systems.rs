@@ -10,7 +10,6 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use planetgen::constants::PLANET_MAX_RADIUS;
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
@@ -27,6 +26,8 @@ pub fn spawn_planet_on_event(
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
 ) {
     for _ in events.read() {
+        planetgen::reload_config();
+
         // Capture current rotation before despawning
         let current_rotation = planet_controls_query
             .iter()
@@ -58,6 +59,9 @@ pub fn spawn_planet_on_event(
             ..default()
         });
 
+
+        // Get config for max zoom calculation
+        let config = planetgen::get_config();
         let expected_zoom = settings.radius * 3.0;
 
         let planet_entity = commands
@@ -71,7 +75,7 @@ pub fn spawn_planet_on_event(
                     rotation: current_rotation,
                     zoom: expected_zoom,
                     min_zoom: settings.radius * 1.5,
-                    max_zoom: PLANET_MAX_RADIUS * 3.5,
+                    max_zoom: config.generation.planet_max_radius * 3.5,
                 },
             ))
             .id();

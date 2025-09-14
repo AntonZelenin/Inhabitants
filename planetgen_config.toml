@@ -1,0 +1,66 @@
+# Planet Generation Configuration
+
+[generation]
+# cells per unit influences the performance of the planet generation quite a lot
+cells_per_unit = 5.0
+continental_freq = 3.0
+continental_amp = 0.7
+# OCEANIC_FREQ = CONTINENTAL_FREQ / 2.0
+oceanic_freq = 1.5
+# OCEANIC_AMP = CONTINENTAL_AMP / 10.0
+oceanic_amp = 0.07
+planet_min_radius = 30.0
+planet_max_radius = 80.0
+default_num_plates = 7
+default_num_micro_plates = 6
+
+[plates]
+# 0.3-0.5: Tight packing, some elongation risk
+# 0.6-0.8: Good balance (current: 0.5)
+# 0.9-1.2: Well-spaced, robust against elongation
+# 1.3-1.5: Very spread out
+# 1.6+: Too restrictive, may not converge
+min_separation_chord_distance = 0.5
+# Probability for a plate to be continental vs oceanic
+continental_plate_probability = 0.5
+# This constant helps microplates win cells, if we use 1.0 instead, we won't have
+# any microplates, I don't know how it works though
+micro_plate_weight_factor = 2.7
+
+[boundaries]
+# Frequency controls how wide the bends are: lower freq = big sweeping arcs, higher freq = more jagged.
+distortion_frequency = 7.0
+# Amplitude controls how "wiggly" the boundaries get: 0.1–0.3 is usually enough.
+distortion_amplitude = 0.2
+# raw noise gives -1.0..1.0, which will lead to huge warps for dozens of degrees
+# 0.05–0.1: subtle wavy boundaries.
+# 0.3–0.5: wild distortions, noisy patches.
+warp_multiplier = 0.2
+
+[flow_warp]
+# Spatial frequency of the flow field used to bend plate boundaries.
+# Lower values produce larger, smoother swirls; higher values add finer detail.
+# Examples: 0.15–0.40 = broad, plate-scale bends; 0.5–1.0 = medium; >1.5 = busy/jittery.
+default_freq = 0.8
+# Actually doesn't influence anything
+# Strength of the flow vectors before projection to the tangent plane.
+# Controls how hard each step pushes. Examples: 0.10 subtle, 0.25 balanced (default), 0.40 strong, >0.60 chaotic.
+default_amp = 0.25
+# Number of advection steps applied per cell. More steps = more coherent, larger-scale displacement (but slower).
+# Examples: 1 minimal, 2–4 typical, 5–8 heavy warp.
+default_steps = 2
+# Angular step size per advection step (radians). Sets the along-surface distance moved each step.
+# Examples: 0.05 (~3°) subtle, 0.12 (~7°) default, 0.25 (~14°) strong, >0.50 (~29°) extreme.
+default_step_angle = 0.1
+
+[microplates]
+frequency_multiplier = 1.5
+amplitude_multiplier = 0.3
+jitter_range_min = -0.1
+jitter_range_max = 0.1
+
+[merging]
+# Probability that a plate will be selected as a primary for merging (7%)
+selection_probability = 0.07
+# Probability of selecting 2 neighbors instead of 1 when merging (20%)
+two_neighbors_probability = 0.2
