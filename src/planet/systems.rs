@@ -60,9 +60,8 @@ pub fn spawn_planet_on_event(
         });
 
 
-        // Get config for max zoom calculation
         let config = planetgen::get_config();
-        let expected_zoom = settings.radius * 3.0;
+        let expected_zoom = settings.radius * 3.5;
 
         let planet_entity = commands
             .spawn((
