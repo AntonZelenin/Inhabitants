@@ -1,5 +1,4 @@
 use bevy::prelude::Resource;
-use planetgen::constants::*;
 use planetgen::planet::PlanetData;
 
 #[derive(Resource, Clone)]

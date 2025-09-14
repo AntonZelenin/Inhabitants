@@ -42,6 +42,7 @@ warp_multiplier = 0.2
 # Lower values produce larger, smoother swirls; higher values add finer detail.
 # Examples: 0.15–0.40 = broad, plate-scale bends; 0.5–1.0 = medium; >1.5 = busy/jittery.
 default_freq = 0.8
+# Actually doesn't influence anything
 # Strength of the flow vectors before projection to the tangent plane.
 # Controls how hard each step pushes. Examples: 0.10 subtle, 0.25 balanced (default), 0.40 strong, >0.60 chaotic.
 default_amp = 0.25
