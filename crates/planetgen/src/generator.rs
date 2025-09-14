@@ -446,8 +446,6 @@ impl PlanetGenerator {
     /// - 10% chance for each plate to be selected as a primary for merging
     /// - 30% chance to select 2 neighbors, otherwise 1 neighbor
     fn merge_plates(&self, face_grid_size: usize, plate_map: &mut PlateMap) {
-        use std::collections::HashSet;
-
         // Build adjacency map and count plate areas
         let adjacency = self.build_plate_adjacency(face_grid_size, plate_map);
         let plate_areas = self.count_plate_areas(face_grid_size, plate_map);
