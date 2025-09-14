@@ -7,7 +7,6 @@ use crate::ui::widgets::*;
 use bevy::app::AppExit;
 use bevy::color::Color;
 use bevy::prelude::*;
-use planetgen::constants::*;
 
 pub fn setup_world_generation_menu(
     mut commands: Commands,
@@ -161,7 +160,7 @@ pub fn setup_world_generation_menu(
                         "Planet Radius",
                         settings.radius,
                         config.generation.planet_min_radius,
-                        PLANET_MAX_RADIUS,
+                        config.generation.planet_max_radius,
                         false,
                         200.0,
                         RadiusSlider,
