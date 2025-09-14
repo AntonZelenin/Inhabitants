@@ -6,7 +6,7 @@ use crate::tools::splitmix64;
 use glam::Vec3;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct PlanetGenerator {
     pub radius: f32,
@@ -74,7 +74,7 @@ impl PlanetGenerator {
     }
 
     pub fn generate(&self) -> PlanetData {
-        // Each cube face represents a square section of the unit sphere, scaled the planet’s radius.
+        // Each cube face represents a square section of the unit sphere, scaled the planet's radius.
         // cells_per_unit = how many grid cells per 1 unit of world space
         // radius * cells_per_unit = number of cells from edge to edge on one face
         // +1 = adds 1 to include both start and end of the grid (for vertices, not just quads)
@@ -87,6 +87,10 @@ impl PlanetGenerator {
         plates.extend(micros);
 
         plate_map = self.assign_plates(face_grid_size, &plates);
+
+        // Apply plate merging (always enabled with probabilistic selection)
+        self.merge_plates(face_grid_size, &mut plate_map);
+
         majority_smooth(face_grid_size, &mut plate_map);
 
         let faces = self.generate_faces(face_grid_size, &plates, &plate_map);
@@ -434,6 +438,173 @@ impl PlanetGenerator {
             }
         }
         faces
+    }
+
+    /// Merges randomly selected plates with their neighbors using probabilistic selection
+    ///
+    /// Uses deterministic probabilities based on the master seed:
+    /// - 10% chance for each plate to be selected as a primary for merging
+    /// - 30% chance to select 2 neighbors, otherwise 1 neighbor
+    fn merge_plates(&self, face_grid_size: usize, plate_map: &mut PlateMap) {
+        use std::collections::HashSet;
+
+        // Build adjacency map and count plate areas
+        let adjacency = self.build_plate_adjacency(face_grid_size, plate_map);
+        let plate_areas = self.count_plate_areas(face_grid_size, plate_map);
+
+        // Select plates for merging using probabilistic selection
+        let merge_map = self.select_plates_for_merging_probabilistic(&adjacency, &plate_areas);
+
+        // Apply the merges by remapping plate IDs in the plate_map
+        self.apply_plate_merges(face_grid_size, plate_map, &merge_map);
+    }
+
+    /// Builds adjacency relationships between plates by scanning the plate_map
+    fn build_plate_adjacency(
+        &self,
+        face_grid_size: usize,
+        plate_map: &PlateMap,
+    ) -> HashMap<usize, HashSet<usize>> {
+        use std::collections::HashSet;
+
+        let mut adjacency: HashMap<usize, HashSet<usize>> = HashMap::new();
+
+        for face_idx in 0..6 {
+            for y in 0..face_grid_size {
+                for x in 0..face_grid_size {
+                    let current_plate = plate_map[face_idx][y][x];
+
+                    // Check right neighbor
+                    if x + 1 < face_grid_size {
+                        let right_plate = plate_map[face_idx][y][x + 1];
+                        if right_plate != current_plate {
+                            adjacency.entry(current_plate).or_insert_with(HashSet::new).insert(right_plate);
+                            adjacency.entry(right_plate).or_insert_with(HashSet::new).insert(current_plate);
+                        }
+                    }
+
+                    // Check down neighbor
+                    if y + 1 < face_grid_size {
+                        let down_plate = plate_map[face_idx][y + 1][x];
+                        if down_plate != current_plate {
+                            adjacency.entry(current_plate).or_insert_with(HashSet::new).insert(down_plate);
+                            adjacency.entry(down_plate).or_insert_with(HashSet::new).insert(current_plate);
+                        }
+                    }
+                }
+            }
+        }
+
+        adjacency
+    }
+
+    /// Counts the number of cells (area) for each plate
+    fn count_plate_areas(&self, face_grid_size: usize, plate_map: &PlateMap) -> HashMap<usize, usize> {
+        let mut areas: HashMap<usize, usize> = HashMap::new();
+
+        for face_idx in 0..6 {
+            for y in 0..face_grid_size {
+                for x in 0..face_grid_size {
+                    let plate_id = plate_map[face_idx][y][x];
+                    *areas.entry(plate_id).or_insert(0) += 1;
+                }
+            }
+        }
+
+        areas
+    }
+
+    /// Selects plates for merging using probabilistic selection based on master seed
+    fn select_plates_for_merging_probabilistic(
+        &self,
+        adjacency: &HashMap<usize, HashSet<usize>>,
+        plate_areas: &HashMap<usize, usize>,
+    ) -> HashMap<usize, usize> {
+        use std::collections::HashSet;
+
+        let mut merge_map: HashMap<usize, usize> = HashMap::new();
+        let mut used_plates: HashSet<usize> = HashSet::new();
+
+        // Get all plates with neighbors, sorted by area (largest first) for deterministic order
+        let mut candidates: Vec<(usize, usize)> = adjacency
+            .iter()
+            .filter(|(_, neighbors)| !neighbors.is_empty())
+            .map(|(plate_id, _)| (*plate_id, *plate_areas.get(plate_id).unwrap_or(&0)))
+            .collect();
+        candidates.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+        // Use master seed-based RNG for plate selection
+        let mut selection_rng = StdRng::from_seed(self.seed32_for("merge/selection"));
+
+        for (candidate_plate, _) in candidates {
+            // Skip if this plate is already involved in a merge
+            if used_plates.contains(&candidate_plate) {
+                continue;
+            }
+
+            // 10% chance to select this plate as a primary for merging
+            if selection_rng.random::<f64>() > PLATE_MERGE_SELECTION_PROBABILITY {
+                continue;
+            }
+
+            // Get available neighbors (not already used)
+            let available_neighbors: Vec<usize> = adjacency[&candidate_plate]
+                .iter()
+                .filter(|neighbor_id| !used_plates.contains(neighbor_id))
+                .copied()
+                .collect();
+
+            if available_neighbors.is_empty() {
+                continue;
+            }
+
+            // Determine number of neighbors to merge: 30% chance for 2, otherwise 1
+            let max_neighbors = if selection_rng.random::<f64>() < PLATE_MERGE_TWO_NEIGHBORS_PROBABILITY {
+                2
+            } else {
+                1
+            };
+
+            let num_neighbors = available_neighbors.len().min(max_neighbors);
+            let mut neighbors_to_merge = available_neighbors;
+
+            // Shuffle for random selection using the same RNG
+            for i in (1..neighbors_to_merge.len()).rev() {
+                let j = selection_rng.random_range(0..=i);
+                neighbors_to_merge.swap(i, j);
+            }
+
+            // Take the first num_neighbors
+            neighbors_to_merge.truncate(num_neighbors);
+
+            // Mark primary and neighbors as used
+            used_plates.insert(candidate_plate);
+            for neighbor_id in &neighbors_to_merge {
+                used_plates.insert(*neighbor_id);
+                merge_map.insert(*neighbor_id, candidate_plate);
+            }
+        }
+
+        merge_map
+    }
+
+    /// Applies plate merges by remapping plate IDs in the plate_map
+    fn apply_plate_merges(
+        &self,
+        face_grid_size: usize,
+        plate_map: &mut PlateMap,
+        merge_map: &HashMap<usize, usize>,
+    ) {
+        for face_idx in 0..6 {
+            for y in 0..face_grid_size {
+                for x in 0..face_grid_size {
+                    let current_plate = plate_map[face_idx][y][x];
+                    if let Some(&primary_plate) = merge_map.get(&current_plate) {
+                        plate_map[face_idx][y][x] = primary_plate;
+                    }
+                }
+            }
+        }
     }
 }
 

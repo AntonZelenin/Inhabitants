@@ -55,6 +55,11 @@ pub const MICRO_PLATE_FREQUENCY_MULTIPLIER: f32 = 1.5;
 pub const MICRO_PLATE_AMPLITUDE_MULTIPLIER: f32 = 0.3;
 pub const MICRO_PLATE_JITTER_RANGE: Range<f32> = -0.1..0.1;
 
+/// Probability that a plate will be selected as a primary for merging (10%)
+pub const PLATE_MERGE_SELECTION_PROBABILITY: f64 = 0.07;
+/// Probability of selecting 2 neighbors instead of 1 when merging (30%)
+pub const PLATE_MERGE_TWO_NEIGHBORS_PROBABILITY: f64 = 0.2;
+
 pub const DEBUG_COLORS: &[[f32; 4]] = &[
     [1.0, 0.0, 0.0, 1.0], // red
     [0.0, 1.0, 0.0, 1.0], // green
