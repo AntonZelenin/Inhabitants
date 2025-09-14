@@ -17,17 +17,18 @@ pub struct PlanetGenerationSettings {
 
 impl Default for PlanetGenerationSettings {
     fn default() -> Self {
+        let config = planetgen::get_config();
         let seed_8 = planetgen::tools::generate_seed8();
         Self {
-            radius: (PLANET_MAX_RADIUS + PLANET_MIN_RADIUS) / 2.0,
-            num_plates: DEFAULT_NUM_PLATES,
-            num_micro_plates: DEFAULT_NUM_MICRO_PLATES,
+            radius: (config.generation.planet_max_radius + config.generation.planet_min_radius) / 2.0,
+            num_plates: config.generation.default_num_plates,
+            num_micro_plates: config.generation.default_num_micro_plates,
             show_arrows: false,
             user_seed: seed_8,
             seed: planetgen::tools::expand_seed64(seed_8),
-            flow_warp_freq: DEFAULT_FLOW_WARP_FREQ,
-            flow_warp_steps: DEFAULT_FLOW_WARP_STEPS,
-            flow_warp_step_angle: DEFAULT_FLOW_WARP_STEP_ANGLE,
+            flow_warp_freq: config.flow_warp.default_freq,
+            flow_warp_steps: config.flow_warp.default_steps,
+            flow_warp_step_angle: config.flow_warp.default_step_angle,
         }
     }
 }

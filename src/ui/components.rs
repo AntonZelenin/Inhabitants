@@ -58,29 +58,3 @@ pub struct SliderTarget(pub Entity);
 
 #[derive(Component)]
 pub struct SliderValueDisplay;
-
-#[derive(Component)]
-pub struct TextInput {
-    pub text: String,
-    pub is_focused: bool,
-    pub cursor_position: usize,
-}
-
-impl TextInput {
-    pub fn new(initial_text: String) -> Self {
-        Self {
-            text: initial_text,
-            is_focused: false,
-            cursor_position: 0,
-        }
-    }
-}
-
-#[derive(Component)]
-pub struct TextInputField;
-
-#[derive(Component, Default)]
-pub struct TextInputModel(pub String);
-
-#[derive(Resource, Default)]
-pub struct TextInputFocus(pub Option<Entity>);
