@@ -3,7 +3,7 @@
 
 use bevy::DefaultPlugins;
 use bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow};
+use bevy::window::{PresentMode, PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use inhabitants::GamePlugin;
 use std::io::Cursor;
@@ -15,7 +15,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Inhabitants".into(),
-                resolution: (1500.0, 900.0).into(),
+                resolution: WindowResolution::new(1500, 900),
                 present_mode: PresentMode::AutoVsync,
                 resize_constraints: WindowResizeConstraints {
                     min_width: 800.0,
@@ -35,9 +35,10 @@ fn main() {
 }
 
 fn set_window_icon(
-    windows: NonSend<WinitWindows>,
+    windows: Option<NonSend<WinitWindows>>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
 ) {
+    let Some(windows) = windows else { return; };
     let primary_entity = primary_window.single().unwrap();
     let Some(primary) = windows.get_window(primary_entity) else {
         return;

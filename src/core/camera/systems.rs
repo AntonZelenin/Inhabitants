@@ -4,11 +4,8 @@ use bevy::input::ButtonInput;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::log::info;
 use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::pbr::DirectionalLight;
-use bevy::prelude::{
-    Camera3d, Commands, EventReader, KeyCode, MouseButton, Query, Res, Time, Transform, With,
-    Without,
-};
+use bevy::light::DirectionalLight;
+use bevy::prelude::*;
 use std::f32::consts::PI;
 
 pub fn spawn_camera(mut commands: Commands) {
@@ -38,8 +35,8 @@ pub fn spawn_camera(mut commands: Commands) {
 pub fn camera_control(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<MouseMotion>,
-    mut mouse_wheel: EventReader<MouseWheel>,
+    mut mouse_motion: MessageReader<MouseMotion>,
+    mut mouse_wheel: MessageReader<MouseWheel>,
     time: Res<Time>,
     mut camera_q: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
 ) {

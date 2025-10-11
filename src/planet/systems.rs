@@ -9,15 +9,15 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
-use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy::mesh::{Indices, PrimitiveTopology};
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
-    mut camera_events: EventWriter<SetCameraPositionEvent>,
-    mut events: EventReader<GeneratePlanetEvent>,
+    mut camera_events: MessageWriter<SetCameraPositionEvent>,
+    mut events: MessageReader<GeneratePlanetEvent>,
     mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -102,7 +102,7 @@ pub fn handle_arrow_toggle(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut events: EventReader<ToggleArrowsEvent>,
+    mut events: MessageReader<ToggleArrowsEvent>,
     arrow_entities: Query<Entity, With<ArrowEntity>>,
     planet_entities: Query<Entity, (With<PlanetEntity>, With<PlanetControls>)>,
     current_planet_data: Res<CurrentPlanetData>,
@@ -291,8 +291,8 @@ fn spawn_plate_direction_arrows(
 
 pub fn planet_control(
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<MouseMotion>,
-    mut mouse_wheel: EventReader<MouseWheel>,
+    mut mouse_motion: MessageReader<MouseMotion>,
+    mut mouse_wheel: MessageReader<MouseWheel>,
     mut planet_query: Query<
         (&mut Transform, &mut PlanetControls),
         (With<PlanetEntity>, With<PlanetControls>),
@@ -384,7 +384,7 @@ pub fn smooth_camera_movement(
 }
 
 pub fn handle_camera_position_events(
-    mut events: EventReader<SetCameraPositionEvent>,
+    mut events: MessageReader<SetCameraPositionEvent>,
     mut camera_query: Query<&mut CameraLerp, With<MainCamera>>,
 ) {
     for event in events.read() {
@@ -411,9 +411,9 @@ pub fn handle_camera_position_events(
 }
 
 pub fn handle_generate_new_seed(
-    mut events: EventReader<GenerateNewSeedEvent>,
+    mut events: MessageReader<GenerateNewSeedEvent>,
     mut settings: ResMut<PlanetGenerationSettings>,
-    mut settings_changed_events: EventWriter<SettingsChanged>,
+    mut settings_changed_events: MessageWriter<SettingsChanged>,
 ) {
     for _ in events.read() {
         // Generate a new 8-bit user seed using planetgen

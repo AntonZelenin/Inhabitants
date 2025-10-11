@@ -1,20 +1,20 @@
 use bevy::prelude::*;
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct GeneratePlanetEvent;
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct GenerateNewSeedEvent;
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct ToggleArrowsEvent {
     pub show_arrows: bool,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct SetCameraPositionEvent {
     pub position: Vec3,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct SettingsChanged;
