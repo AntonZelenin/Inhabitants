@@ -5,10 +5,7 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::log::info;
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::light::DirectionalLight;
-use bevy::prelude::{
-    Camera3d, Commands, MessageReader, KeyCode, MouseButton, Query, Res, Time, Transform, With,
-    Without,
-};
+use bevy::prelude::*;
 use std::f32::consts::PI;
 
 pub fn spawn_camera(mut commands: Commands) {

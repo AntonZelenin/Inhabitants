@@ -3,7 +3,7 @@
 
 use bevy::DefaultPlugins;
 use bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow, WindowCreated, WindowResolution};
+use bevy::window::{PresentMode, PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use inhabitants::GamePlugin;
 use std::io::Cursor;
@@ -52,24 +52,3 @@ fn set_window_icon(
         primary.set_window_icon(Some(icon));
     };
 }
-
-// fn set_window_icon_on_create(
-//     mut created: MessageReader<WindowCreated>,
-//     windows: Option<NonSend<WinitWindows>>,
-// ) {
-//     let Some(windows) = windows else { return; };
-//     panic!("daf");
-//     for msg in created.read() {
-//         if let Some(win) = windows.get_window(msg.window) {
-//             panic!("daf");
-//             let icon_buf = Cursor::new(include_bytes!("../assets/icons/icon.png"));
-//             if let Ok(img) = image::load(icon_buf, image::ImageFormat::Png) {
-//                 let img = img.into_rgba8();
-//                 let (w_px, h_px) = img.dimensions();
-//                 if let Ok(icon) = Icon::from_rgba(img.into_raw(), w_px, h_px) {
-//                     win.set_window_icon(Some(icon));
-//                 }
-//             }
-//         }
-//     }
-// }
