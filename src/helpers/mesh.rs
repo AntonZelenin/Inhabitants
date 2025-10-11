@@ -1,6 +1,6 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::Mesh;
-use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy::mesh::{Indices, PrimitiveTopology};
 
 pub fn arrow_mesh() -> Mesh {
     let mut positions = Vec::new();

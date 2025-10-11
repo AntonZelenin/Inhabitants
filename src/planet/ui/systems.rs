@@ -276,9 +276,9 @@ pub fn handle_buttons(
     generate_query: Query<&Interaction, (Changed<Interaction>, With<GeneratePlanetButton>)>,
     quit_query: Query<&Interaction, (Changed<Interaction>, With<QuitButton>)>,
     random_seed_query: Query<&Interaction, (Changed<Interaction>, With<RandomSeedButton>)>,
-    mut app_exit_events: EventWriter<AppExit>,
-    mut planet_generation_events: EventWriter<GeneratePlanetEvent>,
-    mut generate_new_seed_events: EventWriter<GenerateNewSeedEvent>,
+    mut app_exit_events: MessageWriter<AppExit>,
+    mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
+    mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
 ) {
     // Handle Generate Planet button
     for interaction in &generate_query {
@@ -304,7 +304,7 @@ pub fn handle_buttons(
 }
 
 pub fn detect_settings_changes(
-    mut settings_changed_events: EventWriter<SettingsChanged>,
+    mut settings_changed_events: MessageWriter<SettingsChanged>,
     radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
@@ -330,7 +330,7 @@ pub fn detect_settings_changes(
 }
 
 pub fn update_settings_on_change(
-    mut settings_changed_events: EventReader<SettingsChanged>,
+    mut settings_changed_events: MessageReader<SettingsChanged>,
     mut settings: ResMut<PlanetGenerationSettings>,
     radius_slider_query: Query<&Slider, With<RadiusSlider>>,
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
@@ -394,7 +394,7 @@ pub fn update_main_area_content(
 }
 
 pub fn handle_arrow_toggle_change(
-    mut toggle_arrows_events: EventWriter<ToggleArrowsEvent>,
+    mut toggle_arrows_events: MessageWriter<ToggleArrowsEvent>,
     toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
 ) {
     // Send arrow toggle event immediately when the toggle changes

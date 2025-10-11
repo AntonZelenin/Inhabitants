@@ -35,7 +35,7 @@ dev = [
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis)
 # since they clash with bevy_kira_audio
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_color",
@@ -67,9 +67,11 @@ bevy = { version = "0.16", default-features = false, features = [
     "tonemapping_luts",
     "webgl2",
     "x11",
+    "trace",
+    "zstd_rust", # faster zstd_c version could be used instead
 ] }
-bevy_kira_audio = { version = "0.23.0" }
-bevy_asset_loader = { version = "0.23" }
+bevy_kira_audio = { version = "0.24.0" }
+bevy_asset_loader = { version = "0.24.0-rc.1" }
 rand = { version = "0.9.1" }
 planetgen = { path = "crates/planetgen" }
 

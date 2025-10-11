@@ -14,11 +14,11 @@ pub struct PlanetPlugin;
 
 impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<GeneratePlanetEvent>()
-            .add_event::<GenerateNewSeedEvent>()
-            .add_event::<ToggleArrowsEvent>()
-            .add_event::<SetCameraPositionEvent>()
-            .add_event::<SettingsChanged>()
+        app.add_message::<GeneratePlanetEvent>()
+            .add_message::<GenerateNewSeedEvent>()
+            .add_message::<ToggleArrowsEvent>()
+            .add_message::<SetCameraPositionEvent>()
+            .add_message::<SettingsChanged>()
             .init_resource::<CurrentPlanetData>()
             .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle))
             .add_systems(
