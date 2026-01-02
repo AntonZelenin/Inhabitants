@@ -51,6 +51,7 @@ pub struct PlanetGenConfig {
     pub boundaries: BoundaryConfig,
     pub flow_warp: FlowWarpConfig,
     pub microplates: MicroplateConfig,
+    pub continents: ContinentConfig,
     pub merging: MergingConfig,
 }
 
@@ -98,6 +99,17 @@ pub struct MicroplateConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContinentConfig {
+    pub continent_frequency: f32,
+    pub continent_amplitude: f32,
+    pub detail_frequency: f32,
+    pub detail_amplitude: f32,
+    pub continent_threshold: f32,
+    pub ocean_floor_base: f32,
+    pub continent_base: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergingConfig {
     pub selection_probability: f64,
     pub two_neighbors_probability: f64,
@@ -108,7 +120,7 @@ impl PlanetGenConfig {
     pub fn default() -> Self {
         Self {
             generation: GenerationConfig {
-                cells_per_unit: 5.0,
+                cells_per_unit: 10.0,
                 continental_freq: 3.0,
                 continental_amp: 0.7,
                 oceanic_freq: 1.5, // CONTINENTAL_FREQ / 2.0
@@ -139,6 +151,15 @@ impl PlanetGenConfig {
                 amplitude_multiplier: 0.3,
                 jitter_range_min: -0.1,
                 jitter_range_max: 0.1,
+            },
+            continents: ContinentConfig {
+                continent_frequency: 1.0,
+                continent_amplitude: 0.5,
+                detail_frequency: 4.0,
+                detail_amplitude: 0.1,
+                continent_threshold: 0.5,
+                ocean_floor_base: -0.1,
+                continent_base: 0.3,
             },
             merging: MergingConfig {
                 selection_probability: 0.07,

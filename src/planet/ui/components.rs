@@ -32,3 +32,13 @@ pub struct MainArea;
 
 #[derive(Component)]
 pub struct PlaceholderText;
+
+#[derive(Component)]
+pub struct ContinentFrequencySlider;
+
+#[derive(Component)]
+pub struct ContinentThresholdSlider;
+
+
+#[derive(Component)]
+pub struct DetailFrequencySlider;

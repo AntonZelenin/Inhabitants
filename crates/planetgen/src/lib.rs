@@ -1,5 +1,6 @@
 pub mod config;
 pub mod constants;
+pub mod continents;
 pub mod generator;
 pub mod planet;
 pub mod plate;

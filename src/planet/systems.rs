@@ -48,6 +48,18 @@ pub fn spawn_planet_on_event(
         generator.flow_warp_steps = settings.flow_warp_steps;
         generator.flow_warp_step_angle = settings.flow_warp_step_angle;
 
+        // Apply custom continent configuration from UI settings
+        let continent_config = planetgen::config::ContinentConfig {
+            continent_frequency: settings.continent_frequency,
+            continent_amplitude: 1.0, // Keep amplitude fixed
+            detail_frequency: settings.detail_frequency,
+            detail_amplitude: 0.2, // Keep detail amplitude fixed
+            continent_threshold: settings.continent_threshold,
+            ocean_floor_base: -0.5, // Keep ocean floor depth fixed
+            continent_base: 0.3, // Keep continent base elevation fixed
+        };
+        generator.with_continent_config(continent_config);
+
         let planet_data = generator.generate();
 
         // Store planet data for arrow generation (move instead of clone)
@@ -163,8 +175,31 @@ fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
                     let pos = dir * radius;
                     positions.push([pos.x, pos.y, pos.z]);
 
-                    let plate_id = planet.plate_map[face_idx][y][x];
-                    let color = planet.plates[plate_id].debug_color;
+                    // Color based on height primarily to ensure full coverage
+                    // Use continent mask for additional detail
+                    let continent_mask = planet.continent_noise.sample_continent_mask(dir);
+
+                    let color = if height > 0.0 {
+                        // Land (above sea level): green to brown gradient
+                        let height_factor = (height / 1.0).clamp(0.0, 1.0);
+                        let green_base = 0.4 + continent_mask * 0.2; // More green on stronger continents
+                        [
+                            0.2 + height_factor * 0.5,  // Red: browns at high elevation
+                            green_base - height_factor * 0.15,  // Green: less at height
+                            0.1,                        // Blue: low
+                            1.0
+                        ]
+                    } else {
+                        // Ocean (below sea level): pure blue gradient based on depth
+                        let depth = -height;
+                        let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
+                        [
+                            0.0,                        // Red: none
+                            0.0,                        // Green: none (pure blue!)
+                            0.4 + depth_factor * 0.4,   // Blue: nice blue, darker with depth
+                            1.0
+                        ]
+                    };
                     colors.push(color);
 
                     let i = next_index;

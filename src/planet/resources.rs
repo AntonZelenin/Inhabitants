@@ -12,6 +12,10 @@ pub struct PlanetGenerationSettings {
     pub flow_warp_freq: f32,
     pub flow_warp_steps: usize,
     pub flow_warp_step_angle: f32,
+    // Continent generation parameters
+    pub continent_frequency: f32,
+    pub continent_threshold: f32,
+    pub detail_frequency: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -28,6 +32,9 @@ impl Default for PlanetGenerationSettings {
             flow_warp_freq: config.flow_warp.default_freq,
             flow_warp_steps: config.flow_warp.default_steps,
             flow_warp_step_angle: config.flow_warp.default_step_angle,
+            continent_frequency: config.continents.continent_frequency,
+            continent_threshold: config.continents.continent_threshold,
+            detail_frequency: config.continents.detail_frequency,
         }
     }
 }

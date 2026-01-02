@@ -64,3 +64,18 @@ jitter_range_max = 0.1
 selection_probability = 0.07
 # Probability of selecting 2 neighbors instead of 1 when merging (20%)
 two_neighbors_probability = 0.2
+
+[continents]
+# Large-scale continent placement (lower = bigger continents, higher = more varied)
+continent_frequency = 1.5
+continent_amplitude = 1.0
+# Fine detail for rough coastlines (higher = more jagged coasts)
+detail_frequency = 12.0
+detail_amplitude = 0.2
+# Threshold for land vs ocean (lower = more land, higher = more ocean)
+# Range: -1.0 to 1.0, typical: -0.3 to 0.3
+continent_threshold = -0.15
+# Ocean floor depth (negative value)
+ocean_floor_base = -0.5
+# Continental base elevation (positive value)
+continent_base = 0.3
