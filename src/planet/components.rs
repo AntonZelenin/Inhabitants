@@ -4,6 +4,12 @@ use bevy::prelude::*;
 pub struct PlanetEntity;
 
 #[derive(Component)]
+pub struct ContinentViewMesh;
+
+#[derive(Component)]
+pub struct PlateViewMesh;
+
+#[derive(Component)]
 pub struct ArrowEntity;
 
 #[derive(Component)]

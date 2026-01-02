@@ -1,6 +1,6 @@
 use crate::core::camera::components::MainCamera;
 use crate::helpers::mesh::arrow_mesh;
-use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
+use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -62,9 +62,12 @@ pub fn spawn_planet_on_event(
 
         let planet_data = generator.generate();
 
-        // Store planet data for arrow generation (move instead of clone)
-        let mesh = build_stitched_planet_mesh(&planet_data);
-        let mesh_handle = meshes.add(mesh);
+        // Generate BOTH meshes (continent view and plate view)
+        let continent_mesh = build_stitched_planet_mesh(&planet_data, false);
+        let plate_mesh = build_stitched_planet_mesh(&planet_data, true);
+        
+        let continent_mesh_handle = meshes.add(continent_mesh);
+        let plate_mesh_handle = meshes.add(plate_mesh);
 
         let material_handle = materials.add(StandardMaterial {
             base_color: Color::srgb(0.3, 0.8, 0.4),
@@ -75,10 +78,9 @@ pub fn spawn_planet_on_event(
         let config = planetgen::get_config();
         let expected_zoom = settings.radius * 3.5;
 
+        // Spawn parent planet entity with controls
         let planet_entity = commands
             .spawn((
-                Mesh3d(mesh_handle),
-                MeshMaterial3d(material_handle),
                 Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(current_rotation),
                 GlobalTransform::default(),
                 PlanetEntity,
@@ -89,6 +91,27 @@ pub fn spawn_planet_on_event(
                     max_zoom: config.generation.planet_max_radius * 3.5,
                 },
             ))
+            .with_children(|parent| {
+                // Continent view mesh (visible by default)
+                parent.spawn((
+                    Mesh3d(continent_mesh_handle),
+                    MeshMaterial3d(material_handle.clone()),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    ContinentViewMesh,
+                ));
+                
+                // Plate view mesh (hidden by default)
+                parent.spawn((
+                    Mesh3d(plate_mesh_handle),
+                    MeshMaterial3d(material_handle.clone()),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Hidden,
+                    PlateViewMesh,
+                ));
+            })
             .id();
 
         camera_events.write(SetCameraPositionEvent {
@@ -144,7 +167,7 @@ pub fn handle_arrow_toggle(
     }
 }
 
-fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
+fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool) -> Mesh {
     let size = planet.face_grid_size;
     let mut positions = Vec::new();
     let mut colors = Vec::new();
@@ -175,30 +198,36 @@ fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
                     let pos = dir * radius;
                     positions.push([pos.x, pos.y, pos.z]);
 
-                    // Color based on height primarily to ensure full coverage
-                    // Use continent mask for additional detail
-                    let continent_mask = planet.continent_noise.sample_continent_mask(dir);
-
-                    let color = if height > 0.0 {
-                        // Land (above sea level): green to brown gradient
-                        let height_factor = (height / 1.0).clamp(0.0, 1.0);
-                        let green_base = 0.4 + continent_mask * 0.2; // More green on stronger continents
-                        [
-                            0.2 + height_factor * 0.5,  // Red: browns at high elevation
-                            green_base - height_factor * 0.15,  // Green: less at height
-                            0.1,                        // Blue: low
-                            1.0
-                        ]
+                    let color = if view_mode_plates {
+                        // PLATE VIEW: Color by tectonic plate using debug colors
+                        let plate_id = planet.plate_map[face_idx][y][x];
+                        let plate = &planet.plates[plate_id];
+                        plate.debug_color
                     } else {
-                        // Ocean (below sea level): pure blue gradient based on depth
-                        let depth = -height;
-                        let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
-                        [
-                            0.0,                        // Red: none
-                            0.0,                        // Green: none (pure blue!)
-                            0.4 + depth_factor * 0.4,   // Blue: nice blue, darker with depth
-                            1.0
-                        ]
+                        // CONTINENT VIEW: Color based on height and continent mask
+                        let continent_mask = planet.continent_noise.sample_continent_mask(dir);
+
+                        if height > 0.0 {
+                            // Land (above sea level): green to brown gradient
+                            let height_factor = (height / 1.0).clamp(0.0, 1.0);
+                            let green_base = 0.4 + continent_mask * 0.2;
+                            [
+                                0.2 + height_factor * 0.5,  // Red: browns at high elevation
+                                green_base - height_factor * 0.15,  // Green: less at height
+                                0.1,                        // Blue: low
+                                1.0
+                            ]
+                        } else {
+                            // Ocean (below sea level): pure blue gradient based on depth
+                            let depth = -height;
+                            let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
+                            [
+                                0.0,                        // Red: none
+                                0.0,                        // Green: none (pure blue!)
+                                0.4 + depth_factor * 0.4,   // Blue: nice blue, darker with depth
+                                1.0
+                            ]
+                        }
                     };
                     colors.push(color);
 

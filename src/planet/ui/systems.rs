@@ -1,4 +1,4 @@
-use crate::planet::components::PlanetEntity;
+use crate::planet::components::{PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
@@ -279,6 +279,14 @@ pub fn setup_world_generation_menu(
                         ShowArrowsToggle,
                     );
 
+                    // View Mode Toggle
+                    spawn_toggle_with_marker(
+                        parent,
+                        "View Tectonic Plates",
+                        settings.view_mode_plates,
+                        ViewModeToggle,
+                    );
+
                     // Spacer
                     parent.spawn(spacer_node);
 
@@ -353,7 +361,8 @@ pub fn detect_settings_changes(
     continent_freq_slider_query: Query<&Slider, (With<ContinentFrequencySlider>, Changed<Slider>)>,
     continent_threshold_slider_query: Query<&Slider, (With<ContinentThresholdSlider>, Changed<Slider>)>,
     detail_freq_slider_query: Query<&Slider, (With<DetailFrequencySlider>, Changed<Slider>)>,
-    toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    arrows_toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    view_mode_toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
     let has_changes = !radius_slider_query.is_empty()
@@ -362,7 +371,8 @@ pub fn detect_settings_changes(
         || !continent_freq_slider_query.is_empty()
         || !continent_threshold_slider_query.is_empty()
         || !detail_freq_slider_query.is_empty()
-        || !toggle_query.is_empty();
+        || !arrows_toggle_query.is_empty()
+        || !view_mode_toggle_query.is_empty();
 
     if has_changes {
         settings_changed_events.write(SettingsChanged);
@@ -378,7 +388,8 @@ pub fn update_settings_on_change(
     continent_freq_slider_query: Query<&Slider, With<ContinentFrequencySlider>>,
     continent_threshold_slider_query: Query<&Slider, With<ContinentThresholdSlider>>,
     detail_freq_slider_query: Query<&Slider, With<DetailFrequencySlider>>,
-    toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+    arrows_toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+    view_mode_toggle_query: Query<&ToggleState, With<ViewModeToggle>>,
 ) {
     // Only update settings if we received a change event
     for _ in settings_changed_events.read() {
@@ -401,8 +412,11 @@ pub fn update_settings_on_change(
         for slider in &detail_freq_slider_query {
             settings.detail_frequency = slider.current_value;
         }
-        for toggle_state in &toggle_query {
+        for toggle_state in &arrows_toggle_query {
             settings.show_arrows = toggle_state.is_on;
+        }
+        for toggle_state in &view_mode_toggle_query {
+            settings.view_mode_plates = toggle_state.is_on;
         }
     }
 }
@@ -442,6 +456,35 @@ pub fn handle_arrow_toggle_change(
         toggle_arrows_events.write(ToggleArrowsEvent {
             show_arrows: toggle_state.is_on,
         });
+    }
+}
+
+pub fn handle_view_mode_toggle_change(
+    toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
+    mut continent_mesh_query: Query<&mut Visibility, (With<ContinentViewMesh>, Without<PlateViewMesh>)>,
+    mut plate_mesh_query: Query<&mut Visibility, (With<PlateViewMesh>, Without<ContinentViewMesh>)>,
+) {
+    // Toggle visibility when view mode changes
+    for toggle_state in toggle_query.iter() {
+        let show_plates = toggle_state.is_on;
+
+        // Update continent mesh visibility
+        for mut visibility in continent_mesh_query.iter_mut() {
+            *visibility = if show_plates {
+                Visibility::Hidden
+            } else {
+                Visibility::Visible
+            };
+        }
+
+        // Update plate mesh visibility
+        for mut visibility in plate_mesh_query.iter_mut() {
+            *visibility = if show_plates {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+        }
     }
 }
 

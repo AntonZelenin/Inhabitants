@@ -74,7 +74,7 @@ detail_frequency = 12.0
 detail_amplitude = 0.2
 # Threshold for land vs ocean (lower = more land, higher = more ocean)
 # Range: -1.0 to 1.0, typical: -0.3 to 0.3
-continent_threshold = -0.15
+continent_threshold = 0.2
 # Ocean floor depth (negative value)
 ocean_floor_base = -0.5
 # Continental base elevation (positive value)

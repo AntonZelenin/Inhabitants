@@ -16,6 +16,8 @@ pub struct PlanetGenerationSettings {
     pub continent_frequency: f32,
     pub continent_threshold: f32,
     pub detail_frequency: f32,
+    // View mode
+    pub view_mode_plates: bool, // false = continents, true = plates
 }
 
 impl Default for PlanetGenerationSettings {
@@ -35,6 +37,7 @@ impl Default for PlanetGenerationSettings {
             continent_frequency: config.continents.continent_frequency,
             continent_threshold: config.continents.continent_threshold,
             detail_frequency: config.continents.detail_frequency,
+            view_mode_plates: false,
         }
     }
 }
