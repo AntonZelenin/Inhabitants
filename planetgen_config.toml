@@ -69,6 +69,9 @@ two_neighbors_probability = 0.2
 continent_frequency = 1.5
 # Height scaling for continents (higher = taller mountains and deeper valleys)
 continent_amplitude = 1.0
+# Mid-scale distortion for breaking up round shapes (creates torn, irregular continents)
+distortion_frequency = 4.0  # 3x continent_frequency for mid-scale features
+distortion_amplitude = 0.2   # Strong warping creates peninsulas and bays
 # Fine detail for rough coastlines (higher = more jagged coasts)
 detail_frequency = 14.0
 # Detail layer strength (higher = more surface variation)

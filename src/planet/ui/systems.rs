@@ -166,28 +166,28 @@ pub fn setup_world_generation_menu(
                     // );
 
                     // Number of Plates Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Number of Plates",
-                        settings.num_plates as f32,
-                        3.0,
-                        20.0,
-                        true,
-                        200.0,
-                        NumPlatesSlider,
-                    );
-
-                    // Number of Micro Plates Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Number of Micro Plates",
-                        settings.num_micro_plates as f32,
-                        0.0,
-                        20.0,
-                        true,
-                        200.0,
-                        NumMicroPlatesSlider,
-                    );
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Number of Plates",
+                    //     settings.num_plates as f32,
+                    //     3.0,
+                    //     20.0,
+                    //     true,
+                    //     200.0,
+                    //     NumPlatesSlider,
+                    // );
+                    //
+                    // // Number of Micro Plates Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Number of Micro Plates",
+                    //     settings.num_micro_plates as f32,
+                    //     0.0,
+                    //     20.0,
+                    //     true,
+                    //     200.0,
+                    //     NumMicroPlatesSlider,
+                    // );
 
                     // Spacer
                     parent.spawn(spacer_node.clone());
@@ -216,6 +216,30 @@ pub fn setup_world_generation_menu(
                         false,
                         200.0,
                         ContinentHeightScaleSlider,
+                    );
+
+                    // Distortion Frequency Slider (mid-scale shape breaking)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Distortion Frequency",
+                        settings.distortion_frequency,
+                        1.0,
+                        10.0,
+                        false,
+                        200.0,
+                        DistortionFrequencySlider,
+                    );
+
+                    // Distortion Amplitude Slider (warping strength)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Distortion Strength",
+                        settings.distortion_amplitude,
+                        0.0,
+                        1.0,
+                        false,
+                        200.0,
+                        DistortionAmplitudeSlider,
                     );
 
                     // Continent Threshold Slider (land vs ocean ratio)
@@ -394,6 +418,8 @@ pub fn detect_settings_changes(
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     continent_freq_slider_query: Query<&Slider, (With<ContinentFrequencySlider>, Changed<Slider>)>,
     continent_height_scale_slider_query: Query<&Slider, (With<ContinentHeightScaleSlider>, Changed<Slider>)>,
+    distortion_freq_slider_query: Query<&Slider, (With<DistortionFrequencySlider>, Changed<Slider>)>,
+    distortion_amp_slider_query: Query<&Slider, (With<DistortionAmplitudeSlider>, Changed<Slider>)>,
     continent_threshold_slider_query: Query<&Slider, (With<ContinentThresholdSlider>, Changed<Slider>)>,
     continent_detail_freq_slider_query: Query<&Slider, (With<ContinentDetailFrequencySlider>, Changed<Slider>)>,
     continent_detail_scale_slider_query: Query<&Slider, (With<ContinentDetailScaleSlider>, Changed<Slider>)>,
@@ -407,6 +433,8 @@ pub fn detect_settings_changes(
         || !micro_plates_slider_query.is_empty()
         || !continent_freq_slider_query.is_empty()
         || !continent_height_scale_slider_query.is_empty()
+        || !distortion_freq_slider_query.is_empty()
+        || !distortion_amp_slider_query.is_empty()
         || !continent_threshold_slider_query.is_empty()
         || !continent_detail_freq_slider_query.is_empty()
         || !continent_detail_scale_slider_query.is_empty()
@@ -427,6 +455,8 @@ pub fn update_settings_on_change(
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     continent_freq_slider_query: Query<&Slider, With<ContinentFrequencySlider>>,
     continent_height_scale_slider_query: Query<&Slider, With<ContinentHeightScaleSlider>>,
+    distortion_freq_slider_query: Query<&Slider, With<DistortionFrequencySlider>>,
+    distortion_amp_slider_query: Query<&Slider, With<DistortionAmplitudeSlider>>,
     continent_threshold_slider_query: Query<&Slider, With<ContinentThresholdSlider>>,
     continent_detail_freq_slider_query: Query<&Slider, With<ContinentDetailFrequencySlider>>,
     continent_detail_scale_slider_query: Query<&Slider, With<ContinentDetailScaleSlider>>,
@@ -451,6 +481,12 @@ pub fn update_settings_on_change(
         }
         for slider in &continent_height_scale_slider_query {
             settings.continent_amplitude = slider.current_value;
+        }
+        for slider in &distortion_freq_slider_query {
+            settings.distortion_frequency = slider.current_value;
+        }
+        for slider in &distortion_amp_slider_query {
+            settings.distortion_amplitude = slider.current_value;
         }
         for slider in &continent_threshold_slider_query {
             settings.continent_threshold = slider.current_value;

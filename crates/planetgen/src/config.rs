@@ -101,6 +101,8 @@ pub struct MicroplateConfig {
 pub struct ContinentConfig {
     pub continent_frequency: f32,
     pub continent_amplitude: f32,
+    pub distortion_frequency: f32,
+    pub distortion_amplitude: f32,
     pub detail_frequency: f32,
     pub detail_amplitude: f32,
     pub continent_threshold: f32,
@@ -152,6 +154,8 @@ impl PlanetGenConfig {
             continents: ContinentConfig {
                 continent_frequency: 1.0,
                 continent_amplitude: 1.0,
+                distortion_frequency: 3.0,   // 3x continent freq for mid-scale
+                distortion_amplitude: 0.4,   // Strong warping
                 detail_frequency: 4.0,
                 detail_amplitude: 0.2,
                 continent_threshold: 0.0,

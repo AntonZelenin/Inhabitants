@@ -43,6 +43,12 @@ pub struct ContinentFrequencySlider;
 pub struct ContinentHeightScaleSlider;
 
 #[derive(Component)]
+pub struct DistortionFrequencySlider;
+
+#[derive(Component)]
+pub struct DistortionAmplitudeSlider;
+
+#[derive(Component)]
 pub struct ContinentThresholdSlider;
 
 #[derive(Component)]

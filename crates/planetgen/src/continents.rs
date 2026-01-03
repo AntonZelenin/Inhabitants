@@ -7,12 +7,6 @@
 //! - Fast and straightforward
 //! - Good for testing and simple planets
 //!
-//! ## Advanced System (`AdvancedContinentNoise`)
-//! - Multi-layered noise with terrain type selection
-//! - Includes: base continents, hills, plains, continental shelf, ocean trenches
-//! - More realistic and varied terrain
-//! - Based on procedural planet generation techniques
-//!
 //! See `CONTINENT_GENERATION.md` for detailed documentation on how the system works.
 
 use crate::config::NoiseConfig;
@@ -22,6 +16,8 @@ use glam::Vec3;
 pub struct ContinentNoiseConfig {
     /// Large-scale noise for continent placement (low frequency)
     pub continent_scale: NoiseConfig,
+    /// Mid-scale noise for distorting continent shapes (domain warping)
+    pub distortion_scale: NoiseConfig,
     /// Small-scale noise for coastline detail and local terrain variation
     pub detail_scale: NoiseConfig,
     /// Threshold for continent/ocean boundary (typically -0.3 to 0.3)
@@ -41,7 +37,8 @@ impl ContinentNoiseConfig {
     pub fn from_config(seed_base: u32, cfg: &crate::config::ContinentConfig) -> Self {
         Self {
             continent_scale: NoiseConfig::new(seed_base, cfg.continent_frequency, cfg.continent_amplitude),
-            detail_scale: NoiseConfig::new(seed_base.wrapping_add(1), cfg.detail_frequency, cfg.detail_amplitude),
+            distortion_scale: NoiseConfig::new(seed_base.wrapping_add(1), cfg.distortion_frequency, cfg.distortion_amplitude),
+            detail_scale: NoiseConfig::new(seed_base.wrapping_add(2), cfg.detail_frequency, cfg.detail_amplitude),
             continent_threshold: cfg.continent_threshold,
             ocean_depth_amplitude: cfg.ocean_depth_amplitude,
         }
@@ -50,9 +47,28 @@ impl ContinentNoiseConfig {
     /// Sample the multi-octave continent noise at a given position
     /// Returns the final height value, incorporating continent and detail layers
     /// (Mountains come from tectonic plate simulation)
+    ///
+    /// Uses 3-layer approach:
+    /// 1. Base continent shape (large blobs)
+    /// 2. Mid-scale distortion (domain warping to break up round shapes)
+    /// 3. Fine detail (coastline roughness)
     pub fn sample_height(&self, position: Vec3) -> f32 {
-        // Sample both noise layers (range roughly -1 to 1 due to amplitude)
-        let continent_value = self.continent_scale.sample(position);
+        // Sample distortion noise for domain warping
+        let distortion_value = self.distortion_scale.sample(position);
+
+        // Create perpendicular vector for warping (tangent to sphere)
+        // Use cross product with Y axis to get a consistent tangent direction
+        let tangent = position.cross(Vec3::Y).normalize();
+
+        // Apply domain warping: offset the sampling position
+        // This breaks up the round continent shapes into irregular forms
+        let warp_offset = tangent * distortion_value;
+        let warped_position = (position + warp_offset).normalize();
+
+        // Sample continent at warped position (creates torn, irregular shapes)
+        let continent_value = self.continent_scale.sample(warped_position);
+
+        // Sample detail at original position (fine coastline roughness)
         let detail_value = self.detail_scale.sample(position);
 
         // Add detail to threshold for rough coastlines
@@ -84,7 +100,13 @@ impl ContinentNoiseConfig {
     /// Get just the continent mask (0.0 = ocean, 1.0 = continent)
     /// Useful for coloring or other effects
     pub fn sample_continent_mask(&self, position: Vec3) -> f32 {
-        let continent_value = self.continent_scale.sample(position);
+        // Apply same domain warping as in sample_height
+        let distortion_value = self.distortion_scale.sample(position);
+        let tangent = position.cross(Vec3::Y).normalize();
+        let warp_offset = tangent * distortion_value;
+        let warped_position = (position + warp_offset).normalize();
+
+        let continent_value = self.continent_scale.sample(warped_position);
         let detail_value = self.detail_scale.sample(position);
 
         // Add detail to threshold for rough coastlines (same as in sample_height)

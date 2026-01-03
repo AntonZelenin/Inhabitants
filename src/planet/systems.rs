@@ -52,6 +52,8 @@ pub fn spawn_planet_on_event(
         let continent_config = planetgen::config::ContinentConfig {
             continent_frequency: settings.continent_frequency,
             continent_amplitude: settings.continent_amplitude,
+            distortion_frequency: settings.distortion_frequency,
+            distortion_amplitude: settings.distortion_amplitude,
             detail_frequency: settings.detail_frequency,
             detail_amplitude: settings.detail_amplitude,
             continent_threshold: settings.continent_threshold,
