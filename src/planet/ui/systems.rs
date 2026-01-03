@@ -243,16 +243,16 @@ pub fn setup_world_generation_menu(
                     );
 
                     // Continent Threshold Slider (land vs ocean ratio)
-                    // spawn_slider_with_marker(
-                    //     parent,
-                    //     "Land Coverage",
-                    //     settings.continent_threshold,
-                    //     -0.5,
-                    //     0.5,
-                    //     false,
-                    //     200.0,
-                    //     ContinentThresholdSlider,
-                    // );
+                    spawn_slider_with_marker(
+                        parent,
+                        "Land Coverage",
+                        settings.continent_threshold,
+                        -0.5,
+                        0.5,
+                        false,
+                        200.0,
+                        ContinentThresholdSlider,
+                    );
 
                     // Detail Frequency Slider (coastline roughness)
                     spawn_slider_with_marker(
@@ -449,17 +449,17 @@ pub fn handle_buttons(
 
 pub fn detect_settings_changes(
     mut settings_changed_events: MessageWriter<SettingsChanged>,
-    radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
-    plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
-    micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
+    // radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
+    // plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
+    // micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     continent_freq_slider_query: Query<&Slider, (With<ContinentFrequencySlider>, Changed<Slider>)>,
-    continent_height_scale_slider_query: Query<&Slider, (With<ContinentHeightScaleSlider>, Changed<Slider>)>,
+    // continent_height_scale_slider_query: Query<&Slider, (With<ContinentHeightScaleSlider>, Changed<Slider>)>,
     distortion_freq_slider_query: Query<&Slider, (With<DistortionFrequencySlider>, Changed<Slider>)>,
     distortion_amp_slider_query: Query<&Slider, (With<DistortionAmplitudeSlider>, Changed<Slider>)>,
     continent_threshold_slider_query: Query<&Slider, (With<ContinentThresholdSlider>, Changed<Slider>)>,
     continent_detail_freq_slider_query: Query<&Slider, (With<ContinentDetailFrequencySlider>, Changed<Slider>)>,
     continent_detail_scale_slider_query: Query<&Slider, (With<ContinentDetailScaleSlider>, Changed<Slider>)>,
-    ocean_depth_scale_slider_query: Query<&Slider, (With<OceanDepthScaleSlider>, Changed<Slider>)>,
+    // ocean_depth_scale_slider_query: Query<&Slider, (With<OceanDepthScaleSlider>, Changed<Slider>)>,
     snow_threshold_slider_query: Query<&Slider, (With<SnowThresholdSlider>, Changed<Slider>)>,
     mountain_height_slider_query: Query<&Slider, (With<MountainHeightSlider>, Changed<Slider>)>,
     mountain_width_slider_query: Query<&Slider, (With<MountainWidthSlider>, Changed<Slider>)>,
@@ -467,21 +467,21 @@ pub fn detect_settings_changes(
     view_mode_toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
-    let has_changes = !radius_slider_query.is_empty()
-        || !plates_slider_query.is_empty()
-        || !micro_plates_slider_query.is_empty()
-        || !continent_freq_slider_query.is_empty()
-        || !continent_height_scale_slider_query.is_empty()
+    let has_changes =
+        // !radius_slider_query.is_empty()
+        // || !plates_slider_query.is_empty()
+        // || !micro_plates_slider_query.is_empty()
+        !continent_freq_slider_query.is_empty()
+        // || !continent_height_scale_slider_query.is_empty()
         || !distortion_freq_slider_query.is_empty()
         || !distortion_amp_slider_query.is_empty()
         || !continent_threshold_slider_query.is_empty()
         || !continent_detail_freq_slider_query.is_empty()
         || !continent_detail_scale_slider_query.is_empty()
-        || !ocean_depth_scale_slider_query.is_empty()
+        // || !ocean_depth_scale_slider_query.is_empty()
         || !snow_threshold_slider_query.is_empty()
         || !mountain_height_slider_query.is_empty()
         || !mountain_width_slider_query.is_empty()
-        || !arrows_toggle_query.is_empty()
         || !arrows_toggle_query.is_empty()
         || !view_mode_toggle_query.is_empty();
 
@@ -493,17 +493,17 @@ pub fn detect_settings_changes(
 pub fn update_settings_on_change(
     mut settings_changed_events: MessageReader<SettingsChanged>,
     mut settings: ResMut<PlanetGenerationSettings>,
-    radius_slider_query: Query<&Slider, With<RadiusSlider>>,
-    plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
-    micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
+    // radius_slider_query: Query<&Slider, With<RadiusSlider>>,
+    // plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
+    // micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     continent_freq_slider_query: Query<&Slider, With<ContinentFrequencySlider>>,
-    continent_height_scale_slider_query: Query<&Slider, With<ContinentHeightScaleSlider>>,
+    // continent_height_scale_slider_query: Query<&Slider, With<ContinentHeightScaleSlider>>,
     distortion_freq_slider_query: Query<&Slider, With<DistortionFrequencySlider>>,
     distortion_amp_slider_query: Query<&Slider, With<DistortionAmplitudeSlider>>,
     continent_threshold_slider_query: Query<&Slider, With<ContinentThresholdSlider>>,
     continent_detail_freq_slider_query: Query<&Slider, With<ContinentDetailFrequencySlider>>,
     continent_detail_scale_slider_query: Query<&Slider, With<ContinentDetailScaleSlider>>,
-    ocean_depth_scale_slider_query: Query<&Slider, With<OceanDepthScaleSlider>>,
+    // ocean_depth_scale_slider_query: Query<&Slider, With<OceanDepthScaleSlider>>,
     snow_threshold_slider_query: Query<&Slider, With<SnowThresholdSlider>>,
     mountain_height_slider_query: Query<&Slider, With<MountainHeightSlider>>,
     mountain_width_slider_query: Query<&Slider, With<MountainWidthSlider>>,
@@ -513,21 +513,21 @@ pub fn update_settings_on_change(
     // Only update settings if we received a change event
     for _ in settings_changed_events.read() {
         // Update settings from current slider and toggle values
-        for slider in &radius_slider_query {
-            settings.radius = slider.current_value;
-        }
-        for slider in &plates_slider_query {
-            settings.num_plates = slider.current_value as usize;
-        }
-        for slider in &micro_plates_slider_query {
-            settings.num_micro_plates = slider.current_value as usize;
-        }
+        // for slider in &radius_slider_query {
+        //     settings.radius = slider.current_value;
+        // }
+        // for slider in &plates_slider_query {
+        //     settings.num_plates = slider.current_value as usize;
+        // }
+        // for slider in &micro_plates_slider_query {
+        //     settings.num_micro_plates = slider.current_value as usize;
+        // }
         for slider in &continent_freq_slider_query {
             settings.continent_frequency = slider.current_value;
         }
-        for slider in &continent_height_scale_slider_query {
-            settings.continent_amplitude = slider.current_value;
-        }
+        // for slider in &continent_height_scale_slider_query {
+        //     settings.continent_amplitude = slider.current_value;
+        // }
         for slider in &distortion_freq_slider_query {
             settings.distortion_frequency = slider.current_value;
         }
@@ -543,12 +543,9 @@ pub fn update_settings_on_change(
         for slider in &continent_detail_scale_slider_query {
             settings.detail_amplitude = slider.current_value;
         }
-        for slider in &ocean_depth_scale_slider_query {
-            settings.ocean_depth_amplitude = slider.current_value;
-        }
-        for slider in &ocean_depth_scale_slider_query {
-            settings.ocean_depth_amplitude = slider.current_value;
-        }
+        // for slider in &ocean_depth_scale_slider_query {
+        //     settings.ocean_depth_amplitude = slider.current_value;
+        // }
         for slider in &snow_threshold_slider_query {
             settings.snow_threshold = slider.current_value;
         }
