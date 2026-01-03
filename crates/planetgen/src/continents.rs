@@ -1,3 +1,20 @@
+//! # Continent Generation System
+//!
+//! This module provides two systems for generating planetary continents:
+//!
+//! ## Simple System (`ContinentNoiseConfig`)
+//! - Two-layer noise: base continent shape + surface detail
+//! - Fast and straightforward
+//! - Good for testing and simple planets
+//!
+//! ## Advanced System (`AdvancedContinentNoise`)
+//! - Multi-layered noise with terrain type selection
+//! - Includes: base continents, hills, plains, continental shelf, ocean trenches
+//! - More realistic and varied terrain
+//! - Based on procedural planet generation techniques
+//!
+//! See `CONTINENT_GENERATION.md` for detailed documentation on how the system works.
+
 use crate::config::NoiseConfig;
 use glam::Vec3;
 
@@ -33,8 +50,6 @@ impl ContinentNoiseConfig {
     /// Sample the multi-octave continent noise at a given position
     /// Returns the final height value, incorporating continent and detail layers
     /// (Mountains come from tectonic plate simulation)
-    ///
-    /// Uses noise centered around 0 with no flat base values for smooth transitions
     pub fn sample_height(&self, position: Vec3) -> f32 {
         // Sample both noise layers (range roughly -1 to 1 due to amplitude)
         let continent_value = self.continent_scale.sample(position);
@@ -83,4 +98,6 @@ impl ContinentNoiseConfig {
         }
     }
 }
+
+
 

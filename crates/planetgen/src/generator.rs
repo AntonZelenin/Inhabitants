@@ -397,6 +397,11 @@ impl PlanetGenerator {
     ///
     /// Uses multi-octave continent noise to create realistic terrain with continents and oceans.
     /// Plates are used for tectonic simulation only, not for elevation.
+    /// Generate the 6 cube faces with heightmaps using continent noise
+    ///
+    /// This generates elevation purely from continent noise,
+    /// independent of tectonic plates. Mountains will be added later via
+    /// plate simulation.
     fn generate_faces(
         &self,
         face_grid_size: usize,
@@ -420,9 +425,9 @@ impl PlanetGenerator {
                     let u = x as f32 / (face_grid_size - 1) as f32 * 2.0 - 1.0;
                     let dir = Vec3::from(cube_face_point(face_idx, u, v)).normalize();
 
-                    // Generate height using continent noise only
-                    // Plates are for tectonic simulation, not elevation
+                    // Generate height using continent noise
                     let height = continent_noise.sample_height(dir);
+
 
                     faces[face_idx].heightmap[y][x] = height;
                 }
