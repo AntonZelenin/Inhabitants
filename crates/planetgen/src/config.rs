@@ -53,6 +53,7 @@ pub struct PlanetGenConfig {
     pub microplates: MicroplateConfig,
     pub continents: ContinentConfig,
     pub merging: MergingConfig,
+    pub mountains: MountainConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,12 +108,20 @@ pub struct ContinentConfig {
     pub detail_amplitude: f32,
     pub continent_threshold: f32,
     pub ocean_depth_amplitude: f32,
+    pub snow_threshold: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergingConfig {
     pub selection_probability: f64,
     pub two_neighbors_probability: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MountainConfig {
+    pub height: f32,
+    pub width: f32,
+    pub noise_frequency: f32,
 }
 
 impl PlanetGenConfig {
@@ -160,10 +169,16 @@ impl PlanetGenConfig {
                 detail_amplitude: 0.2,
                 continent_threshold: 0.0,
                 ocean_depth_amplitude: 0.8,
+                snow_threshold: 1.0,
             },
             merging: MergingConfig {
                 selection_probability: 0.07,
                 two_neighbors_probability: 0.2,
+            },
+            mountains: MountainConfig {
+                height: 3.5,
+                width: 0.08,
+                noise_frequency: 40.0,
             },
         }
     }

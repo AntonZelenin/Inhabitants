@@ -1,4 +1,5 @@
 use crate::config::{NoiseConfig, PlanetGenConfig};
+use crate::boundaries::BoundaryType;
 use crate::constants::*;
 use crate::planet::*;
 use crate::plate::TectonicPlate;
@@ -18,6 +19,8 @@ pub struct PlanetGenerator {
     pub flow_warp_amp: f32,
     pub flow_warp_steps: usize,
     pub flow_warp_step_angle: f32,
+    pub mountain_height: f32,
+    pub mountain_width: f32,
     config: PlanetGenConfig,
 }
 
@@ -35,6 +38,8 @@ impl PlanetGenerator {
             flow_warp_amp: config.flow_warp.default_amp,
             flow_warp_steps: config.flow_warp.default_steps,
             flow_warp_step_angle: config.flow_warp.default_step_angle,
+            mountain_height: config.mountains.height,
+            mountain_width: config.mountains.width,
             config,
         }
     }
@@ -108,7 +113,7 @@ impl PlanetGenerator {
             &self.config.continents,
         );
 
-        let faces = self.generate_faces(face_grid_size, &continent_noise);
+        let mut faces = self.generate_faces(face_grid_size, &continent_noise);
 
         // Calculate plate boundary interactions
         let boundary_data = crate::boundaries::BoundaryData::calculate(
@@ -116,6 +121,9 @@ impl PlanetGenerator {
             &plate_map,
             &plates,
         );
+
+        // Apply tectonic uplift for convergent boundaries (mountain ranges)
+        self.apply_convergent_mountains(face_grid_size, &boundary_data, &mut faces);
 
         PlanetData {
             faces,
@@ -145,8 +153,9 @@ impl PlanetGenerator {
         } else {
             axis_raw.normalize()
         };
-        // Give each plate a modest spin speed to ensure visible relative motion
-        let speed = rng.random_range(0.2..1.0);
+        // Give each plate a speed in range 2-10 cm/year (mapped to internal units 0.2-1.0)
+        let speed_cm_per_year = rng.random_range(2.0..10.0); // cm/year
+        let speed = speed_cm_per_year / 10.0; // normalize to 0.2-1.0 range
 
         TectonicPlate {
             id,
@@ -627,6 +636,124 @@ impl PlanetGenerator {
                     let current_plate = plate_map[face_idx][y][x];
                     if let Some(&primary_plate) = merge_map.get(&current_plate) {
                         plate_map[face_idx][y][x] = primary_plate;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Adds mountain height near convergent plate boundaries using noisy ridges with a smooth falloff.
+    /// Mountains only form on land (above continent_threshold - 0.2), not underwater.
+    /// Uses layering to create varied mountain shapes with secondary ridges on one or both sides.
+    fn apply_convergent_mountains(
+        &self,
+        face_grid_size: usize,
+        boundary_data: &crate::boundaries::BoundaryData,
+        faces: &mut [CubeFace; 6],
+    ) {
+        let base_mountain_width = (face_grid_size as f32 * self.mountain_width).max(5.0);
+        let mountain_height = self.mountain_height;
+        
+        // Fine-grained noise for multiple peaks along the ridge
+        let mountain_noise = NoiseConfig::new(self.seed_u32_for("mountains"), self.config.mountains.noise_frequency, 1.0);
+        // Width variation noise - makes some areas wider, some narrower
+        let width_noise = NoiseConfig::new(self.seed_u32_for("mountains/width"), 6.0, 1.0);
+        // Layering noise - determines where to add secondary mountain layers (1-2 extra ridges)
+        let layer_noise = NoiseConfig::new(self.seed_u32_for("mountains/layers"), 3.0, 1.0);
+        
+        // Minimum elevation threshold for mountain formation (only on land, not underwater)
+        let min_elevation_for_mountains = self.config.continents.continent_threshold - 0.2;
+
+        let inv = 1.0 / (face_grid_size as f32 - 1.0);
+        for face_idx in 0..6 {
+            for y in 0..face_grid_size {
+                let v = y as f32 * inv * 2.0 - 1.0;
+                for x in 0..face_grid_size {
+                    if let Some(BoundaryType::Convergent) = boundary_data.boundaries[face_idx][y][x] {
+                        let base_height = faces[face_idx].heightmap[y][x];
+                        
+                        // Skip underwater locations - no mountains form below sea level
+                        if base_height < min_elevation_for_mountains {
+                            continue;
+                        }
+                        
+                        let dist = boundary_data.boundary_distances[face_idx][y][x];
+                        
+                        // Calculate position for noise sampling
+                        let u = x as f32 * inv * 2.0 - 1.0;
+                        let dir = Vec3::from(cube_face_point(face_idx, u, v)).normalize();
+                        
+                        // Variable width: some areas have wider mountain ranges, some narrower
+                        let width_variation = width_noise.sample(dir).abs(); // 0..1
+                        let local_width = base_mountain_width * (0.5 + width_variation * 1.0); // 0.5x to 1.5x variation
+                        
+                        // Determine layering: use layer_noise to decide ridge configuration
+                        // -1..1 range: <-0.5 = one side layer, -0.5..0.5 = no layers, >0.5 = both sides
+                        let layer_value = layer_noise.sample(dir);
+                        
+                        let mut total_uplift = 0.0;
+                        
+                        // Main ridge (always present)
+                        if dist.is_finite() && dist <= local_width {
+                            let falloff = ((local_width - dist) / local_width).max(0.0);
+                            let falloff = falloff * falloff * falloff; // steeper decay for sharper peaks
+
+                            let noise_val = mountain_noise.sample(dir);
+                            let peak_intensity = (noise_val * 0.5 + 0.5).max(0.0).powf(2.0);
+
+                            total_uplift += falloff * peak_intensity * mountain_height;
+                        }
+                        
+                        // Secondary layers for varied shapes
+                        if layer_value > 0.3 || layer_value < -0.3 {
+                            // Add offset ridges (shifted perpendicular to boundary)
+                            let layer_offset = base_mountain_width * 0.6; // Secondary ridge offset distance
+                            let layer_height_scale = 0.65; // Secondary ridges are 65% height of main
+                            
+                            // Try one side (horizontal offset)
+                            if layer_value < -0.3 || layer_value.abs() > 0.7 {
+                                for offset_x in [-1, 1] {
+                                    let offset_pos_x = (x as i32 + offset_x * (layer_offset as i32).max(1)) as usize;
+                                    if offset_pos_x < face_grid_size {
+                                        let offset_dist = boundary_data.boundary_distances[face_idx][y][offset_pos_x];
+                                        if offset_dist.is_finite() && offset_dist <= local_width * 0.7 {
+                                            let falloff = ((local_width * 0.7 - offset_dist) / (local_width * 0.7)).max(0.0);
+                                            let falloff = falloff * falloff * falloff;
+                                            
+                                            let offset_u = offset_pos_x as f32 * inv * 2.0 - 1.0;
+                                            let offset_dir = Vec3::from(cube_face_point(face_idx, offset_u, v)).normalize();
+                                            let noise_val = mountain_noise.sample(offset_dir);
+                                            let peak_intensity = (noise_val * 0.5 + 0.5).max(0.0).powf(2.0);
+                                            
+                                            total_uplift += falloff * peak_intensity * mountain_height * layer_height_scale * 0.5;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Try other side for double-sided ranges
+                            if layer_value > 0.7 {
+                                for offset_y in [-1, 1] {
+                                    let offset_pos_y = (y as i32 + offset_y * (layer_offset as i32).max(1)) as usize;
+                                    if offset_pos_y < face_grid_size {
+                                        let offset_dist = boundary_data.boundary_distances[face_idx][offset_pos_y][x];
+                                        if offset_dist.is_finite() && offset_dist <= local_width * 0.6 {
+                                            let falloff = ((local_width * 0.6 - offset_dist) / (local_width * 0.6)).max(0.0);
+                                            let falloff = falloff * falloff * falloff;
+                                            
+                                            let offset_v = offset_pos_y as f32 * inv * 2.0 - 1.0;
+                                            let offset_dir = Vec3::from(cube_face_point(face_idx, u, offset_v)).normalize();
+                                            let noise_val = mountain_noise.sample(offset_dir);
+                                            let peak_intensity = (noise_val * 0.5 + 0.5).max(0.0).powf(2.0);
+                                            
+                                            total_uplift += falloff * peak_intensity * mountain_height * layer_height_scale * 0.4;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        faces[face_idx].heightmap[y][x] += total_uplift;
                     }
                 }
             }

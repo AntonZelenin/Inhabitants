@@ -2,7 +2,7 @@
 
 [generation]
 # cells per unit influences the performance of the planet generation quite a lot
-cells_per_unit = 6.0
+cells_per_unit = 5.0
 continental_freq = 3.0
 continental_amp = 0.7
 # OCEANIC_FREQ = CONTINENTAL_FREQ / 2.0
@@ -81,3 +81,18 @@ detail_amplitude = 0.4
 continent_threshold = 0.15
 # Depth scaling for oceans (higher = deeper ocean trenches)
 ocean_depth_amplitude = 0.8
+# Snow threshold (elevation where snow caps appear on mountains)
+# Range: 0.5 to 4.0, Default: 1.0
+snow_threshold = 1.0
+
+[mountains]
+# Mountain height at convergent plate boundaries (world units)
+# Range: 1.0 to 8.0, Default: 3.5
+height = 3.5
+# Mountain width as fraction of planet size (0.08 = 8% of grid)
+# Range: 0.03 to 0.15, Default: 0.08
+width = 0.08
+# Mountain detail noise frequency (higher = more individual peaks)
+# Range: 20.0 to 60.0, Default: 40.0
+noise_frequency = 40.0
+

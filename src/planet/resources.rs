@@ -23,6 +23,11 @@ pub struct PlanetGenerationSettings {
     pub ocean_depth_amplitude: f32,
     // View mode
     pub view_mode_plates: bool, // false = continents, true = plates
+    // Mountain snow threshold
+    pub snow_threshold: f32,
+    // Mountain generation
+    pub mountain_height: f32,
+    pub mountain_width: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -49,6 +54,9 @@ impl Default for PlanetGenerationSettings {
             detail_amplitude: config.continents.detail_amplitude,
             ocean_depth_amplitude: config.continents.ocean_depth_amplitude,
             view_mode_plates: false,
+            snow_threshold: config.continents.snow_threshold,
+            mountain_height: config.mountains.height,
+            mountain_width: config.mountains.width,
         }
     }
 }

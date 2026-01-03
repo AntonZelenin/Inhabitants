@@ -58,15 +58,20 @@ pub fn spawn_planet_on_event(
             detail_amplitude: settings.detail_amplitude,
             continent_threshold: settings.continent_threshold,
             ocean_depth_amplitude: settings.ocean_depth_amplitude,
+            snow_threshold: settings.snow_threshold,
         };
         generator.with_continent_config(continent_config);
+
+        // Apply mountain configuration from UI settings
+        generator.mountain_height = settings.mountain_height;
+        generator.mountain_width = settings.mountain_width;
 
         let planet_data = generator.generate();
 
         // Generate BOTH meshes (continent view and plate view)
-        let continent_mesh = build_stitched_planet_mesh(&planet_data, false);
-        let plate_mesh = build_stitched_planet_mesh(&planet_data, true);
-        
+        let continent_mesh = build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
+        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold);
+
         let continent_mesh_handle = meshes.add(continent_mesh);
         let plate_mesh_handle = meshes.add(plate_mesh);
 
@@ -168,7 +173,7 @@ pub fn handle_arrow_toggle(
     }
 }
 
-fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool) -> Mesh {
+fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool, snow_threshold: f32) -> Mesh {
     let size = planet.face_grid_size;
     let mut positions = Vec::new();
     let mut colors = Vec::new();
@@ -204,7 +209,7 @@ fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool) -> Me
                         let plate_id = planet.plate_map[face_idx][y][x];
                         let plate = &planet.plates[plate_id];
                         let mut base_color = plate.debug_color;
-                        
+
                         // Blend in boundary color if this is a boundary cell, with distance-based fade
                         if let Some((boundary_color, opacity)) = planet.boundary_data.get_boundary_color(face_idx, x, y) {
                             // Blend based on opacity: full boundary color at edges, fade to plate color
@@ -212,22 +217,40 @@ fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool) -> Me
                             base_color[1] = base_color[1] * (1.0 - opacity) + boundary_color[1] * opacity;
                             base_color[2] = base_color[2] * (1.0 - opacity) + boundary_color[2] * opacity;
                         }
-                        
+
                         base_color
                     } else {
                         // CONTINENT VIEW: Color based on height and continent mask
                         let continent_mask = planet.continent_noise.sample_continent_mask(dir);
 
                         if height > 0.0 {
-                            // Land (above sea level): green to brown gradient
+                            // Land (above sea level): green to brown gradient, with snow caps at high elevation
                             let height_factor = (height / 1.0).clamp(0.0, 1.0);
-                            let green_base = 0.4 + continent_mask * 0.2;
-                            [
-                                0.2 + height_factor * 0.5,  // Red: browns at high elevation
-                                green_base - height_factor * 0.15,  // Green: less at height
-                                0.1,                        // Blue: low
-                                1.0
-                            ]
+
+                            if height > snow_threshold {
+                                // Snow-capped mountains (white)
+                                let snow_factor = ((height - snow_threshold) / 1.5).clamp(0.0, 1.0);
+                                let base_r = 0.2 + height_factor * 0.5;
+                                let base_g = (0.4 + continent_mask * 0.2) - height_factor * 0.15;
+                                let base_b = 0.1;
+
+                                // Blend towards white
+                                [
+                                    base_r * (1.0 - snow_factor) + 0.95 * snow_factor,
+                                    base_g * (1.0 - snow_factor) + 0.95 * snow_factor,
+                                    base_b * (1.0 - snow_factor) + 1.0 * snow_factor,
+                                    1.0
+                                ]
+                            } else {
+                                // Regular land (green to brown)
+                                let green_base = 0.4 + continent_mask * 0.2;
+                                [
+                                    0.2 + height_factor * 0.5,  // Red: browns at high elevation
+                                    green_base - height_factor * 0.15,  // Green: less at height
+                                    0.1,                        // Blue: low
+                                    1.0
+                                ]
+                            }
                         } else {
                             // Ocean (below sea level): pure blue gradient based on depth
                             let depth = -height;

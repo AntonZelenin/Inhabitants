@@ -207,16 +207,16 @@ pub fn setup_world_generation_menu(
                     );
 
                     // Continent Amplitude Slider (height scaling)
-                    spawn_slider_with_marker(
-                        parent,
-                        "Continent Height Scale",
-                        settings.continent_amplitude,
-                        0.1,
-                        2.0,
-                        false,
-                        200.0,
-                        ContinentHeightScaleSlider,
-                    );
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Continent Height Scale",
+                    //     settings.continent_amplitude,
+                    //     0.1,
+                    //     2.0,
+                    //     false,
+                    //     200.0,
+                    //     ContinentHeightScaleSlider,
+                    // );
 
                     // Distortion Frequency Slider (mid-scale shape breaking)
                     spawn_slider_with_marker(
@@ -243,16 +243,16 @@ pub fn setup_world_generation_menu(
                     );
 
                     // Continent Threshold Slider (land vs ocean ratio)
-                    spawn_slider_with_marker(
-                        parent,
-                        "Land Coverage",
-                        settings.continent_threshold,
-                        -0.5,
-                        0.5,
-                        false,
-                        200.0,
-                        ContinentThresholdSlider,
-                    );
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Land Coverage",
+                    //     settings.continent_threshold,
+                    //     -0.5,
+                    //     0.5,
+                    //     false,
+                    //     200.0,
+                    //     ContinentThresholdSlider,
+                    // );
 
                     // Detail Frequency Slider (coastline roughness)
                     spawn_slider_with_marker(
@@ -279,15 +279,51 @@ pub fn setup_world_generation_menu(
                     );
 
                     // Ocean Depth Amplitude Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Ocean Depth Scale",
+                    //     settings.ocean_depth_amplitude,
+                    //     0.1,
+                    //     2.0,
+                    //     false,
+                    //     200.0,
+                    //     OceanDepthScaleSlider,
+                    // );
+
+                    // Snow Threshold Slider
                     spawn_slider_with_marker(
                         parent,
-                        "Ocean Depth Scale",
-                        settings.ocean_depth_amplitude,
-                        0.1,
-                        2.0,
+                        "Snow Threshold",
+                        settings.snow_threshold,
+                        0.5,
+                        4.0,
                         false,
                         200.0,
-                        OceanDepthScaleSlider,
+                        SnowThresholdSlider,
+                    );
+
+                    // Mountain Height Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Mountain Height",
+                        settings.mountain_height,
+                        1.0,
+                        8.0,
+                        false,
+                        200.0,
+                        MountainHeightSlider,
+                    );
+
+                    // Mountain Width Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Mountain Width",
+                        settings.mountain_width,
+                        0.03,
+                        0.15,
+                        false,
+                        200.0,
+                        MountainWidthSlider,
                     );
 
                     // I used this code to conveniently determine good coefficients for plate
@@ -330,12 +366,12 @@ pub fn setup_world_generation_menu(
                     // );
 
                     // Show Arrows Toggle
-                    spawn_toggle_with_marker(
-                        parent,
-                        "Show Direction Arrows",
-                        settings.show_arrows,
-                        ShowArrowsToggle,
-                    );
+                    // spawn_toggle_with_marker(
+                    //     parent,
+                    //     "Show Direction Arrows",
+                    //     settings.show_arrows,
+                    //     ShowArrowsToggle,
+                    // );
 
                     // View Mode Toggle
                     spawn_toggle_with_marker(
@@ -424,6 +460,9 @@ pub fn detect_settings_changes(
     continent_detail_freq_slider_query: Query<&Slider, (With<ContinentDetailFrequencySlider>, Changed<Slider>)>,
     continent_detail_scale_slider_query: Query<&Slider, (With<ContinentDetailScaleSlider>, Changed<Slider>)>,
     ocean_depth_scale_slider_query: Query<&Slider, (With<OceanDepthScaleSlider>, Changed<Slider>)>,
+    snow_threshold_slider_query: Query<&Slider, (With<SnowThresholdSlider>, Changed<Slider>)>,
+    mountain_height_slider_query: Query<&Slider, (With<MountainHeightSlider>, Changed<Slider>)>,
+    mountain_width_slider_query: Query<&Slider, (With<MountainWidthSlider>, Changed<Slider>)>,
     arrows_toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
     view_mode_toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
 ) {
@@ -439,6 +478,10 @@ pub fn detect_settings_changes(
         || !continent_detail_freq_slider_query.is_empty()
         || !continent_detail_scale_slider_query.is_empty()
         || !ocean_depth_scale_slider_query.is_empty()
+        || !snow_threshold_slider_query.is_empty()
+        || !mountain_height_slider_query.is_empty()
+        || !mountain_width_slider_query.is_empty()
+        || !arrows_toggle_query.is_empty()
         || !arrows_toggle_query.is_empty()
         || !view_mode_toggle_query.is_empty();
 
@@ -461,6 +504,9 @@ pub fn update_settings_on_change(
     continent_detail_freq_slider_query: Query<&Slider, With<ContinentDetailFrequencySlider>>,
     continent_detail_scale_slider_query: Query<&Slider, With<ContinentDetailScaleSlider>>,
     ocean_depth_scale_slider_query: Query<&Slider, With<OceanDepthScaleSlider>>,
+    snow_threshold_slider_query: Query<&Slider, With<SnowThresholdSlider>>,
+    mountain_height_slider_query: Query<&Slider, With<MountainHeightSlider>>,
+    mountain_width_slider_query: Query<&Slider, With<MountainWidthSlider>>,
     arrows_toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
     view_mode_toggle_query: Query<&ToggleState, With<ViewModeToggle>>,
 ) {
@@ -499,6 +545,18 @@ pub fn update_settings_on_change(
         }
         for slider in &ocean_depth_scale_slider_query {
             settings.ocean_depth_amplitude = slider.current_value;
+        }
+        for slider in &ocean_depth_scale_slider_query {
+            settings.ocean_depth_amplitude = slider.current_value;
+        }
+        for slider in &snow_threshold_slider_query {
+            settings.snow_threshold = slider.current_value;
+        }
+        for slider in &mountain_height_slider_query {
+            settings.mountain_height = slider.current_value;
+        }
+        for slider in &mountain_width_slider_query {
+            settings.mountain_width = slider.current_value;
         }
         for toggle_state in &arrows_toggle_query {
             settings.show_arrows = toggle_state.is_on;

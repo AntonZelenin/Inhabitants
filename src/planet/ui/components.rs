@@ -59,3 +59,13 @@ pub struct ContinentDetailScaleSlider;
 
 #[derive(Component)]
 pub struct OceanDepthScaleSlider;
+
+#[derive(Component)]
+pub struct SnowThresholdSlider;
+
+#[derive(Component)]
+pub struct MountainHeightSlider;
+
+#[derive(Component)]
+pub struct MountainWidthSlider;
+
