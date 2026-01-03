@@ -14,8 +14,11 @@ pub struct PlanetGenerationSettings {
     pub flow_warp_step_angle: f32,
     // Continent generation parameters
     pub continent_frequency: f32,
+    pub continent_amplitude: f32,
     pub continent_threshold: f32,
     pub detail_frequency: f32,
+    pub detail_amplitude: f32,
+    pub ocean_depth_amplitude: f32,
     // View mode
     pub view_mode_plates: bool, // false = continents, true = plates
 }
@@ -35,8 +38,11 @@ impl Default for PlanetGenerationSettings {
             flow_warp_steps: config.flow_warp.default_steps,
             flow_warp_step_angle: config.flow_warp.default_step_angle,
             continent_frequency: config.continents.continent_frequency,
+            continent_amplitude: config.continents.continent_amplitude,
             continent_threshold: config.continents.continent_threshold,
             detail_frequency: config.continents.detail_frequency,
+            detail_amplitude: config.continents.detail_amplitude,
+            ocean_depth_amplitude: config.continents.ocean_depth_amplitude,
             view_mode_plates: false,
         }
     }

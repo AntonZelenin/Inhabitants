@@ -23,8 +23,8 @@ pub fn reload_config() {
 #[derive(Debug, Clone)]
 pub struct NoiseConfig {
     perlin: Perlin,
-    frequency: f32,
-    amplitude: f32,
+    pub frequency: f32,
+    pub amplitude: f32,
 }
 
 impl NoiseConfig {
@@ -71,7 +71,6 @@ pub struct GenerationConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlateConfig {
     pub min_separation_chord_distance: f32,
-    pub continental_plate_probability: f64,
     pub micro_plate_weight_factor: f32,
 }
 
@@ -105,8 +104,7 @@ pub struct ContinentConfig {
     pub detail_frequency: f32,
     pub detail_amplitude: f32,
     pub continent_threshold: f32,
-    pub ocean_floor_base: f32,
-    pub continent_base: f32,
+    pub ocean_depth_amplitude: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,7 +130,6 @@ impl PlanetGenConfig {
             },
             plates: PlateConfig {
                 min_separation_chord_distance: 0.5,
-                continental_plate_probability: 0.5,
                 micro_plate_weight_factor: 2.7,
             },
             boundaries: BoundaryConfig {
@@ -154,12 +151,11 @@ impl PlanetGenConfig {
             },
             continents: ContinentConfig {
                 continent_frequency: 1.0,
-                continent_amplitude: 0.5,
+                continent_amplitude: 1.0,
                 detail_frequency: 4.0,
-                detail_amplitude: 0.1,
-                continent_threshold: 0.5,
-                ocean_floor_base: -0.1,
-                continent_base: 0.3,
+                detail_amplitude: 0.2,
+                continent_threshold: 0.0,
+                ocean_depth_amplitude: 0.8,
             },
             merging: MergingConfig {
                 selection_probability: 0.07,

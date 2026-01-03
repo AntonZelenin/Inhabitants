@@ -9,10 +9,8 @@ pub struct ContinentNoiseConfig {
     pub detail_scale: NoiseConfig,
     /// Threshold for continent/ocean boundary (typically -0.3 to 0.3)
     pub continent_threshold: f32,
-    /// Base elevation for ocean floor (negative value)
-    pub ocean_floor_base: f32,
-    /// Base elevation for continental crust (positive value)
-    pub continent_base: f32,
+    /// Maximum depth variation for oceans (positive value, applied negatively)
+    pub ocean_depth_amplitude: f32,
 }
 
 impl ContinentNoiseConfig {
@@ -28,32 +26,43 @@ impl ContinentNoiseConfig {
             continent_scale: NoiseConfig::new(seed_base, cfg.continent_frequency, cfg.continent_amplitude),
             detail_scale: NoiseConfig::new(seed_base.wrapping_add(1), cfg.detail_frequency, cfg.detail_amplitude),
             continent_threshold: cfg.continent_threshold,
-            ocean_floor_base: cfg.ocean_floor_base,
-            continent_base: cfg.continent_base,
+            ocean_depth_amplitude: cfg.ocean_depth_amplitude,
         }
     }
 
     /// Sample the multi-octave continent noise at a given position
     /// Returns the final height value, incorporating continent and detail layers
     /// (Mountains come from tectonic plate simulation)
+    ///
+    /// Uses noise centered around 0 with no flat base values for smooth transitions
     pub fn sample_height(&self, position: Vec3) -> f32 {
-        // Sample both octaves
+        // Sample both noise layers (range roughly -1 to 1 due to amplitude)
         let continent_value = self.continent_scale.sample(position);
         let detail_value = self.detail_scale.sample(position);
 
-        // Add detail to the continent threshold for rough coastlines
+        // Add detail to threshold for rough coastlines
         let adjusted_threshold = self.continent_threshold + (detail_value * 0.3);
 
-        // Determine if this is continent or ocean
+        // Determine if this is continent or ocean based on threshold
         if continent_value > adjusted_threshold {
-            // Continental region: base elevation + detail variation
-            let continent_factor = ((continent_value - self.continent_threshold)
-                / (1.0 - self.continent_threshold))
-                .clamp(0.0, 1.0);
-            self.continent_base + (detail_value * 0.5 * continent_factor)
+            // CONTINENT: Take the noise value above threshold and scale it
+            // The noise naturally varies, creating elevation changes
+            let height_above_threshold = continent_value - adjusted_threshold;
+
+            // Scale by continent amplitude and add fine detail
+            let base_height = height_above_threshold * self.continent_scale.amplitude;
+            let detailed_height = base_height + (detail_value * self.detail_scale.amplitude);
+
+            detailed_height.max(0.0) // Ensure non-negative for land
         } else {
-            // Ocean region: base ocean floor + subtle detail
-            self.ocean_floor_base + (detail_value * 0.2)
+            // OCEAN: Take the noise value below threshold and scale it negatively
+            let depth_below_threshold = adjusted_threshold - continent_value;
+
+            // Scale by ocean depth amplitude and add subtle detail
+            let base_depth = depth_below_threshold * self.ocean_depth_amplitude;
+            let detailed_depth = base_depth + (detail_value * self.detail_scale.amplitude * 0.3);
+
+            -detailed_depth.max(0.0) // Make it negative for ocean depth
         }
     }
 

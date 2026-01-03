@@ -21,8 +21,6 @@ default_num_micro_plates = 6
 # 1.3-1.5: Very spread out
 # 1.6+: Too restrictive, may not converge
 min_separation_chord_distance = 0.5
-# Probability for a plate to be continental vs oceanic
-continental_plate_probability = 0.5
 # This constant helps microplates win cells, if we use 1.0 instead, we won't have
 # any microplates, I don't know how it works though
 micro_plate_weight_factor = 2.7
@@ -68,14 +66,14 @@ two_neighbors_probability = 0.2
 [continents]
 # Large-scale continent placement (lower = bigger continents, higher = more varied)
 continent_frequency = 1.5
+# Height scaling for continents (higher = taller mountains and deeper valleys)
 continent_amplitude = 1.0
 # Fine detail for rough coastlines (higher = more jagged coasts)
 detail_frequency = 12.0
+# Detail layer strength (higher = more surface variation)
 detail_amplitude = 0.2
 # Threshold for land vs ocean (lower = more land, higher = more ocean)
 # Range: -1.0 to 1.0, typical: -0.3 to 0.3
-continent_threshold = 0.2
-# Ocean floor depth (negative value)
-ocean_floor_base = -0.5
-# Continental base elevation (positive value)
-continent_base = 0.3
+continent_threshold = 0.15
+# Depth scaling for oceans (higher = deeper ocean trenches)
+ocean_depth_amplitude = 0.8

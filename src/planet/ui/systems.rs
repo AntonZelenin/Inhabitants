@@ -12,7 +12,6 @@ pub fn setup_world_generation_menu(
     mut commands: Commands,
     settings: Res<PlanetGenerationSettings>,
 ) {
-    let config = planetgen::get_config();
     let root_node = Node {
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
@@ -155,16 +154,16 @@ pub fn setup_world_generation_menu(
                     });
 
                     // Planet Radius Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Planet Radius",
-                        settings.radius,
-                        config.generation.planet_min_radius,
-                        config.generation.planet_max_radius,
-                        false,
-                        200.0,
-                        RadiusSlider,
-                    );
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Planet Radius",
+                    //     settings.radius,
+                    //     config.generation.planet_min_radius,
+                    //     config.generation.planet_max_radius,
+                    //     false,
+                    //     200.0,
+                    //     RadiusSlider,
+                    // );
 
                     // Number of Plates Slider
                     spawn_slider_with_marker(
@@ -199,7 +198,7 @@ pub fn setup_world_generation_menu(
                     spawn_slider_with_marker(
                         parent,
                         "Continent Frequency",
-                        config.continents.continent_frequency,
+                        settings.continent_frequency,
                         0.5,
                         3.0,
                         false,
@@ -207,11 +206,23 @@ pub fn setup_world_generation_menu(
                         ContinentFrequencySlider,
                     );
 
+                    // Continent Amplitude Slider (height scaling)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Continent Height Scale",
+                        settings.continent_amplitude,
+                        0.1,
+                        2.0,
+                        false,
+                        200.0,
+                        ContinentHeightScaleSlider,
+                    );
+
                     // Continent Threshold Slider (land vs ocean ratio)
                     spawn_slider_with_marker(
                         parent,
                         "Land Coverage",
-                        config.continents.continent_threshold,
+                        settings.continent_threshold,
                         -0.5,
                         0.5,
                         false,
@@ -219,17 +230,40 @@ pub fn setup_world_generation_menu(
                         ContinentThresholdSlider,
                     );
 
-
                     // Detail Frequency Slider (coastline roughness)
                     spawn_slider_with_marker(
                         parent,
-                        "Coastline Detail",
-                        config.continents.detail_frequency,
+                        "Continent Detail Frequency",
+                        settings.detail_frequency,
                         5.0,
                         20.0,
                         false,
                         200.0,
-                        DetailFrequencySlider,
+                        ContinentDetailFrequencySlider,
+                    );
+
+                    // Detail Amplitude Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Continent Detail Scale",
+                        settings.detail_amplitude,
+                        0.05,
+                        0.5,
+                        false,
+                        200.0,
+                        ContinentDetailScaleSlider,
+                    );
+
+                    // Ocean Depth Amplitude Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Ocean Depth Scale",
+                        settings.ocean_depth_amplitude,
+                        0.1,
+                        2.0,
+                        false,
+                        200.0,
+                        OceanDepthScaleSlider,
                     );
 
                     // I used this code to conveniently determine good coefficients for plate
@@ -359,8 +393,11 @@ pub fn detect_settings_changes(
     plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
     micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
     continent_freq_slider_query: Query<&Slider, (With<ContinentFrequencySlider>, Changed<Slider>)>,
+    continent_height_scale_slider_query: Query<&Slider, (With<ContinentHeightScaleSlider>, Changed<Slider>)>,
     continent_threshold_slider_query: Query<&Slider, (With<ContinentThresholdSlider>, Changed<Slider>)>,
-    detail_freq_slider_query: Query<&Slider, (With<DetailFrequencySlider>, Changed<Slider>)>,
+    continent_detail_freq_slider_query: Query<&Slider, (With<ContinentDetailFrequencySlider>, Changed<Slider>)>,
+    continent_detail_scale_slider_query: Query<&Slider, (With<ContinentDetailScaleSlider>, Changed<Slider>)>,
+    ocean_depth_scale_slider_query: Query<&Slider, (With<OceanDepthScaleSlider>, Changed<Slider>)>,
     arrows_toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
     view_mode_toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
 ) {
@@ -369,8 +406,11 @@ pub fn detect_settings_changes(
         || !plates_slider_query.is_empty()
         || !micro_plates_slider_query.is_empty()
         || !continent_freq_slider_query.is_empty()
+        || !continent_height_scale_slider_query.is_empty()
         || !continent_threshold_slider_query.is_empty()
-        || !detail_freq_slider_query.is_empty()
+        || !continent_detail_freq_slider_query.is_empty()
+        || !continent_detail_scale_slider_query.is_empty()
+        || !ocean_depth_scale_slider_query.is_empty()
         || !arrows_toggle_query.is_empty()
         || !view_mode_toggle_query.is_empty();
 
@@ -386,8 +426,11 @@ pub fn update_settings_on_change(
     plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
     micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
     continent_freq_slider_query: Query<&Slider, With<ContinentFrequencySlider>>,
+    continent_height_scale_slider_query: Query<&Slider, With<ContinentHeightScaleSlider>>,
     continent_threshold_slider_query: Query<&Slider, With<ContinentThresholdSlider>>,
-    detail_freq_slider_query: Query<&Slider, With<DetailFrequencySlider>>,
+    continent_detail_freq_slider_query: Query<&Slider, With<ContinentDetailFrequencySlider>>,
+    continent_detail_scale_slider_query: Query<&Slider, With<ContinentDetailScaleSlider>>,
+    ocean_depth_scale_slider_query: Query<&Slider, With<OceanDepthScaleSlider>>,
     arrows_toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
     view_mode_toggle_query: Query<&ToggleState, With<ViewModeToggle>>,
 ) {
@@ -406,11 +449,20 @@ pub fn update_settings_on_change(
         for slider in &continent_freq_slider_query {
             settings.continent_frequency = slider.current_value;
         }
+        for slider in &continent_height_scale_slider_query {
+            settings.continent_amplitude = slider.current_value;
+        }
         for slider in &continent_threshold_slider_query {
             settings.continent_threshold = slider.current_value;
         }
-        for slider in &detail_freq_slider_query {
+        for slider in &continent_detail_freq_slider_query {
             settings.detail_frequency = slider.current_value;
+        }
+        for slider in &continent_detail_scale_slider_query {
+            settings.detail_amplitude = slider.current_value;
+        }
+        for slider in &ocean_depth_scale_slider_query {
+            settings.ocean_depth_amplitude = slider.current_value;
         }
         for toggle_state in &arrows_toggle_query {
             settings.show_arrows = toggle_state.is_on;

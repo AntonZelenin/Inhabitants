@@ -40,8 +40,16 @@ pub struct PlaceholderText;
 pub struct ContinentFrequencySlider;
 
 #[derive(Component)]
-pub struct ContinentThresholdSlider;
-
+pub struct ContinentHeightScaleSlider;
 
 #[derive(Component)]
-pub struct DetailFrequencySlider;
+pub struct ContinentThresholdSlider;
+
+#[derive(Component)]
+pub struct ContinentDetailFrequencySlider;
+
+#[derive(Component)]
+pub struct ContinentDetailScaleSlider;
+
+#[derive(Component)]
+pub struct OceanDepthScaleSlider;

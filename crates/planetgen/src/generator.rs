@@ -104,11 +104,11 @@ impl PlanetGenerator {
         // Create continent noise configuration using custom config (independent of plates)
         let continent_seed = self.seed_u32_for("continents");
         let continent_noise = crate::continents::ContinentNoiseConfig::from_config(
-            continent_seed, 
+            continent_seed,
             &self.config.continents
         );
 
-        let faces = self.generate_faces(face_grid_size, &plates, &plate_map, &continent_noise);
+        let faces = self.generate_faces(face_grid_size, &continent_noise);
         PlanetData {
             faces,
             face_grid_size,
@@ -124,25 +124,21 @@ impl PlanetGenerator {
         id: usize,
         direction: Vec3,
         size_class: PlateSizeClass,
-        freq: f32,
-        amp: f32,
-        noise_seed: u32,
     ) -> TectonicPlate {
         let color = DEBUG_COLORS[id % DEBUG_COLORS.len()];
         TectonicPlate {
             id,
             direction,
             size_class,
-            noise_config: NoiseConfig::new(noise_seed, freq, amp),
             debug_color: color,
         }
     }
 
     /// Generates the main tectonic plates for the planet
     ///
-    /// Creates random plates with consistent noise parameters for plate tectonics simulation.
+    /// Creates random plates for tectonic simulation.
     /// Each plate gets a random seed direction on the unit sphere.
-    /// Note: Continents are generated separately and are not tied to plate types.
+    /// Note: Height/elevation comes from continent noise, not plate noise.
     fn generate_plates(&self) -> Vec<TectonicPlate> {
         // Derive a separate RNG per-plate for directions
         let mut directions: Vec<Vec3> = (0..self.num_plates)
@@ -163,18 +159,10 @@ impl PlanetGenerator {
             .into_iter()
             .enumerate()
             .map(|(id, direction)| {
-                // Use consistent noise parameters for all plates (tectonic movement only)
-                let freq = self.config.generation.continental_freq;
-                // todo does * 0.3 make sense here?
-                let amp = self.config.generation.continental_amp * 0.3; // Reduced for base terrain
-                let noise_seed = self.seed_u32_for(&format!("plates/noise/{id}"));
                 self.make_plate(
                     id,
                     direction,
                     PlateSizeClass::Regular,
-                    freq,
-                    amp,
-                    noise_seed,
                 )
             })
             .collect()
@@ -306,17 +294,11 @@ impl PlanetGenerator {
                     rng_jitter.random_range(self.config.microplate_jitter_range()),
                 );
                 let seed_dir = (base_dir + jitter).normalize();
-                // smaller scale noise
-                let freq = self.config.generation.continental_freq * self.config.microplates.frequency_multiplier;
-                let amp = self.config.generation.continental_amp * self.config.microplates.amplitude_multiplier * 0.3;
-                let noise_seed = self.seed_u32_for(&format!("microplates/noise/{id}"));
+
                 self.make_plate(
                     id,
                     seed_dir,
                     PlateSizeClass::Micro,
-                    freq,
-                    amp,
-                    noise_seed,
                 )
             })
             .collect()
@@ -414,12 +396,10 @@ impl PlanetGenerator {
     /// Generates heightmaps for all six cube faces of the planet
     ///
     /// Uses multi-octave continent noise to create realistic terrain with continents and oceans.
-    /// Plate data is kept for future tectonic simulation but doesn't directly affect height.
+    /// Plates are used for tectonic simulation only, not for elevation.
     fn generate_faces(
         &self,
         face_grid_size: usize,
-        plates: &[TectonicPlate],
-        plate_map: &PlateMap,
         continent_noise: &crate::continents::ContinentNoiseConfig,
     ) -> [CubeFace; 6] {
         let blank = CubeFace {
@@ -439,15 +419,12 @@ impl PlanetGenerator {
                 for x in 0..face_grid_size {
                     let u = x as f32 / (face_grid_size - 1) as f32 * 2.0 - 1.0;
                     let dir = Vec3::from(cube_face_point(face_idx, u, v)).normalize();
-                    
-                    // Generate height using continent noise (independent of plates)
+
+                    // Generate height using continent noise only
+                    // Plates are for tectonic simulation, not elevation
                     let height = continent_noise.sample_height(dir);
-                    
-                    // Optional: Add subtle plate-based variation for future tectonic features
-                    let plate_id = plate_map[face_idx][y][x];
-                    let plate_variation = plates[plate_id].noise_config.sample(dir) * 0.1;
-                    
-                    faces[face_idx].heightmap[y][x] = height + plate_variation;
+
+                    faces[face_idx].heightmap[y][x] = height;
                 }
             }
         }

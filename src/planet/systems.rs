@@ -51,12 +51,11 @@ pub fn spawn_planet_on_event(
         // Apply custom continent configuration from UI settings
         let continent_config = planetgen::config::ContinentConfig {
             continent_frequency: settings.continent_frequency,
-            continent_amplitude: 1.0, // Keep amplitude fixed
+            continent_amplitude: settings.continent_amplitude,
             detail_frequency: settings.detail_frequency,
-            detail_amplitude: 0.2, // Keep detail amplitude fixed
+            detail_amplitude: settings.detail_amplitude,
             continent_threshold: settings.continent_threshold,
-            ocean_floor_base: -0.5, // Keep ocean floor depth fixed
-            continent_base: 0.3, // Keep continent base elevation fixed
+            ocean_depth_amplitude: settings.ocean_depth_amplitude,
         };
         generator.with_continent_config(continent_config);
 
