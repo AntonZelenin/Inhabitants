@@ -105,7 +105,7 @@ impl PlanetGenerator {
         let continent_seed = self.seed_u32_for("continents");
         let continent_noise = crate::continents::ContinentNoiseConfig::from_config(
             continent_seed,
-            &self.config.continents
+            &self.config.continents,
         );
 
         let faces = self.generate_faces(face_grid_size, &continent_noise);
@@ -119,12 +119,7 @@ impl PlanetGenerator {
         }
     }
 
-    fn make_plate(
-        &self,
-        id: usize,
-        direction: Vec3,
-        size_class: PlateSizeClass,
-    ) -> TectonicPlate {
+    fn make_plate(&self, id: usize, direction: Vec3, size_class: PlateSizeClass) -> TectonicPlate {
         let color = DEBUG_COLORS[id % DEBUG_COLORS.len()];
         TectonicPlate {
             id,
@@ -158,13 +153,7 @@ impl PlanetGenerator {
         directions
             .into_iter()
             .enumerate()
-            .map(|(id, direction)| {
-                self.make_plate(
-                    id,
-                    direction,
-                    PlateSizeClass::Regular,
-                )
-            })
+            .map(|(id, direction)| self.make_plate(id, direction, PlateSizeClass::Regular))
             .collect()
     }
 
@@ -295,11 +284,7 @@ impl PlanetGenerator {
                 );
                 let seed_dir = (base_dir + jitter).normalize();
 
-                self.make_plate(
-                    id,
-                    seed_dir,
-                    PlateSizeClass::Micro,
-                )
+                self.make_plate(id, seed_dir, PlateSizeClass::Micro)
             })
             .collect()
     }
@@ -428,7 +413,6 @@ impl PlanetGenerator {
                     // Generate height using continent noise
                     let height = continent_noise.sample_height(dir);
 
-
                     faces[face_idx].heightmap[y][x] = height;
                 }
             }
@@ -472,8 +456,14 @@ impl PlanetGenerator {
                     if x + 1 < face_grid_size {
                         let right_plate = plate_map[face_idx][y][x + 1];
                         if right_plate != current_plate {
-                            adjacency.entry(current_plate).or_insert_with(HashSet::new).insert(right_plate);
-                            adjacency.entry(right_plate).or_insert_with(HashSet::new).insert(current_plate);
+                            adjacency
+                                .entry(current_plate)
+                                .or_insert_with(HashSet::new)
+                                .insert(right_plate);
+                            adjacency
+                                .entry(right_plate)
+                                .or_insert_with(HashSet::new)
+                                .insert(current_plate);
                         }
                     }
 
@@ -481,8 +471,14 @@ impl PlanetGenerator {
                     if y + 1 < face_grid_size {
                         let down_plate = plate_map[face_idx][y + 1][x];
                         if down_plate != current_plate {
-                            adjacency.entry(current_plate).or_insert_with(HashSet::new).insert(down_plate);
-                            adjacency.entry(down_plate).or_insert_with(HashSet::new).insert(current_plate);
+                            adjacency
+                                .entry(current_plate)
+                                .or_insert_with(HashSet::new)
+                                .insert(down_plate);
+                            adjacency
+                                .entry(down_plate)
+                                .or_insert_with(HashSet::new)
+                                .insert(current_plate);
                         }
                     }
                 }
@@ -493,7 +489,11 @@ impl PlanetGenerator {
     }
 
     /// Counts the number of cells (area) for each plate
-    fn count_plate_areas(&self, face_grid_size: usize, plate_map: &PlateMap) -> HashMap<usize, usize> {
+    fn count_plate_areas(
+        &self,
+        face_grid_size: usize,
+        plate_map: &PlateMap,
+    ) -> HashMap<usize, usize> {
         let mut areas: HashMap<usize, usize> = HashMap::new();
 
         for face_idx in 0..6 {
@@ -553,11 +553,12 @@ impl PlanetGenerator {
             }
 
             // Determine number of neighbors to merge: 30% chance for 2, otherwise 1
-            let max_neighbors = if selection_rng.random::<f64>() < self.config.merging.two_neighbors_probability {
-                2
-            } else {
-                1
-            };
+            let max_neighbors =
+                if selection_rng.random::<f64>() < self.config.merging.two_neighbors_probability {
+                    2
+                } else {
+                    1
+                };
 
             let num_neighbors = available_neighbors.len().min(max_neighbors);
             let mut neighbors_to_merge = available_neighbors;

@@ -30,7 +30,8 @@ impl Default for PlanetGenerationSettings {
         let config = planetgen::get_config();
         let seed_8 = planetgen::tools::generate_seed8();
         Self {
-            radius: (config.generation.planet_max_radius + config.generation.planet_min_radius) / 2.0,
+            radius: (config.generation.planet_max_radius + config.generation.planet_min_radius)
+                / 2.0,
             num_plates: config.generation.default_num_plates,
             num_micro_plates: config.generation.default_num_micro_plates,
             show_arrows: false,

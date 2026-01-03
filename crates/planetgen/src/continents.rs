@@ -36,9 +36,21 @@ impl ContinentNoiseConfig {
     /// Create from a ContinentConfig
     pub fn from_config(seed_base: u32, cfg: &crate::config::ContinentConfig) -> Self {
         Self {
-            continent_scale: NoiseConfig::new(seed_base, cfg.continent_frequency, cfg.continent_amplitude),
-            distortion_scale: NoiseConfig::new(seed_base.wrapping_add(1), cfg.distortion_frequency, cfg.distortion_amplitude),
-            detail_scale: NoiseConfig::new(seed_base.wrapping_add(2), cfg.detail_frequency, cfg.detail_amplitude),
+            continent_scale: NoiseConfig::new(
+                seed_base,
+                cfg.continent_frequency,
+                cfg.continent_amplitude,
+            ),
+            distortion_scale: NoiseConfig::new(
+                seed_base.wrapping_add(1),
+                cfg.distortion_frequency,
+                cfg.distortion_amplitude,
+            ),
+            detail_scale: NoiseConfig::new(
+                seed_base.wrapping_add(2),
+                cfg.detail_frequency,
+                cfg.detail_amplitude,
+            ),
             continent_threshold: cfg.continent_threshold,
             ocean_depth_amplitude: cfg.ocean_depth_amplitude,
         }
@@ -120,6 +132,3 @@ impl ContinentNoiseConfig {
         }
     }
 }
-
-
-

@@ -81,16 +81,3 @@ detail_amplitude = 0.4
 continent_threshold = 0.15
 # Depth scaling for oceans (higher = deeper ocean trenches)
 ocean_depth_amplitude = 0.8
-
-# keep for now
-## === Advanced Generation ===
-## Use advanced multi-layered continent generation (vs simple two-layer)
-#use_advanced_generation = true
-## Lacunarity controls frequency increase between noise octaves (affects shape complexity)
-#continent_lacunarity = 2.208984375
-#hills_lacunarity = 2.162109375
-#plains_lacunarity = 2.314453125
-## Continental shelf elevation (must be below sea level)
-#shelf_level = -0.375
-## Terrain type offset (low = rough areas at high elevations, high = rough areas everywhere)
-#terrain_offset = 1.0
