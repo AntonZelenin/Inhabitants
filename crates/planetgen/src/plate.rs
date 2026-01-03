@@ -4,6 +4,8 @@ use glam::Vec3;
 pub struct TectonicPlate {
     pub id: usize,
     pub direction: Vec3,
+    pub angular_velocity: Vec3,
+    pub center: Vec3,
     pub size_class: PlateSizeClass,
     pub debug_color: [f32; 4],
 }

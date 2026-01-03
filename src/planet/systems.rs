@@ -203,7 +203,17 @@ fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool) -> Me
                         // PLATE VIEW: Color by tectonic plate using debug colors
                         let plate_id = planet.plate_map[face_idx][y][x];
                         let plate = &planet.plates[plate_id];
-                        plate.debug_color
+                        let mut base_color = plate.debug_color;
+                        
+                        // Blend in boundary color if this is a boundary cell, with distance-based fade
+                        if let Some((boundary_color, opacity)) = planet.boundary_data.get_boundary_color(face_idx, x, y) {
+                            // Blend based on opacity: full boundary color at edges, fade to plate color
+                            base_color[0] = base_color[0] * (1.0 - opacity) + boundary_color[0] * opacity;
+                            base_color[1] = base_color[1] * (1.0 - opacity) + boundary_color[1] * opacity;
+                            base_color[2] = base_color[2] * (1.0 - opacity) + boundary_color[2] * opacity;
+                        }
+                        
+                        base_color
                     } else {
                         // CONTINENT VIEW: Color based on height and continent mask
                         let continent_mask = planet.continent_noise.sample_continent_mask(dir);

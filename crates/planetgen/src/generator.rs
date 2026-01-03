@@ -109,6 +109,14 @@ impl PlanetGenerator {
         );
 
         let faces = self.generate_faces(face_grid_size, &continent_noise);
+
+        // Calculate plate boundary interactions
+        let boundary_data = crate::boundaries::BoundaryData::calculate(
+            face_grid_size,
+            &plate_map,
+            &plates,
+        );
+
         PlanetData {
             faces,
             face_grid_size,
@@ -116,14 +124,37 @@ impl PlanetGenerator {
             plate_map,
             plates,
             continent_noise,
+            boundary_data,
         }
     }
 
-    fn make_plate(&self, id: usize, direction: Vec3, size_class: PlateSizeClass) -> TectonicPlate {
+    fn make_plate(&self, id: usize, direction: Vec3, center: Vec3, size_class: PlateSizeClass) -> TectonicPlate {
         let color = DEBUG_COLORS[id % DEBUG_COLORS.len()];
+        // Derive a stable angular velocity axis per-plate, tangent to the sphere at the center.
+        let mut rng = self.rng_for_indexed("plates/angular", id as u64);
+        let mut axis_raw = Vec3::new(
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+        );
+        // Project to tangent plane at center so motion is along the surface
+        axis_raw = axis_raw - center * center.dot(axis_raw);
+        let axis = if axis_raw.length_squared() < 1e-6 {
+            // fallback: pick an arbitrary perpendicular
+            center.any_orthonormal_vector()
+        } else {
+            axis_raw.normalize()
+        };
+        // Give each plate a modest spin speed to ensure visible relative motion
+        let speed = rng.random_range(0.2..1.0);
+
         TectonicPlate {
             id,
+            // direction controls which cells belong to this plate (seed/center)
             direction,
+            // angular_velocity controls how the plate moves
+            angular_velocity: axis * speed,
+            center: center.normalize(),
             size_class,
             debug_color: color,
         }
@@ -153,7 +184,7 @@ impl PlanetGenerator {
         directions
             .into_iter()
             .enumerate()
-            .map(|(id, direction)| self.make_plate(id, direction, PlateSizeClass::Regular))
+            .map(|(id, direction)| self.make_plate(id, direction, direction, PlateSizeClass::Regular))
             .collect()
     }
 
@@ -284,7 +315,7 @@ impl PlanetGenerator {
                 );
                 let seed_dir = (base_dir + jitter).normalize();
 
-                self.make_plate(id, seed_dir, PlateSizeClass::Micro)
+                self.make_plate(id, seed_dir, seed_dir, PlateSizeClass::Micro)
             })
             .collect()
     }

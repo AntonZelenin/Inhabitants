@@ -1,3 +1,4 @@
+pub mod boundaries;
 pub mod config;
 pub mod constants;
 pub mod continents;

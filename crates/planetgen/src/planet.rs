@@ -1,5 +1,6 @@
 use crate::plate::TectonicPlate;
 use crate::continents::ContinentNoiseConfig;
+use crate::boundaries::BoundaryData;
 
 /// A single row on a cube face, containing plate IDs for each cell in that row
 pub type FaceRow = Vec<usize>;
@@ -27,4 +28,6 @@ pub struct PlanetData {
     pub plates: Vec<TectonicPlate>,
     /// Continent noise configuration for generating continents independently of plates
     pub continent_noise: ContinentNoiseConfig,
+    /// Plate boundary interaction classifications (convergent/divergent/transform)
+    pub boundary_data: BoundaryData,
 }
