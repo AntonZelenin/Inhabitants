@@ -54,7 +54,7 @@ impl Default for PlanetGenerationSettings {
             detail_amplitude: config.continents.detail_amplitude,
             ocean_depth_amplitude: config.continents.ocean_depth_amplitude,
             view_mode_plates: false,
-            snow_threshold: config.continents.snow_threshold,
+            snow_threshold: config.mountains.snow_threshold,
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
         }

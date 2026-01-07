@@ -58,7 +58,6 @@ pub fn spawn_planet_on_event(
             detail_amplitude: settings.detail_amplitude,
             continent_threshold: settings.continent_threshold,
             ocean_depth_amplitude: settings.ocean_depth_amplitude,
-            snow_threshold: settings.snow_threshold,
         };
         generator.with_continent_config(continent_config);
 
@@ -107,7 +106,7 @@ pub fn spawn_planet_on_event(
                     Visibility::Visible,
                     ContinentViewMesh,
                 ));
-                
+
                 // Plate view mesh (hidden by default)
                 parent.spawn((
                     Mesh3d(plate_mesh_handle),
@@ -228,19 +227,8 @@ fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool, snow_
                             let height_factor = (height / 1.0).clamp(0.0, 1.0);
 
                             if height > snow_threshold {
-                                // Snow-capped mountains (white)
-                                let snow_factor = ((height - snow_threshold) / 1.5).clamp(0.0, 1.0);
-                                let base_r = 0.2 + height_factor * 0.5;
-                                let base_g = (0.4 + continent_mask * 0.2) - height_factor * 0.15;
-                                let base_b = 0.1;
-
-                                // Blend towards white
-                                [
-                                    base_r * (1.0 - snow_factor) + 0.95 * snow_factor,
-                                    base_g * (1.0 - snow_factor) + 0.95 * snow_factor,
-                                    base_b * (1.0 - snow_factor) + 1.0 * snow_factor,
-                                    1.0
-                                ]
+                                // Pure white snow above threshold
+                                [0.95, 0.95, 1.0, 1.0]
                             } else {
                                 // Regular land (green to brown)
                                 let green_base = 0.4 + continent_mask * 0.2;
