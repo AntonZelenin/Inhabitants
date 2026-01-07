@@ -85,7 +85,7 @@ ocean_depth_amplitude = 0.8
 [mountains]
 # Mountain height at convergent plate boundaries (world units)
 # Range: 1.0 to 8.0, Default: 3.5
-height = 3.1
+height = 3.3
 # Mountain width as fraction of planet size (0.08 = 8% of grid)
 # Range: 0.03 to 0.15, Default: 0.08
 width = 0.15
@@ -94,5 +94,5 @@ width = 0.15
 noise_frequency = 40.0
 # Snow threshold (elevation where snow caps appear on mountains)
 # Range: 0.5 to 4.0, Default: 1.0
-snow_threshold = 1.5
+snow_threshold = 1.4
 
