@@ -10,16 +10,12 @@ use glam::Vec3;
 /// Type of plate boundary interaction
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BoundaryType {
-    /// Convergent boundary - plates colliding (red)
     Convergent,
-    /// Divergent boundary - plates spreading apart (blue)
     Divergent,
-    /// Transform boundary - plates sliding past each other (yellow)
     Transform,
 }
 
 impl BoundaryType {
-    /// Get the color for this boundary type
     pub fn color(&self) -> [f32; 3] {
         match self {
             BoundaryType::Convergent => [1.0, 0.0, 0.0], // Red
@@ -66,7 +62,34 @@ impl BoundaryData {
         });
 
         // Step 1: Find exact boundary cells and classify them
-        // Important: Mark BOTH sides of the boundary with the same classification
+        Self::find_and_classify_boundaries(
+            face_grid_size,
+            plate_map,
+            &plate_lookup,
+            &mut boundaries,
+            &mut boundary_distances,
+        );
+
+        // Step 2: Calculate distance field using flood fill
+        Self::propagate_boundary_distances(
+            face_grid_size,
+            &mut boundaries,
+            &mut boundary_distances,
+        );
+
+        Self { boundaries, boundary_distances }
+    }
+
+    /// Find exact boundary cells and classify their interaction type
+    ///
+    /// Marks BOTH sides of each boundary with the same classification
+    fn find_and_classify_boundaries(
+        face_grid_size: usize,
+        plate_map: &PlateMap,
+        plate_lookup: &std::collections::HashMap<usize, &TectonicPlate>,
+        boundaries: &mut [Vec<Vec<Option<BoundaryType>>>; 6],
+        boundary_distances: &mut [Vec<Vec<f32>>; 6],
+    ) {
         for face_idx in 0..6 {
             for y in 0..face_grid_size {
                 for x in 0..face_grid_size {
@@ -114,9 +137,17 @@ impl BoundaryData {
                 }
             }
         }
+    }
 
-        // Step 2: Calculate distance field using flood fill
-        // Boundary width: 5% of grid size (roughly 5% of planet radius)
+    /// Propagate boundary distances using flood fill
+    ///
+    /// Creates a distance field around boundaries for fade-out effect.
+    /// Boundary width: 5% of grid size (roughly 5% of planet radius)
+    fn propagate_boundary_distances(
+        face_grid_size: usize,
+        boundaries: &mut [Vec<Vec<Option<BoundaryType>>>; 6],
+        boundary_distances: &mut [Vec<Vec<f32>>; 6],
+    ) {
         let boundary_width = (face_grid_size as f32 * 0.05).max(3.0) as usize;
 
         // Simple distance propagation
@@ -148,8 +179,6 @@ impl BoundaryData {
                 }
             }
         }
-
-        Self { boundaries, boundary_distances }
     }
 
     /// Get the boundary type at a specific cell
