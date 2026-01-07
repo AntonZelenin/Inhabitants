@@ -245,10 +245,10 @@ pub fn setup_world_generation_menu(
                     // Continent Threshold Slider (land vs ocean ratio)
                     spawn_slider_with_marker(
                         parent,
-                        "Land Coverage",
+                        "Ocean Coverage",
                         settings.continent_threshold,
-                        -0.5,
-                        0.5,
+                        -1.0,
+                        1.0,
                         false,
                         200.0,
                         ContinentThresholdSlider,
