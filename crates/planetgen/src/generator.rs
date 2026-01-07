@@ -44,7 +44,6 @@ impl PlanetGenerator {
         }
     }
 
-    /// Apply custom continent generation parameters
     pub fn with_continent_config(&mut self, continent_config: crate::config::ContinentConfig) {
         self.config.continents = continent_config;
     }

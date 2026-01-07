@@ -6,8 +6,6 @@
 //! - Two-layer noise: base continent shape + surface detail
 //! - Fast and straightforward
 //! - Good for testing and simple planets
-//!
-//! See `CONTINENT_GENERATION.md` for detailed documentation on how the system works.
 
 use crate::config::NoiseConfig;
 use glam::Vec3;
@@ -27,13 +25,6 @@ pub struct ContinentNoiseConfig {
 }
 
 impl ContinentNoiseConfig {
-    /// Create a new continent noise configuration from config file
-    pub fn new(seed_base: u32) -> Self {
-        let config = crate::get_config();
-        Self::from_config(seed_base, &config.continents)
-    }
-
-    /// Create from a ContinentConfig
     pub fn from_config(seed_base: u32, cfg: &crate::config::ContinentConfig) -> Self {
         Self {
             continent_scale: NoiseConfig::new(
