@@ -115,7 +115,7 @@ pub fn update_value_displays(
 
 pub fn handle_slider_interactions(
     slider_handle_query: Query<
-        (&Interaction, &SliderTarget),
+        (&Interaction, &SliderTarget, &Node),
         (Changed<Interaction>, With<SliderHandle>),
     >,
     mut slider_query: Query<&mut Slider>,
@@ -124,7 +124,7 @@ pub fn handle_slider_interactions(
         (With<SliderTrack>, Without<SliderHandle>),
     >,
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut drag_state: Local<Option<Entity>>, // Just store which slider is being dragged
+    mut drag_state: Local<Option<(Entity, f32)>>, // Store slider entity + initial click offset
 ) {
     // Stop dragging immediately on mouse release
     if !mouse_input.pressed(MouseButton::Left) {
@@ -132,23 +132,31 @@ pub fn handle_slider_interactions(
         return;
     }
 
-    // Start/stop drag based on handle interaction
-    for (interaction, target) in slider_handle_query.iter() {
-        match *interaction {
-            Interaction::Pressed => {
-                *drag_state = Some(target.0);
-            }
-            Interaction::None => {
-                if matches!(*drag_state, Some(id) if id == target.0) {
-                    *drag_state = None;
+    // Start drag and calculate initial offset when handle is pressed
+    for (interaction, target, handle_node) in slider_handle_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find the track to get cursor position
+            if let Some((track_node, _, rel_cursor)) = track_query
+                .iter()
+                .find(|(_, track_target, _)| track_target.0 == target.0)
+            {
+                if let (Val::Px(track_width), Val::Px(handle_left)) = (track_node.width, handle_node.left) {
+                    if let Some(normalized_pos) = rel_cursor.normalized {
+                        let handle_size = 18.0;
+                        let cursor_x = normalized_pos.x * track_width;
+                        let handle_center_x = handle_left + handle_size * 0.5;
+
+                        // Store the offset between cursor and handle center
+                        let offset = cursor_x - handle_center_x;
+                        *drag_state = Some((target.0, offset));
+                    }
                 }
             }
-            _ => {}
         }
     }
 
-    // While dragging, use RelativeCursorPosition for EXACT positioning
-    if let Some(slider_entity) = *drag_state {
+    // While dragging, apply cursor position minus the stored offset
+    if let Some((slider_entity, initial_offset)) = *drag_state {
         if let Ok(mut slider) = slider_query.get_mut(slider_entity) {
             // Find the track with RelativeCursorPosition
             if let Some((track_node, _, rel_cursor)) = track_query
@@ -160,11 +168,10 @@ pub fn handle_slider_interactions(
                         let handle_size = 18.0;
                         let usable_track_width = track_width - handle_size;
 
-                        // cursor X is normalized [0..1] within the track
-                        // Convert to handle center position, then to handle left position
-                        let handle_center_x = normalized_pos.x * track_width;
-                        let handle_left =
-                            (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
+                        // Get cursor position and subtract the initial offset
+                        let cursor_x = normalized_pos.x * track_width;
+                        let handle_center_x = cursor_x - initial_offset;
+                        let handle_left = (handle_center_x - handle_size * 0.5).clamp(0.0, usable_track_width);
 
                         // Convert position to slider value
                         let position_ratio = if usable_track_width > 0.0 {

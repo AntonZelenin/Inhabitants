@@ -22,6 +22,9 @@ pub struct NumMicroPlatesSlider;
 pub struct ShowArrowsToggle;
 
 #[derive(Component)]
+pub struct ViewModeToggle;
+
+#[derive(Component)]
 pub struct SeedDisplay;
 
 #[derive(Component)]
@@ -32,3 +35,37 @@ pub struct MainArea;
 
 #[derive(Component)]
 pub struct PlaceholderText;
+
+#[derive(Component)]
+pub struct ContinentFrequencySlider;
+
+#[derive(Component)]
+pub struct ContinentHeightScaleSlider;
+
+#[derive(Component)]
+pub struct DistortionFrequencySlider;
+
+#[derive(Component)]
+pub struct DistortionAmplitudeSlider;
+
+#[derive(Component)]
+pub struct ContinentThresholdSlider;
+
+#[derive(Component)]
+pub struct ContinentDetailFrequencySlider;
+
+#[derive(Component)]
+pub struct ContinentDetailScaleSlider;
+
+#[derive(Component)]
+pub struct OceanDepthScaleSlider;
+
+#[derive(Component)]
+pub struct SnowThresholdSlider;
+
+#[derive(Component)]
+pub struct MountainHeightSlider;
+
+#[derive(Component)]
+pub struct MountainWidthSlider;
+

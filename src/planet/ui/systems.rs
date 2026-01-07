@@ -1,4 +1,4 @@
-use crate::planet::components::PlanetEntity;
+use crate::planet::components::{PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::ui::components::*;
@@ -12,7 +12,6 @@ pub fn setup_world_generation_menu(
     mut commands: Commands,
     settings: Res<PlanetGenerationSettings>,
 ) {
-    let config = planetgen::get_config();
     let root_node = Node {
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
@@ -155,39 +154,176 @@ pub fn setup_world_generation_menu(
                     });
 
                     // Planet Radius Slider
-                    spawn_slider_with_marker(
-                        parent,
-                        "Planet Radius",
-                        settings.radius,
-                        config.generation.planet_min_radius,
-                        config.generation.planet_max_radius,
-                        false,
-                        200.0,
-                        RadiusSlider,
-                    );
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Planet Radius",
+                    //     settings.radius,
+                    //     config.generation.planet_min_radius,
+                    //     config.generation.planet_max_radius,
+                    //     false,
+                    //     200.0,
+                    //     RadiusSlider,
+                    // );
 
                     // Number of Plates Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Number of Plates",
+                    //     settings.num_plates as f32,
+                    //     3.0,
+                    //     20.0,
+                    //     true,
+                    //     200.0,
+                    //     NumPlatesSlider,
+                    // );
+                    //
+                    // // Number of Micro Plates Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Number of Micro Plates",
+                    //     settings.num_micro_plates as f32,
+                    //     0.0,
+                    //     20.0,
+                    //     true,
+                    //     200.0,
+                    //     NumMicroPlatesSlider,
+                    // );
+
+                    // Spacer
+                    parent.spawn(spacer_node.clone());
+
+                    // === CONTINENT GENERATION SETTINGS ===
+
+                    // Continent Frequency Slider
                     spawn_slider_with_marker(
                         parent,
-                        "Number of Plates",
-                        settings.num_plates as f32,
+                        "Continent Frequency",
+                        settings.continent_frequency,
+                        0.5,
                         3.0,
-                        20.0,
-                        true,
+                        false,
                         200.0,
-                        NumPlatesSlider,
+                        ContinentFrequencySlider,
                     );
 
-                    // Number of Micro Plates Slider
+                    // Continent Amplitude Slider (height scaling)
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Continent Height Scale",
+                    //     settings.continent_amplitude,
+                    //     0.1,
+                    //     2.0,
+                    //     false,
+                    //     200.0,
+                    //     ContinentHeightScaleSlider,
+                    // );
+
+                    // Distortion Frequency Slider (mid-scale shape breaking)
                     spawn_slider_with_marker(
                         parent,
-                        "Number of Micro Plates",
-                        settings.num_micro_plates as f32,
-                        0.0,
-                        20.0,
-                        true,
+                        "Continent Distortion Frequency",
+                        settings.distortion_frequency,
+                        1.0,
+                        10.0,
+                        false,
                         200.0,
-                        NumMicroPlatesSlider,
+                        DistortionFrequencySlider,
+                    );
+
+                    // Distortion Amplitude Slider (warping strength)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Continent Distortion Strength",
+                        settings.distortion_amplitude,
+                        0.0,
+                        1.0,
+                        false,
+                        200.0,
+                        DistortionAmplitudeSlider,
+                    );
+
+                    // Continent Threshold Slider (land vs ocean ratio)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Ocean Coverage",
+                        settings.continent_threshold,
+                        -1.0,
+                        1.0,
+                        false,
+                        200.0,
+                        ContinentThresholdSlider,
+                    );
+
+                    // Detail Frequency Slider (coastline roughness)
+                    spawn_slider_with_marker(
+                        parent,
+                        "Continent Shore Distortion Frequency",
+                        settings.detail_frequency,
+                        5.0,
+                        20.0,
+                        false,
+                        200.0,
+                        ContinentDetailFrequencySlider,
+                    );
+
+                    // Detail Amplitude Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Continent Shore Distortion Scale",
+                        settings.detail_amplitude,
+                        0.05,
+                        0.5,
+                        false,
+                        200.0,
+                        ContinentDetailScaleSlider,
+                    );
+
+                    // Ocean Depth Amplitude Slider
+                    // spawn_slider_with_marker(
+                    //     parent,
+                    //     "Ocean Depth Scale",
+                    //     settings.ocean_depth_amplitude,
+                    //     0.1,
+                    //     2.0,
+                    //     false,
+                    //     200.0,
+                    //     OceanDepthScaleSlider,
+                    // );
+
+                    // Snow Threshold Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Mountain Snow Threshold",
+                        settings.snow_threshold,
+                        0.5,
+                        4.0,
+                        false,
+                        200.0,
+                        SnowThresholdSlider,
+                    );
+
+                    // Mountain Height Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Mountain Height",
+                        settings.mountain_height,
+                        2.0,
+                        5.0,
+                        false,
+                        200.0,
+                        MountainHeightSlider,
+                    );
+
+                    // Mountain Width Slider
+                    spawn_slider_with_marker(
+                        parent,
+                        "Mountain Width",
+                        settings.mountain_width,
+                        0.03,
+                        0.25,
+                        false,
+                        200.0,
+                        MountainWidthSlider,
                     );
 
                     // I used this code to conveniently determine good coefficients for plate
@@ -230,11 +366,19 @@ pub fn setup_world_generation_menu(
                     // );
 
                     // Show Arrows Toggle
+                    // spawn_toggle_with_marker(
+                    //     parent,
+                    //     "Show Direction Arrows",
+                    //     settings.show_arrows,
+                    //     ShowArrowsToggle,
+                    // );
+
+                    // View Mode Toggle
                     spawn_toggle_with_marker(
                         parent,
-                        "Show Direction Arrows",
-                        settings.show_arrows,
-                        ShowArrowsToggle,
+                        "View Tectonic Plates",
+                        settings.view_mode_plates,
+                        ViewModeToggle,
                     );
 
                     // Spacer
@@ -305,24 +449,41 @@ pub fn handle_buttons(
 
 pub fn detect_settings_changes(
     mut settings_changed_events: MessageWriter<SettingsChanged>,
-    radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
-    plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
-    micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
-    // flow_freq_slider_query: Query<&Slider, (With<FlowWarpFreqSlider>, Changed<Slider>)>,
-    // flow_amp_slider_query: Query<&Slider, (With<FlowWarpAmpSlider>, Changed<Slider>)>,
-    // flow_steps_slider_query: Query<&Slider, (With<FlowWarpStepsSlider>, Changed<Slider>)>,
-    // flow_angle_slider_query: Query<&Slider, (With<FlowWarpStepAngleSlider>, Changed<Slider>)>,
-    toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    // radius_slider_query: Query<&Slider, (With<RadiusSlider>, Changed<Slider>)>,
+    // plates_slider_query: Query<&Slider, (With<NumPlatesSlider>, Changed<Slider>)>,
+    // micro_plates_slider_query: Query<&Slider, (With<NumMicroPlatesSlider>, Changed<Slider>)>,
+    continent_freq_slider_query: Query<&Slider, (With<ContinentFrequencySlider>, Changed<Slider>)>,
+    // continent_height_scale_slider_query: Query<&Slider, (With<ContinentHeightScaleSlider>, Changed<Slider>)>,
+    distortion_freq_slider_query: Query<&Slider, (With<DistortionFrequencySlider>, Changed<Slider>)>,
+    distortion_amp_slider_query: Query<&Slider, (With<DistortionAmplitudeSlider>, Changed<Slider>)>,
+    continent_threshold_slider_query: Query<&Slider, (With<ContinentThresholdSlider>, Changed<Slider>)>,
+    continent_detail_freq_slider_query: Query<&Slider, (With<ContinentDetailFrequencySlider>, Changed<Slider>)>,
+    continent_detail_scale_slider_query: Query<&Slider, (With<ContinentDetailScaleSlider>, Changed<Slider>)>,
+    // ocean_depth_scale_slider_query: Query<&Slider, (With<OceanDepthScaleSlider>, Changed<Slider>)>,
+    snow_threshold_slider_query: Query<&Slider, (With<SnowThresholdSlider>, Changed<Slider>)>,
+    mountain_height_slider_query: Query<&Slider, (With<MountainHeightSlider>, Changed<Slider>)>,
+    mountain_width_slider_query: Query<&Slider, (With<MountainWidthSlider>, Changed<Slider>)>,
+    arrows_toggle_query: Query<&ToggleState, (With<ShowArrowsToggle>, Changed<ToggleState>)>,
+    view_mode_toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
 ) {
     // Check if any slider or toggle has changed and send event
-    let has_changes = !radius_slider_query.is_empty()
-        || !plates_slider_query.is_empty()
-        || !micro_plates_slider_query.is_empty()
-        // || !flow_freq_slider_query.is_empty()
-        // || !flow_amp_slider_query.is_empty()
-        // || !flow_steps_slider_query.is_empty()
-        // || !flow_angle_slider_query.is_empty()
-        || !toggle_query.is_empty();
+    let has_changes =
+        // !radius_slider_query.is_empty()
+        // || !plates_slider_query.is_empty()
+        // || !micro_plates_slider_query.is_empty()
+        !continent_freq_slider_query.is_empty()
+        // || !continent_height_scale_slider_query.is_empty()
+        || !distortion_freq_slider_query.is_empty()
+        || !distortion_amp_slider_query.is_empty()
+        || !continent_threshold_slider_query.is_empty()
+        || !continent_detail_freq_slider_query.is_empty()
+        || !continent_detail_scale_slider_query.is_empty()
+        // || !ocean_depth_scale_slider_query.is_empty()
+        || !snow_threshold_slider_query.is_empty()
+        || !mountain_height_slider_query.is_empty()
+        || !mountain_width_slider_query.is_empty()
+        || !arrows_toggle_query.is_empty()
+        || !view_mode_toggle_query.is_empty();
 
     if has_changes {
         settings_changed_events.write(SettingsChanged);
@@ -332,37 +493,73 @@ pub fn detect_settings_changes(
 pub fn update_settings_on_change(
     mut settings_changed_events: MessageReader<SettingsChanged>,
     mut settings: ResMut<PlanetGenerationSettings>,
-    radius_slider_query: Query<&Slider, With<RadiusSlider>>,
-    plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
-    micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
-    // flow_freq_slider_query: Query<&Slider, With<FlowWarpFreqSlider>>,
-    // flow_steps_slider_query: Query<&Slider, With<FlowWarpStepsSlider>>,
-    // flow_angle_slider_query: Query<&Slider, With<FlowWarpStepAngleSlider>>,
-    toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+    // radius_slider_query: Query<&Slider, With<RadiusSlider>>,
+    // plates_slider_query: Query<&Slider, With<NumPlatesSlider>>,
+    // micro_plates_slider_query: Query<&Slider, With<NumMicroPlatesSlider>>,
+    continent_freq_slider_query: Query<&Slider, With<ContinentFrequencySlider>>,
+    // continent_height_scale_slider_query: Query<&Slider, With<ContinentHeightScaleSlider>>,
+    distortion_freq_slider_query: Query<&Slider, With<DistortionFrequencySlider>>,
+    distortion_amp_slider_query: Query<&Slider, With<DistortionAmplitudeSlider>>,
+    continent_threshold_slider_query: Query<&Slider, With<ContinentThresholdSlider>>,
+    continent_detail_freq_slider_query: Query<&Slider, With<ContinentDetailFrequencySlider>>,
+    continent_detail_scale_slider_query: Query<&Slider, With<ContinentDetailScaleSlider>>,
+    // ocean_depth_scale_slider_query: Query<&Slider, With<OceanDepthScaleSlider>>,
+    snow_threshold_slider_query: Query<&Slider, With<SnowThresholdSlider>>,
+    mountain_height_slider_query: Query<&Slider, With<MountainHeightSlider>>,
+    mountain_width_slider_query: Query<&Slider, With<MountainWidthSlider>>,
+    arrows_toggle_query: Query<&ToggleState, With<ShowArrowsToggle>>,
+    view_mode_toggle_query: Query<&ToggleState, With<ViewModeToggle>>,
 ) {
     // Only update settings if we received a change event
     for _ in settings_changed_events.read() {
         // Update settings from current slider and toggle values
-        for slider in &radius_slider_query {
-            settings.radius = slider.current_value;
-        }
-        for slider in &plates_slider_query {
-            settings.num_plates = slider.current_value as usize;
-        }
-        for slider in &micro_plates_slider_query {
-            settings.num_micro_plates = slider.current_value as usize;
-        }
-        // for slider in &flow_freq_slider_query {
-        //     settings.flow_warp_freq = slider.current_value;
+        // for slider in &radius_slider_query {
+        //     settings.radius = slider.current_value;
         // }
-        // for slider in &flow_steps_slider_query {
-        //     settings.flow_warp_steps = slider.current_value as usize;
+        // for slider in &plates_slider_query {
+        //     settings.num_plates = slider.current_value as usize;
         // }
-        // for slider in &flow_angle_slider_query {
-        //     settings.flow_warp_step_angle = slider.current_value;
+        // for slider in &micro_plates_slider_query {
+        //     settings.num_micro_plates = slider.current_value as usize;
         // }
-        for toggle_state in &toggle_query {
+        for slider in &continent_freq_slider_query {
+            settings.continent_frequency = slider.current_value;
+        }
+        // for slider in &continent_height_scale_slider_query {
+        //     settings.continent_amplitude = slider.current_value;
+        // }
+        for slider in &distortion_freq_slider_query {
+            settings.distortion_frequency = slider.current_value;
+        }
+        for slider in &distortion_amp_slider_query {
+            settings.distortion_amplitude = slider.current_value;
+        }
+        for slider in &continent_threshold_slider_query {
+            settings.continent_threshold = slider.current_value;
+        }
+        for slider in &continent_detail_freq_slider_query {
+            settings.detail_frequency = slider.current_value;
+        }
+        for slider in &continent_detail_scale_slider_query {
+            settings.detail_amplitude = slider.current_value;
+        }
+        // for slider in &ocean_depth_scale_slider_query {
+        //     settings.ocean_depth_amplitude = slider.current_value;
+        // }
+        for slider in &snow_threshold_slider_query {
+            settings.snow_threshold = slider.current_value;
+        }
+        for slider in &mountain_height_slider_query {
+            settings.mountain_height = slider.current_value;
+        }
+        for slider in &mountain_width_slider_query {
+            settings.mountain_width = slider.current_value;
+        }
+        for toggle_state in &arrows_toggle_query {
             settings.show_arrows = toggle_state.is_on;
+        }
+        for toggle_state in &view_mode_toggle_query {
+            settings.view_mode_plates = toggle_state.is_on;
         }
     }
 }
@@ -402,6 +599,35 @@ pub fn handle_arrow_toggle_change(
         toggle_arrows_events.write(ToggleArrowsEvent {
             show_arrows: toggle_state.is_on,
         });
+    }
+}
+
+pub fn handle_view_mode_toggle_change(
+    toggle_query: Query<&ToggleState, (With<ViewModeToggle>, Changed<ToggleState>)>,
+    mut continent_mesh_query: Query<&mut Visibility, (With<ContinentViewMesh>, Without<PlateViewMesh>)>,
+    mut plate_mesh_query: Query<&mut Visibility, (With<PlateViewMesh>, Without<ContinentViewMesh>)>,
+) {
+    // Toggle visibility when view mode changes
+    for toggle_state in toggle_query.iter() {
+        let show_plates = toggle_state.is_on;
+
+        // Update continent mesh visibility
+        for mut visibility in continent_mesh_query.iter_mut() {
+            *visibility = if show_plates {
+                Visibility::Hidden
+            } else {
+                Visibility::Visible
+            };
+        }
+
+        // Update plate mesh visibility
+        for mut visibility in plate_mesh_query.iter_mut() {
+            *visibility = if show_plates {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+        }
     }
 }
 

@@ -1,4 +1,6 @@
 use crate::plate::TectonicPlate;
+use crate::continents::ContinentNoiseConfig;
+use crate::boundaries::BoundaryData;
 
 /// A single row on a cube face, containing plate IDs for each cell in that row
 pub type FaceRow = Vec<usize>;
@@ -7,11 +9,6 @@ pub type FaceGrid = Vec<FaceRow>;
 /// The complete plate map for all 6 cube faces of the planet
 pub type PlateMap = Vec<FaceGrid>;
 
-pub enum PlateType {
-    Continental,
-    // oceanic plates have lower amplitude and noise frequency, thus are smoother
-    Oceanic,
-}
 
 pub enum PlateSizeClass {
     Regular,
@@ -29,4 +26,8 @@ pub struct PlanetData {
     pub radius: f32,
     pub plate_map: PlateMap,
     pub plates: Vec<TectonicPlate>,
+    /// Continent noise configuration for generating continents independently of plates
+    pub continent_noise: ContinentNoiseConfig,
+    /// Plate boundary interaction classifications (convergent/divergent/transform)
+    pub boundary_data: BoundaryData,
 }

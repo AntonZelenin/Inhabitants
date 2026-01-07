@@ -1,6 +1,6 @@
 use crate::core::camera::components::MainCamera;
 use crate::helpers::mesh::arrow_mesh;
-use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity};
+use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -48,11 +48,31 @@ pub fn spawn_planet_on_event(
         generator.flow_warp_steps = settings.flow_warp_steps;
         generator.flow_warp_step_angle = settings.flow_warp_step_angle;
 
+        // Apply custom continent configuration from UI settings
+        let continent_config = planetgen::config::ContinentConfig {
+            continent_frequency: settings.continent_frequency,
+            continent_amplitude: settings.continent_amplitude,
+            distortion_frequency: settings.distortion_frequency,
+            distortion_amplitude: settings.distortion_amplitude,
+            detail_frequency: settings.detail_frequency,
+            detail_amplitude: settings.detail_amplitude,
+            continent_threshold: settings.continent_threshold,
+            ocean_depth_amplitude: settings.ocean_depth_amplitude,
+        };
+        generator.with_continent_config(continent_config);
+
+        // Apply mountain configuration from UI settings
+        generator.mountain_height = settings.mountain_height;
+        generator.mountain_width = settings.mountain_width;
+
         let planet_data = generator.generate();
 
-        // Store planet data for arrow generation (move instead of clone)
-        let mesh = build_stitched_planet_mesh(&planet_data);
-        let mesh_handle = meshes.add(mesh);
+        // Generate BOTH meshes (continent view and plate view)
+        let continent_mesh = build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
+        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold);
+
+        let continent_mesh_handle = meshes.add(continent_mesh);
+        let plate_mesh_handle = meshes.add(plate_mesh);
 
         let material_handle = materials.add(StandardMaterial {
             base_color: Color::srgb(0.3, 0.8, 0.4),
@@ -63,10 +83,9 @@ pub fn spawn_planet_on_event(
         let config = planetgen::get_config();
         let expected_zoom = settings.radius * 3.5;
 
+        // Spawn parent planet entity with controls
         let planet_entity = commands
             .spawn((
-                Mesh3d(mesh_handle),
-                MeshMaterial3d(material_handle),
                 Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(current_rotation),
                 GlobalTransform::default(),
                 PlanetEntity,
@@ -77,6 +96,27 @@ pub fn spawn_planet_on_event(
                     max_zoom: config.generation.planet_max_radius * 3.5,
                 },
             ))
+            .with_children(|parent| {
+                // Continent view mesh (visible by default)
+                parent.spawn((
+                    Mesh3d(continent_mesh_handle),
+                    MeshMaterial3d(material_handle.clone()),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    ContinentViewMesh,
+                ));
+
+                // Plate view mesh (hidden by default)
+                parent.spawn((
+                    Mesh3d(plate_mesh_handle),
+                    MeshMaterial3d(material_handle.clone()),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Hidden,
+                    PlateViewMesh,
+                ));
+            })
             .id();
 
         camera_events.write(SetCameraPositionEvent {
@@ -132,7 +172,7 @@ pub fn handle_arrow_toggle(
     }
 }
 
-fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
+fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool, snow_threshold: f32) -> Mesh {
     let size = planet.face_grid_size;
     let mut positions = Vec::new();
     let mut colors = Vec::new();
@@ -163,8 +203,54 @@ fn build_stitched_planet_mesh(planet: &PlanetData) -> Mesh {
                     let pos = dir * radius;
                     positions.push([pos.x, pos.y, pos.z]);
 
-                    let plate_id = planet.plate_map[face_idx][y][x];
-                    let color = planet.plates[plate_id].debug_color;
+                    let color = if view_mode_plates {
+                        // PLATE VIEW: Color by tectonic plate using debug colors
+                        let plate_id = planet.plate_map[face_idx][y][x];
+                        let plate = &planet.plates[plate_id];
+                        let mut base_color = plate.debug_color;
+
+                        // Blend in boundary color if this is a boundary cell, with distance-based fade
+                        if let Some((boundary_color, opacity)) = planet.boundary_data.get_boundary_color(face_idx, x, y) {
+                            // Blend based on opacity: full boundary color at edges, fade to plate color
+                            base_color[0] = base_color[0] * (1.0 - opacity) + boundary_color[0] * opacity;
+                            base_color[1] = base_color[1] * (1.0 - opacity) + boundary_color[1] * opacity;
+                            base_color[2] = base_color[2] * (1.0 - opacity) + boundary_color[2] * opacity;
+                        }
+
+                        base_color
+                    } else {
+                        // CONTINENT VIEW: Color based on height and continent mask
+                        let continent_mask = planet.continent_noise.sample_continent_mask(dir);
+
+                        if height > 0.0 {
+                            // Land (above sea level): green to brown gradient, with snow caps at high elevation
+                            let height_factor = (height / 1.0).clamp(0.0, 1.0);
+
+                            if height > snow_threshold {
+                                // Pure white snow above threshold
+                                [0.95, 0.95, 1.0, 1.0]
+                            } else {
+                                // Regular land (green to brown)
+                                let green_base = 0.4 + continent_mask * 0.2;
+                                [
+                                    0.2 + height_factor * 0.5,  // Red: browns at high elevation
+                                    green_base - height_factor * 0.15,  // Green: less at height
+                                    0.1,                        // Blue: low
+                                    1.0
+                                ]
+                            }
+                        } else {
+                            // Ocean (below sea level): pure blue gradient based on depth
+                            let depth = -height;
+                            let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
+                            [
+                                0.0,                        // Red: none
+                                0.0,                        // Green: none (pure blue!)
+                                0.4 + depth_factor * 0.4,   // Blue: nice blue, darker with depth
+                                1.0
+                            ]
+                        }
+                    };
                     colors.push(color);
 
                     let i = next_index;

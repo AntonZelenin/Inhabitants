@@ -12,6 +12,22 @@ pub struct PlanetGenerationSettings {
     pub flow_warp_freq: f32,
     pub flow_warp_steps: usize,
     pub flow_warp_step_angle: f32,
+    // Continent generation parameters
+    pub continent_frequency: f32,
+    pub continent_amplitude: f32,
+    pub distortion_frequency: f32,
+    pub distortion_amplitude: f32,
+    pub continent_threshold: f32,
+    pub detail_frequency: f32,
+    pub detail_amplitude: f32,
+    pub ocean_depth_amplitude: f32,
+    // View mode
+    pub view_mode_plates: bool, // false = continents, true = plates
+    // Mountain snow threshold
+    pub snow_threshold: f32,
+    // Mountain generation
+    pub mountain_height: f32,
+    pub mountain_width: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -19,7 +35,8 @@ impl Default for PlanetGenerationSettings {
         let config = planetgen::get_config();
         let seed_8 = planetgen::tools::generate_seed8();
         Self {
-            radius: (config.generation.planet_max_radius + config.generation.planet_min_radius) / 2.0,
+            radius: (config.generation.planet_max_radius + config.generation.planet_min_radius)
+                / 2.0,
             num_plates: config.generation.default_num_plates,
             num_micro_plates: config.generation.default_num_micro_plates,
             show_arrows: false,
@@ -28,6 +45,18 @@ impl Default for PlanetGenerationSettings {
             flow_warp_freq: config.flow_warp.default_freq,
             flow_warp_steps: config.flow_warp.default_steps,
             flow_warp_step_angle: config.flow_warp.default_step_angle,
+            continent_frequency: config.continents.continent_frequency,
+            continent_amplitude: config.continents.continent_amplitude,
+            distortion_frequency: config.continents.distortion_frequency,
+            distortion_amplitude: config.continents.distortion_amplitude,
+            continent_threshold: config.continents.continent_threshold,
+            detail_frequency: config.continents.detail_frequency,
+            detail_amplitude: config.continents.detail_amplitude,
+            ocean_depth_amplitude: config.continents.ocean_depth_amplitude,
+            view_mode_plates: false,
+            snow_threshold: config.mountains.snow_threshold,
+            mountain_height: config.mountains.height,
+            mountain_width: config.mountains.width,
         }
     }
 }

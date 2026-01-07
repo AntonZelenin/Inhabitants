@@ -23,8 +23,8 @@ pub fn reload_config() {
 #[derive(Debug, Clone)]
 pub struct NoiseConfig {
     perlin: Perlin,
-    frequency: f32,
-    amplitude: f32,
+    pub frequency: f32,
+    pub amplitude: f32,
 }
 
 impl NoiseConfig {
@@ -51,7 +51,9 @@ pub struct PlanetGenConfig {
     pub boundaries: BoundaryConfig,
     pub flow_warp: FlowWarpConfig,
     pub microplates: MicroplateConfig,
+    pub continents: ContinentConfig,
     pub merging: MergingConfig,
+    pub mountains: MountainConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,7 +72,6 @@ pub struct GenerationConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlateConfig {
     pub min_separation_chord_distance: f32,
-    pub continental_plate_probability: f64,
     pub micro_plate_weight_factor: f32,
 }
 
@@ -98,9 +99,29 @@ pub struct MicroplateConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContinentConfig {
+    pub continent_frequency: f32,
+    pub continent_amplitude: f32,
+    pub distortion_frequency: f32,
+    pub distortion_amplitude: f32,
+    pub detail_frequency: f32,
+    pub detail_amplitude: f32,
+    pub continent_threshold: f32,
+    pub ocean_depth_amplitude: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergingConfig {
     pub selection_probability: f64,
     pub two_neighbors_probability: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MountainConfig {
+    pub height: f32,
+    pub width: f32,
+    pub noise_frequency: f32,
+    pub snow_threshold: f32,
 }
 
 impl PlanetGenConfig {
@@ -108,7 +129,7 @@ impl PlanetGenConfig {
     pub fn default() -> Self {
         Self {
             generation: GenerationConfig {
-                cells_per_unit: 5.0,
+                cells_per_unit: 10.0,
                 continental_freq: 3.0,
                 continental_amp: 0.7,
                 oceanic_freq: 1.5, // CONTINENTAL_FREQ / 2.0
@@ -120,7 +141,6 @@ impl PlanetGenConfig {
             },
             plates: PlateConfig {
                 min_separation_chord_distance: 0.5,
-                continental_plate_probability: 0.5,
                 micro_plate_weight_factor: 2.7,
             },
             boundaries: BoundaryConfig {
@@ -140,9 +160,25 @@ impl PlanetGenConfig {
                 jitter_range_min: -0.1,
                 jitter_range_max: 0.1,
             },
+            continents: ContinentConfig {
+                continent_frequency: 1.0,
+                continent_amplitude: 1.0,
+                distortion_frequency: 3.0,   // 3x continent freq for mid-scale
+                distortion_amplitude: 0.4,   // Strong warping
+                detail_frequency: 4.0,
+                detail_amplitude: 0.2,
+                continent_threshold: 0.0,
+                ocean_depth_amplitude: 0.8,
+            },
             merging: MergingConfig {
                 selection_probability: 0.07,
                 two_neighbors_probability: 0.2,
+            },
+            mountains: MountainConfig {
+                height: 3.5,
+                width: 0.08,
+                noise_frequency: 40.0,
+                snow_threshold: 1.0,
             },
         }
     }

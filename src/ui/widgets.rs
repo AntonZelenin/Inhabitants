@@ -117,7 +117,7 @@ pub fn spawn_slider_with_marker<T: Component>(
                     };
 
                     parent.spawn((
-                        LabelBundle::new(&display_value, 14.0, Color::srgb(0.8, 0.8, 1.0)),
+                        LabelBundle::new(&display_value, 12.0, Color::srgb(0.8, 0.8, 1.0)),
                         SliderValueDisplay,
                         SliderTarget(slider_entity),
                     ));
