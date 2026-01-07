@@ -221,7 +221,7 @@ pub fn setup_world_generation_menu(
                     // Distortion Frequency Slider (mid-scale shape breaking)
                     spawn_slider_with_marker(
                         parent,
-                        "Distortion Frequency",
+                        "Continent Distortion Frequency",
                         settings.distortion_frequency,
                         1.0,
                         10.0,
@@ -233,7 +233,7 @@ pub fn setup_world_generation_menu(
                     // Distortion Amplitude Slider (warping strength)
                     spawn_slider_with_marker(
                         parent,
-                        "Distortion Strength",
+                        "Continent Distortion Strength",
                         settings.distortion_amplitude,
                         0.0,
                         1.0,
@@ -257,7 +257,7 @@ pub fn setup_world_generation_menu(
                     // Detail Frequency Slider (coastline roughness)
                     spawn_slider_with_marker(
                         parent,
-                        "Continent Detail Frequency",
+                        "Continent Shore Distortion Frequency",
                         settings.detail_frequency,
                         5.0,
                         20.0,
@@ -269,7 +269,7 @@ pub fn setup_world_generation_menu(
                     // Detail Amplitude Slider
                     spawn_slider_with_marker(
                         parent,
-                        "Continent Detail Scale",
+                        "Continent Shore Distortion Scale",
                         settings.detail_amplitude,
                         0.05,
                         0.5,
@@ -293,7 +293,7 @@ pub fn setup_world_generation_menu(
                     // Snow Threshold Slider
                     spawn_slider_with_marker(
                         parent,
-                        "Snow Threshold",
+                        "Mountain Snow Threshold",
                         settings.snow_threshold,
                         0.5,
                         4.0,
@@ -308,7 +308,7 @@ pub fn setup_world_generation_menu(
                         "Mountain Height",
                         settings.mountain_height,
                         1.0,
-                        8.0,
+                        3.0,
                         false,
                         200.0,
                         MountainHeightSlider,
@@ -320,7 +320,7 @@ pub fn setup_world_generation_menu(
                         "Mountain Width",
                         settings.mountain_width,
                         0.03,
-                        0.15,
+                        0.25,
                         false,
                         200.0,
                         MountainWidthSlider,
