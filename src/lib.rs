@@ -1,7 +1,8 @@
 mod audio;
+mod camera;
 mod core;
-mod helpers;
 mod loading;
+mod mesh;
 mod planet;
 mod player;
 mod ui;
@@ -11,7 +12,7 @@ use crate::loading::LoadingPlugin;
 use crate::planet::PlanetPlugin;
 use crate::ui::UIPlugin;
 
-use crate::core::camera::CameraPlugin;
+use crate::camera::CameraPlugin;
 use crate::core::state::GameState;
 use crate::planet::ui::menu::PlanetGenMenuPlugin;
 use bevy::app::App;

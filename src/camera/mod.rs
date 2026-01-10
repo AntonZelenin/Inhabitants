@@ -2,8 +2,8 @@ pub(crate) mod components;
 mod systems;
 mod logic;
 
-use crate::core::camera::components::*;
-use crate::core::camera::systems::*;
+use crate::camera::components::*;
+use crate::camera::systems::*;
 use crate::core::state::GameState;
 use bevy::prelude::*;
 

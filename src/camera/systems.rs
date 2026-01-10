@@ -1,5 +1,5 @@
-use crate::core::camera::components::{MainCamera, MainCameraTarget};
-use crate::core::camera::logic::{calculate_camera_transform, CameraInput};
+use crate::camera::components::{MainCamera, MainCameraTarget};
+use crate::camera::logic::{calculate_camera_transform, CameraInput};
 use crate::planet::components::CameraLerp;
 use bevy::input::ButtonInput;
 use bevy::input::mouse::{MouseMotion, MouseWheel};

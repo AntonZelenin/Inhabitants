@@ -1,5 +1,4 @@
-use crate::core::camera::components::MainCamera;
-use crate::helpers::mesh::arrow_mesh;
+use crate::camera::components::MainCamera;
 use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::*;
@@ -13,6 +12,7 @@ use bevy::mesh::{Indices, PrimitiveTopology};
 use planetgen::generator::{PlanetGenerator, cube_face_point};
 use planetgen::planet::PlanetData;
 use std::collections::HashMap;
+use crate::mesh::helpers::arrow_mesh;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
