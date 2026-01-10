@@ -1,5 +1,6 @@
 pub(crate) mod components;
 mod systems;
+mod logic;
 
 use crate::core::camera::components::*;
 use crate::core::camera::systems::*;

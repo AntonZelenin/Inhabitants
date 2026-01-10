@@ -1,4 +1,5 @@
 use crate::core::camera::components::{MainCamera, MainCameraTarget};
+use crate::core::camera::logic::{calculate_camera_transform, CameraInput};
 use crate::planet::components::CameraLerp;
 use bevy::input::ButtonInput;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
@@ -40,43 +41,44 @@ pub fn camera_control(
     time: Res<Time>,
     mut camera_q: Query<&mut Transform, (With<MainCamera>, Without<MainCameraTarget>)>,
 ) {
+    // Read ECS state
     let dt = time.delta().as_secs_f32();
     let mut transform = camera_q.single_mut().unwrap();
 
-    let mut speed = 5.0;
-    if keyboard_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
-        speed *= 5.0;
+    // Collect mouse motion delta
+    let mut total_mouse_delta = Vec3::ZERO;
+    for ev in mouse_motion.read() {
+        total_mouse_delta.x += ev.delta.x;
+        total_mouse_delta.y += ev.delta.y;
     }
 
-    let forward = transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, -1.0));
-    let right = transform.rotation.mul_vec3(Vec3::new(1.0, 0.0, 0.0));
-    let mut dir = Vec3::ZERO;
-
-    if keyboard_input.pressed(KeyCode::KeyW) {
-        dir += forward;
-    }
-    if keyboard_input.pressed(KeyCode::KeyS) {
-        dir -= forward;
-    }
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        dir -= right;
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        dir += right;
-    }
-    if dir.length_squared() > 0.0 {
-        transform.translation += dir.normalize() * speed * dt;
-    }
-
-    if mouse_input.pressed(MouseButton::Right) {
-        for ev in mouse_motion.read() {
-            let yaw = Quat::from_rotation_y(-ev.delta.x * 0.002);
-            let pitch = Quat::from_rotation_x(-ev.delta.y * 0.002);
-            transform.rotation = yaw * transform.rotation * pitch;
-        }
-    }
-
+    // Collect mouse wheel delta
+    let mut total_wheel_delta = 0.0;
     for ev in mouse_wheel.read() {
-        transform.translation += forward * ev.y * 0.5;
+        total_wheel_delta += ev.y;
     }
+
+    // Prepare input for business logic
+    let input = CameraInput {
+        move_forward: keyboard_input.pressed(KeyCode::KeyW),
+        move_backward: keyboard_input.pressed(KeyCode::KeyS),
+        move_left: keyboard_input.pressed(KeyCode::KeyA),
+        move_right: keyboard_input.pressed(KeyCode::KeyD),
+        sprint: keyboard_input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
+        mouse_right_pressed: mouse_input.pressed(MouseButton::Right),
+        mouse_delta: total_mouse_delta,
+        mouse_wheel_delta: total_wheel_delta,
+    };
+
+    // Call business logic
+    let update = calculate_camera_transform(
+        transform.translation,
+        transform.rotation,
+        &input,
+        dt,
+    );
+
+    // Apply results to ECS
+    transform.translation = update.translation;
+    transform.rotation = update.rotation;
 }
