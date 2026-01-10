@@ -9,9 +9,8 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy::mesh::{Indices, PrimitiveTopology};
-use planetgen::generator::{PlanetGenerator, cube_face_point};
+use planetgen::generator::PlanetGenerator;
 use planetgen::planet::PlanetData;
-use std::collections::HashMap;
 use crate::mesh::helpers::arrow_mesh;
 
 pub fn spawn_planet_on_event(
@@ -173,121 +172,24 @@ pub fn handle_arrow_toggle(
 }
 
 fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool, snow_threshold: f32) -> Mesh {
-    let size = planet.face_grid_size;
-    let mut positions = Vec::new();
-    let mut colors = Vec::new();
-    let mut indices = Vec::new();
-    let mut dir_map: HashMap<(i32, i32, i32), u32> = HashMap::new();
-    let mut vertex_indices = vec![vec![vec![0u32; size]; size]; 6];
-    let mut next_index = 0u32;
-
-    let quant_scale = (size - 1) as f32;
-
-    for (face_idx, face) in planet.faces.iter().enumerate() {
-        for y in 0..size {
-            let v = (y as f32 / (size - 1) as f32) * 2.0 - 1.0;
-            for x in 0..size {
-                let u = (x as f32 / (size - 1) as f32) * 2.0 - 1.0;
-                let (nx, ny, nz) = cube_face_point(face_idx, u, v);
-                let dir = Vec3::new(nx, ny, nz).normalize();
-
-                let key = (
-                    (dir.x * quant_scale).round() as i32,
-                    (dir.y * quant_scale).round() as i32,
-                    (dir.z * quant_scale).round() as i32,
-                );
-
-                let idx = *dir_map.entry(key).or_insert_with(|| {
-                    let height = face.heightmap[y][x];
-                    let radius = planet.radius + height;
-                    let pos = dir * radius;
-                    positions.push([pos.x, pos.y, pos.z]);
-
-                    let color = if view_mode_plates {
-                        // PLATE VIEW: Color by tectonic plate using debug colors
-                        let plate_id = planet.plate_map[face_idx][y][x];
-                        let plate = &planet.plates[plate_id];
-                        let mut base_color = plate.debug_color;
-
-                        // Blend in boundary color if this is a boundary cell, with distance-based fade
-                        if let Some((boundary_color, opacity)) = planet.boundary_data.get_boundary_color(face_idx, x, y) {
-                            // Blend based on opacity: full boundary color at edges, fade to plate color
-                            base_color[0] = base_color[0] * (1.0 - opacity) + boundary_color[0] * opacity;
-                            base_color[1] = base_color[1] * (1.0 - opacity) + boundary_color[1] * opacity;
-                            base_color[2] = base_color[2] * (1.0 - opacity) + boundary_color[2] * opacity;
-                        }
-
-                        base_color
-                    } else {
-                        // CONTINENT VIEW: Color based on height and continent mask
-                        let continent_mask = planet.continent_noise.sample_continent_mask(dir);
-
-                        if height > 0.0 {
-                            // Land (above sea level): green to brown gradient, with snow caps at high elevation
-                            let height_factor = (height / 1.0).clamp(0.0, 1.0);
-
-                            if height > snow_threshold {
-                                // Pure white snow above threshold
-                                [0.95, 0.95, 1.0, 1.0]
-                            } else {
-                                // Regular land (green to brown)
-                                let green_base = 0.4 + continent_mask * 0.2;
-                                [
-                                    0.2 + height_factor * 0.5,  // Red: browns at high elevation
-                                    green_base - height_factor * 0.15,  // Green: less at height
-                                    0.1,                        // Blue: low
-                                    1.0
-                                ]
-                            }
-                        } else {
-                            // Ocean (below sea level): pure blue gradient based on depth
-                            let depth = -height;
-                            let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
-                            [
-                                0.0,                        // Red: none
-                                0.0,                        // Green: none (pure blue!)
-                                0.4 + depth_factor * 0.4,   // Blue: nice blue, darker with depth
-                                1.0
-                            ]
-                        }
-                    };
-                    colors.push(color);
-
-                    let i = next_index;
-                    next_index += 1;
-                    i
-                });
-
-                vertex_indices[face_idx][y][x] = idx;
-            }
-        }
-    }
-
-    for face_idx in 0..6 {
-        for y in 0..(size - 1) {
-            for x in 0..(size - 1) {
-                let i0 = vertex_indices[face_idx][y][x];
-                let i1 = vertex_indices[face_idx][y][x + 1];
-                let i2 = vertex_indices[face_idx][y + 1][x];
-                let i3 = vertex_indices[face_idx][y + 1][x + 1];
-                indices.extend_from_slice(&[i0, i1, i2, i1, i3, i2]);
-            }
-        }
-    }
-
-    let normals: Vec<[f32; 3]> = positions
-        .iter()
-        .map(|p| Vec3::from(*p).normalize().to_array())
-        .collect();
-
+    // Use planetgen's pure business logic to generate mesh data
+    let view_mode = if view_mode_plates {
+        planetgen::mesh_data::ViewMode::Plates
+    } else {
+        planetgen::mesh_data::ViewMode::Continents
+    };
+    
+    let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold);
+    
+    // Convert to Bevy mesh (thin presentation layer)
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
     );
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-    mesh.insert_indices(Indices::U32(indices));
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, mesh_data.positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, mesh_data.normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, mesh_data.colors);
+    mesh.insert_indices(Indices::U32(mesh_data.indices));
     mesh
 }
 
@@ -298,6 +200,10 @@ fn spawn_plate_direction_arrows(
     planet: &PlanetData,
     planet_entity: Entity,
 ) {
+    // Use planetgen's pure business logic to calculate arrow data
+    let arrow_data = planetgen::arrows::calculate_plate_arrows(planet);
+    
+    // Prepare Bevy resources (presentation layer)
     let arrow_mesh = arrow_mesh();
     let arrow_mesh_handle = meshes.add(arrow_mesh);
     let arrow_material = materials.add(StandardMaterial {
@@ -306,72 +212,22 @@ fn spawn_plate_direction_arrows(
         ..default()
     });
 
-    // Calculate the scale factor (10% of planet radius)
-    let arrow_scale = planet.radius * 0.2;
+    // Spawn arrow entities from calculated data
+    for arrow in arrow_data {
+        let arrow_entity = commands
+            .spawn((
+                Mesh3d(arrow_mesh_handle.clone()),
+                MeshMaterial3d(arrow_material.clone()),
+                Transform::from_translation(arrow.position)
+                    .with_rotation(arrow.rotation)
+                    .with_scale(Vec3::splat(arrow.scale)),
+                GlobalTransform::default(),
+                ArrowEntity,
+            ))
+            .id();
 
-    // For each plate, calculate its center position
-    for (plate_idx, plate) in planet.plates.iter().enumerate() {
-        // Calculate center position by finding the average position of all cells belonging to this plate
-        let mut center = Vec3::ZERO;
-        let mut count = 0;
-
-        // Iterate through all faces and find cells belonging to this plate
-        for (face_idx, face) in planet.faces.iter().enumerate() {
-            for y in 0..planet.face_grid_size {
-                for x in 0..planet.face_grid_size {
-                    if planet.plate_map[face_idx][y][x] == plate_idx {
-                        // Convert grid position to 3D position
-                        let u = (x as f32 / (planet.face_grid_size - 1) as f32) * 2.0 - 1.0;
-                        let v = (y as f32 / (planet.face_grid_size - 1) as f32) * 2.0 - 1.0;
-                        let (nx, ny, nz) = cube_face_point(face_idx, u, v);
-                        let dir = Vec3::new(nx, ny, nz).normalize();
-                        let height = face.heightmap[y][x];
-                        let pos = dir * (planet.radius + height);
-
-                        center += pos;
-                        count += 1;
-                    }
-                }
-            }
-        }
-
-        // Calculate average position if we found any cells
-        if count > 0 {
-            center /= count as f32;
-            // Normalize to the planet radius and add a small offset
-            center = center.normalize() * (planet.radius + 1.0);
-
-            // Get the movement direction of the plate
-            let direction =
-                Vec3::new(plate.direction.x, plate.direction.y, plate.direction.z).normalize();
-
-            // Get the surface normal at this position (pointing outward from center)
-            let surface_normal = center.normalize();
-
-            // Project the plate direction onto the tangent plane at this surface point
-            // This removes the component of the direction that points toward/away from the center
-            let tangent_direction =
-                (direction - surface_normal * direction.dot(surface_normal)).normalize();
-
-            // Calculate rotation to point in the tangent direction
-            let default_direction = Vec3::Z;
-            let rotation = Quat::from_rotation_arc(default_direction, tangent_direction);
-
-            let arrow_entity = commands
-                .spawn((
-                    Mesh3d(arrow_mesh_handle.clone()),
-                    MeshMaterial3d(arrow_material.clone()),
-                    Transform::from_translation(center)
-                        .with_rotation(rotation)
-                        .with_scale(Vec3::splat(arrow_scale)),
-                    GlobalTransform::default(),
-                    ArrowEntity,
-                ))
-                .id();
-
-            // Make the arrow a child of the planet entity
-            commands.entity(planet_entity).add_child(arrow_entity);
-        }
+        // Make the arrow a child of the planet entity
+        commands.entity(planet_entity).add_child(arrow_entity);
     }
 }
 
