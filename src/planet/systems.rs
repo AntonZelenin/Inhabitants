@@ -236,7 +236,7 @@ fn spawn_ocean(
         wave_amplitude: settings.ocean_wave_amplitude,
         wave_frequency: settings.ocean_wave_frequency,
         wave_speed: settings.ocean_wave_speed,
-        ocean_color: Color::srgba(0.05, 0.25, 0.5, 0.85), // Deep blue with good transparency
+        ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9), // Deep blue with some transparency
     };
 
     let ocean = OceanMeshBuilder::new(ocean_config).with_time(0.0).build();
