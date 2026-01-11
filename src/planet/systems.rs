@@ -2,6 +2,7 @@ use crate::camera::components::MainCamera;
 use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity, ContinentViewMesh, PlateViewMesh};
 use crate::planet::events::*;
 use crate::planet::resources::*;
+use crate::planet::logic;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
@@ -9,7 +10,6 @@ use bevy::math::{Quat, Vec3};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy::mesh::{Indices, PrimitiveTopology};
-use planetgen::generator::PlanetGenerator;
 use planetgen::planet::PlanetData;
 use crate::mesh::helpers::arrow_mesh;
 
@@ -25,8 +25,6 @@ pub fn spawn_planet_on_event(
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
 ) {
     for _ in events.read() {
-        planetgen::reload_config();
-
         // Capture current rotation before despawning
         let current_rotation = planet_controls_query
             .iter()
@@ -39,34 +37,9 @@ pub fn spawn_planet_on_event(
             commands.entity(entity).despawn();
         }
 
-        let mut generator = PlanetGenerator::new(settings.radius);
-        generator.num_plates = settings.num_plates;
-        generator.num_micro_plates = settings.num_micro_plates;
-        generator.seed = settings.seed;
-        generator.flow_warp_freq = settings.flow_warp_freq;
-        generator.flow_warp_steps = settings.flow_warp_steps;
-        generator.flow_warp_step_angle = settings.flow_warp_step_angle;
+        let planet_data = logic::generate_planet_data(&settings);
 
-        // Apply custom continent configuration from UI settings
-        let continent_config = planetgen::config::ContinentConfig {
-            continent_frequency: settings.continent_frequency,
-            continent_amplitude: settings.continent_amplitude,
-            distortion_frequency: settings.distortion_frequency,
-            distortion_amplitude: settings.distortion_amplitude,
-            detail_frequency: settings.detail_frequency,
-            detail_amplitude: settings.detail_amplitude,
-            continent_threshold: settings.continent_threshold,
-            ocean_depth_amplitude: settings.ocean_depth_amplitude,
-        };
-        generator.with_continent_config(continent_config);
-
-        // Apply mountain configuration from UI settings
-        generator.mountain_height = settings.mountain_height;
-        generator.mountain_width = settings.mountain_width;
-
-        let planet_data = generator.generate();
-
-        // Generate BOTH meshes (continent view and plate view)
+        // PRESENTATION: Generate BOTH meshes (continent view and plate view)
         let continent_mesh = build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
         let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold);
 

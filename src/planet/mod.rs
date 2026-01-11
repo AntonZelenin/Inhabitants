@@ -3,6 +3,7 @@ pub mod events;
 pub mod resources;
 pub mod systems;
 pub mod ui;
+mod logic;
 
 use crate::core::state::GameState;
 use crate::planet::events::*;
