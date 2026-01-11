@@ -126,7 +126,7 @@ impl OceanMeshBuilder {
         let mut uvs = Vec::new();
         let mut indices = Vec::new();
 
-        // Generate spherical UV sphere with wave displacement
+        // Generate UV sphere - avoid seams by not duplicating vertices at poles/edges
         for y in 0..=size {
             for x in 0..=size {
                 let u = x as f32 / size as f32;
@@ -136,7 +136,6 @@ impl OceanMeshBuilder {
                 let theta = u * std::f32::consts::TAU; // longitude (0 to 2π)
                 let phi = v * std::f32::consts::PI;    // latitude (0 to π)
 
-                // Base sphere position at planet radius
                 let sin_phi = phi.sin();
                 let cos_phi = phi.cos();
                 let sin_theta = theta.sin();
@@ -146,10 +145,7 @@ impl OceanMeshBuilder {
                 let y_pos = radius * cos_phi;
                 let z_pos = radius * sin_phi * sin_theta;
 
-                // No waves - perfect smooth sphere at sea_level
-                let final_pos = Vec3::new(x_pos, y_pos, z_pos);
-
-                positions.push([final_pos.x, final_pos.y, final_pos.z]);
+                positions.push([x_pos, y_pos, z_pos]);
                 normals.push([sin_phi * cos_theta, cos_phi, sin_phi * sin_theta]);
                 uvs.push([u, v]);
             }
@@ -174,8 +170,6 @@ impl OceanMeshBuilder {
             }
         }
 
-        // Normals are already correct for a perfect sphere, no need to recalculate
-
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
@@ -184,7 +178,9 @@ impl OceanMeshBuilder {
 
         mesh
     }
+}
 
+impl OceanMeshBuilder {
     fn calculate_wave_height(&self, theta: f32, phi: f32) -> f32 {
         let freq = self.config.wave_frequency;
         let amp = self.config.wave_amplitude;

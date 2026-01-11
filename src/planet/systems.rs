@@ -231,7 +231,6 @@ fn spawn_ocean(
     planet_entity: Entity,
 ) {
     let ocean_config = OceanConfig {
-        // sea_level: settings.radius + settings.continent_threshold,
         sea_level: settings.radius,
         grid_size: 256, // Much higher detail for smooth appearance
         wave_amplitude: settings.ocean_wave_amplitude,
