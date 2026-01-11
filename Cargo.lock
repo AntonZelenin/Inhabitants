@@ -308,6 +308,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-ocean"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_a11y"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2679,6 +2686,7 @@ name = "inhabitants"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy-ocean",
  "bevy_asset_loader",
  "bevy_kira_audio",
  "image",

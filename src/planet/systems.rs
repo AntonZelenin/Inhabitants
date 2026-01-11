@@ -1,17 +1,21 @@
 use crate::camera::components::MainCamera;
-use crate::planet::components::{ArrowEntity, CameraLerp, PlanetControls, PlanetEntity, ContinentViewMesh, PlateViewMesh};
+use crate::mesh::helpers::arrow_mesh;
+use crate::planet::components::{
+    ArrowEntity, CameraLerp, ContinentViewMesh, OceanEntity, PlanetControls, PlanetEntity,
+    PlateViewMesh,
+};
 use crate::planet::events::*;
-use crate::planet::resources::*;
 use crate::planet::logic;
+use crate::planet::resources::*;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::math::{Quat, Vec3};
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
-use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy_ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
-use crate::mesh::helpers::arrow_mesh;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
@@ -40,7 +44,8 @@ pub fn spawn_planet_on_event(
         let planet_data = logic::generate_planet_data(&settings);
 
         // PRESENTATION: Generate BOTH meshes (continent view and plate view)
-        let continent_mesh = build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
+        let continent_mesh =
+            build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
         let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold);
 
         let continent_mesh_handle = meshes.add(continent_mesh);
@@ -50,7 +55,6 @@ pub fn spawn_planet_on_event(
             base_color: Color::srgb(0.3, 0.8, 0.4),
             ..default()
         });
-
 
         let config = planetgen::get_config();
         let expected_zoom = settings.radius * 3.5;
@@ -105,6 +109,17 @@ pub fn spawn_planet_on_event(
             );
         }
 
+        // Spawn ocean sphere at sea level
+        if settings.show_ocean {
+            spawn_ocean(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &settings,
+                planet_entity,
+            );
+        }
+
         // Store planet data after using it for generation
         current_planet_data.planet_data = Some(planet_data);
     }
@@ -144,16 +159,20 @@ pub fn handle_arrow_toggle(
     }
 }
 
-fn build_stitched_planet_mesh(planet: &PlanetData, view_mode_plates: bool, snow_threshold: f32) -> Mesh {
+fn build_stitched_planet_mesh(
+    planet: &PlanetData,
+    view_mode_plates: bool,
+    snow_threshold: f32,
+) -> Mesh {
     // Use planetgen's pure business logic to generate mesh data
     let view_mode = if view_mode_plates {
         planetgen::mesh_data::ViewMode::Plates
     } else {
         planetgen::mesh_data::ViewMode::Continents
     };
-    
+
     let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold);
-    
+
     // Convert to Bevy mesh (thin presentation layer)
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -175,7 +194,7 @@ fn spawn_plate_direction_arrows(
 ) {
     // Use planetgen's pure business logic to calculate arrow data
     let arrow_data = planetgen::arrows::calculate_plate_arrows(planet);
-    
+
     // Prepare Bevy resources (presentation layer)
     let arrow_mesh = arrow_mesh();
     let arrow_mesh_handle = meshes.add(arrow_mesh);
@@ -202,6 +221,39 @@ fn spawn_plate_direction_arrows(
         // Make the arrow a child of the planet entity
         commands.entity(planet_entity).add_child(arrow_entity);
     }
+}
+
+fn spawn_ocean(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    settings: &PlanetGenerationSettings,
+    planet_entity: Entity,
+) {
+    let ocean_config = OceanConfig {
+        // sea_level: settings.radius + settings.continent_threshold,
+        sea_level: settings.radius,
+        grid_size: 256, // Much higher detail for smooth appearance
+        wave_amplitude: settings.ocean_wave_amplitude,
+        wave_frequency: settings.ocean_wave_frequency,
+        wave_speed: settings.ocean_wave_speed,
+        ocean_color: Color::srgba(0.05, 0.25, 0.5, 0.85), // Deep blue with good transparency
+    };
+
+    let ocean = OceanMeshBuilder::new(ocean_config).with_time(0.0).build();
+
+    let ocean_entity = commands
+        .spawn((
+            Mesh3d(meshes.add(ocean.mesh)),
+            MeshMaterial3d(materials.add(ocean.material)),
+            Transform::default(),
+            GlobalTransform::default(),
+            OceanEntity,
+        ))
+        .id();
+
+    // Make the ocean a child of the planet entity so it rotates with the planet
+    commands.entity(planet_entity).add_child(ocean_entity);
 }
 
 pub fn planet_control(
@@ -338,5 +390,39 @@ pub fn handle_generate_new_seed(
         settings.user_seed = new_user_seed;
         settings.seed = planetgen::tools::expand_seed64(new_user_seed);
         settings_changed_events.write(SettingsChanged);
+    }
+}
+
+pub fn update_ocean_animation(
+    time: Res<Time>,
+    settings: Res<PlanetGenerationSettings>,
+    ocean_query: Query<Entity, With<OceanEntity>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mesh_handles: Query<&Mesh3d>,
+) {
+    if !settings.show_ocean {
+        return;
+    }
+
+    for ocean_entity in ocean_query.iter() {
+        if let Ok(mesh_handle) = mesh_handles.get(ocean_entity) {
+            let ocean_config = OceanConfig {
+                sea_level: settings.radius + settings.continent_threshold,
+                grid_size: 64,
+                wave_amplitude: settings.ocean_wave_amplitude,
+                wave_frequency: settings.ocean_wave_frequency,
+                wave_speed: settings.ocean_wave_speed,
+                ocean_color: Color::srgba(0.05, 0.4, 0.8, 1.0),
+            };
+
+            let ocean = OceanMeshBuilder::new(ocean_config)
+                .with_time(time.elapsed_secs())
+                .build();
+
+            // Update the mesh with new animated vertices
+            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+                *mesh = ocean.mesh;
+            }
+        }
     }
 }

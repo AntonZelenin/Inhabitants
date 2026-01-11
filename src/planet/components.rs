@@ -4,6 +4,9 @@ use bevy::prelude::*;
 pub struct PlanetEntity;
 
 #[derive(Component)]
+pub struct OceanEntity;
+
+#[derive(Component)]
 pub struct ContinentViewMesh;
 
 #[derive(Component)]

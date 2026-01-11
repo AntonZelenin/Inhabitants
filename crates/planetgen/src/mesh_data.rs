@@ -53,6 +53,7 @@ impl MeshData {
 
                     let idx = *dir_map.entry(key).or_insert_with(|| {
                         let height = face.heightmap[y][x];
+                        // Always render geometry at radius + height (including negative heights for ocean floor)
                         let radius = planet.radius + height;
                         let pos = dir * radius;
                         positions.push([pos.x, pos.y, pos.z]);
@@ -174,13 +175,14 @@ fn calculate_continent_view_color(
             ]
         }
     } else {
-        // Ocean (below sea level): pure blue gradient based on depth
+        // Ocean floor (below sea level): sandy/light color visible through transparent ocean
         let depth = -height;
         let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
+        // Sandy light color
         [
-            0.0,                      // Red: none
-            0.0,                      // Green: none (pure blue!)
-            0.4 + depth_factor * 0.4, // Blue: nice blue, darker with depth
+            0.9 - depth_factor * 0.2,   // Red: sandy
+            0.85 - depth_factor * 0.2,  // Green: sandy
+            0.7 - depth_factor * 0.2,   // Blue: warm sandy color
             1.0,
         ]
     }
