@@ -4,6 +4,7 @@ version = "0.1.0"
 publish = false
 edition = "2024"
 exclude = ["dist", "build", "assets", "credits"]
+default-run = "inhabitants"
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -85,6 +86,7 @@ bevy_kira_audio = { version = "0.24.0" }
 bevy_asset_loader = { version = "0.24.0-rc.1" }
 rand = { version = "0.9.1" }
 planetgen = { path = "crates/planetgen" }
+bevy-ocean = { path = "crates/bevy-ocean" }
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.30", default-features = false }

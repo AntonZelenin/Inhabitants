@@ -28,6 +28,11 @@ pub struct PlanetGenerationSettings {
     // Mountain generation
     pub mountain_height: f32,
     pub mountain_width: f32,
+    // Ocean settings
+    pub show_ocean: bool,
+    pub ocean_wave_amplitude: f32,
+    pub ocean_wave_frequency: f32,
+    pub ocean_wave_speed: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -57,6 +62,10 @@ impl Default for PlanetGenerationSettings {
             snow_threshold: config.mountains.snow_threshold,
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
+            show_ocean: true,
+            ocean_wave_amplitude: 0.05,
+            ocean_wave_frequency: 0.5,
+            ocean_wave_speed: 0.5,
         }
     }
 }
