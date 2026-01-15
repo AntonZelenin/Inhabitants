@@ -391,37 +391,3 @@ pub fn handle_generate_new_seed(
         settings_changed_events.write(SettingsChanged);
     }
 }
-
-pub fn update_ocean_animation(
-    time: Res<Time>,
-    settings: Res<PlanetGenerationSettings>,
-    ocean_query: Query<Entity, With<OceanEntity>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mesh_handles: Query<&Mesh3d>,
-) {
-    if !settings.show_ocean {
-        return;
-    }
-
-    for ocean_entity in ocean_query.iter() {
-        if let Ok(mesh_handle) = mesh_handles.get(ocean_entity) {
-            let ocean_config = OceanConfig {
-                sea_level: settings.radius + settings.continent_threshold,
-                grid_size: 64,
-                wave_amplitude: settings.ocean_wave_amplitude,
-                wave_frequency: settings.ocean_wave_frequency,
-                wave_speed: settings.ocean_wave_speed,
-                ocean_color: Color::srgba(0.05, 0.4, 0.8, 1.0),
-            };
-
-            let ocean = OceanMeshBuilder::new(ocean_config)
-                .with_time(time.elapsed_secs())
-                .build();
-
-            // Update the mesh with new animated vertices
-            if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
-                *mesh = ocean.mesh;
-            }
-        }
-    }
-}

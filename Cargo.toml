@@ -4,6 +4,7 @@ version = "0.1.0"
 publish = false
 edition = "2024"
 exclude = ["dist", "build", "assets", "credits"]
+default-run = "inhabitants"
 
 [profile.dev.package."*"]
 opt-level = 3
