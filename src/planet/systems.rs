@@ -45,14 +45,14 @@ pub fn spawn_planet_on_event(
 
         // PRESENTATION: Generate BOTH meshes (continent view and plate view)
         let continent_mesh =
-            build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold);
-        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold);
+            build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold, settings.continent_threshold);
+        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold, settings.continent_threshold);
 
         let continent_mesh_handle = meshes.add(continent_mesh);
         let plate_mesh_handle = meshes.add(plate_mesh);
 
-        let material_handle = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.3, 0.8, 0.4),
+        let planet_material = materials.add(StandardMaterial {
+            base_color: Color::WHITE,
             ..default()
         });
 
@@ -76,7 +76,7 @@ pub fn spawn_planet_on_event(
                 // Continent view mesh (visible by default)
                 parent.spawn((
                     Mesh3d(continent_mesh_handle),
-                    MeshMaterial3d(material_handle.clone()),
+                    MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
                     Visibility::Visible,
@@ -86,7 +86,7 @@ pub fn spawn_planet_on_event(
                 // Plate view mesh (hidden by default)
                 parent.spawn((
                     Mesh3d(plate_mesh_handle),
-                    MeshMaterial3d(material_handle.clone()),
+                    MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
                     Visibility::Hidden,
@@ -163,6 +163,7 @@ fn build_stitched_planet_mesh(
     planet: &PlanetData,
     view_mode_plates: bool,
     snow_threshold: f32,
+    continent_threshold: f32,
 ) -> Mesh {
     // Use planetgen's pure business logic to generate mesh data
     let view_mode = if view_mode_plates {
@@ -171,7 +172,7 @@ fn build_stitched_planet_mesh(
         planetgen::mesh_data::ViewMode::Continents
     };
 
-    let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold);
+    let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold, continent_threshold);
 
     // Convert to Bevy mesh (thin presentation layer)
     let mut mesh = Mesh::new(

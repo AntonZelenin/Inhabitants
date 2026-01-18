@@ -25,7 +25,8 @@ impl MeshData {
     /// * `planet` - The planet data to generate mesh from
     /// * `view_mode` - Whether to show plates or continents
     /// * `snow_threshold` - Height threshold above which snow appears (in continent view)
-    pub fn from_planet(planet: &PlanetData, view_mode: ViewMode, snow_threshold: f32) -> Self {
+    /// * `continent_threshold` - Sea level threshold (dynamic from UI settings)
+    pub fn from_planet(planet: &PlanetData, view_mode: ViewMode, snow_threshold: f32, continent_threshold: f32) -> Self {
         let size = planet.face_grid_size;
         let mut positions = Vec::new();
         let mut colors = Vec::new();
@@ -67,6 +68,7 @@ impl MeshData {
                             height,
                             dir,
                             snow_threshold,
+                            continent_threshold,
                         );
                         colors.push(color);
 
@@ -118,10 +120,11 @@ fn calculate_vertex_color(
     height: f32,
     dir: Vec3,
     snow_threshold: f32,
+    continent_threshold: f32,
 ) -> [f32; 4] {
     match view_mode {
         ViewMode::Plates => calculate_plate_view_color(planet, face_idx, x, y),
-        ViewMode::Continents => calculate_continent_view_color(planet, height, dir, snow_threshold),
+        ViewMode::Continents => calculate_continent_view_color(height, dir, snow_threshold, continent_threshold),
     }
 }
 
@@ -150,27 +153,36 @@ fn calculate_plate_view_color(
 
 /// Calculate color for continent view mode
 fn calculate_continent_view_color(
-    planet: &PlanetData,
     height: f32,
-    dir: Vec3,
+    _dir: Vec3,
     snow_threshold: f32,
+    continent_threshold: f32,
 ) -> [f32; 4] {
-    let continent_mask = planet.continent_noise.sample_continent_mask(dir);
-
     if height > 0.0 {
-        // Land (above sea level): green to brown gradient, with snow caps at high elevation
-        let height_factor = (height / 1.0).clamp(0.0, 1.0);
+        // Land (above sea level)
 
         if height > snow_threshold {
             // Pure white snow above threshold
             [0.95, 0.95, 1.0, 1.0]
-        } else {
-            // Regular land (green to brown)
-            let green_base = 0.4 + continent_mask * 0.2;
+        } else if height > continent_threshold * 0.05 {
+            // Medium-high elevation: Green mountains
+            // Start green at continent_threshold * 0.5, transition to lighter green near snow
+            let mountain_factor = ((height - continent_threshold * 0.5) / (snow_threshold - continent_threshold * 0.5)).clamp(0.0, 1.0);
+            // Interpolate from darker green at mid-elevation to lighter green near snow
             [
-                0.2 + height_factor * 0.5,         // Red: browns at high elevation
-                green_base - height_factor * 0.15, // Green: less at height
-                0.1,                               // Blue: low
+                0.15 + mountain_factor * 0.15,    // Red: slight increase toward snow
+                0.5 + mountain_factor * 0.15,     // Green: vibrant green, slightly lighter at peaks
+                0.15 + mountain_factor * 0.1,     // Blue: low to keep it earthy green
+                1.0,
+            ]
+        } else {
+            // Low elevation near sea level: Sandy/yellow shores
+            let shore_factor = (height / (continent_threshold * 0.5)).clamp(0.0, 1.0);
+            // Interpolate from sandy yellow at coast to green inland
+            [
+                0.85 - shore_factor * 0.35,       // Red: sandy at coast, less inland
+                0.75 - shore_factor * 0.1,        // Green: yellowish at coast, more green inland
+                0.45 - shore_factor * 0.2,        // Blue: warm sandy tone
                 1.0,
             ]
         }
