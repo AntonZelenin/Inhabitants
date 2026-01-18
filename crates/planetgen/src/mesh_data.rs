@@ -164,25 +164,34 @@ fn calculate_continent_view_color(
         if height > snow_threshold {
             // Pure white snow above threshold
             [0.95, 0.95, 1.0, 1.0]
-        } else if height > continent_threshold * 0.05 {
-            // Medium-high elevation: Green mountains
-            // Start green at continent_threshold * 0.5, transition to lighter green near snow
+        } else if height > continent_threshold * 0.5 {
+            // High elevation: Green mountains transitioning to snow
             let mountain_factor = ((height - continent_threshold * 0.5) / (snow_threshold - continent_threshold * 0.5)).clamp(0.0, 1.0);
-            // Interpolate from darker green at mid-elevation to lighter green near snow
+            // Interpolate from much darker green at mid-elevation to lighter green near snow
             [
-                0.15 + mountain_factor * 0.15,    // Red: slight increase toward snow
-                0.5 + mountain_factor * 0.15,     // Green: vibrant green, slightly lighter at peaks
-                0.15 + mountain_factor * 0.1,     // Blue: low to keep it earthy green
+                0.05 + mountain_factor * 0.2,     // Red: slight increase toward snow
+                0.2 + mountain_factor * 0.2,      // Green: MUCH darker base green
+                0.05 + mountain_factor * 0.15,    // Blue: low to keep it earthy green
+                1.0,
+            ]
+        } else if height > continent_threshold * 0.05 {
+            // Medium elevation: Transition from sandy shores to green mountains
+            let transition_factor = ((height - continent_threshold * 0.05) / (continent_threshold * 0.5 - continent_threshold * 0.05)).clamp(0.0, 1.0);
+            // Interpolate from light green/yellow to much darker forest green
+            [
+                0.4 - transition_factor * 0.35,   // Red: from light to very dark green
+                0.5 - transition_factor * 0.3,    // Green: much darker transition
+                0.15 - transition_factor * 0.1,   // Blue: earthy tone
                 1.0,
             ]
         } else {
             // Low elevation near sea level: Sandy/yellow shores
-            let shore_factor = (height / (continent_threshold * 0.5)).clamp(0.0, 1.0);
-            // Interpolate from sandy yellow at coast to green inland
+            let shore_factor = (height / (continent_threshold * 0.05)).clamp(0.0, 1.0);
+            // Interpolate from sandy yellow at coast to light green inland
             [
-                0.85 - shore_factor * 0.35,       // Red: sandy at coast, less inland
-                0.75 - shore_factor * 0.1,        // Green: yellowish at coast, more green inland
-                0.45 - shore_factor * 0.2,        // Blue: warm sandy tone
+                0.85 - shore_factor * 0.45,       // Red: sandy at coast, less inland
+                0.75 - shore_factor * 0.25,       // Green: darker green at inland edge
+                0.45 - shore_factor * 0.3,        // Blue: warm sandy tone
                 1.0,
             ]
         }
