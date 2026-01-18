@@ -1,8 +1,8 @@
 use crate::camera::components::MainCamera;
 use crate::mesh::helpers::arrow_mesh;
 use crate::planet::components::{
-    ArrowEntity, CameraLerp, ContinentViewMesh, OceanEntity, PlanetControls, PlanetEntity,
-    PlateViewMesh,
+    ArrowEntity, CameraLerp, ContinentView, ContinentViewMesh, OceanEntity, PlanetControls,
+    PlanetEntity, PlateViewMesh, TectonicPlateView,
 };
 use crate::planet::events::*;
 use crate::planet::logic;
@@ -73,24 +73,34 @@ pub fn spawn_planet_on_event(
                 },
             ))
             .with_children(|parent| {
-                // Continent view mesh (visible by default)
+                // Continent view mesh (visible when NOT in plate view mode)
                 parent.spawn((
                     Mesh3d(continent_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    Visibility::Visible,
+                    if settings.view_mode_plates {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Visible
+                    },
                     ContinentViewMesh,
+                    ContinentView, // Marker component
                 ));
 
-                // Plate view mesh (hidden by default)
+                // Plate view mesh (visible when IN plate view mode)
                 parent.spawn((
                     Mesh3d(plate_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    Visibility::Hidden,
+                    if settings.view_mode_plates {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    },
                     PlateViewMesh,
+                    TectonicPlateView, // Marker component
                 ));
             })
             .id();
@@ -109,7 +119,7 @@ pub fn spawn_planet_on_event(
             );
         }
 
-        // Spawn ocean sphere at sea level
+        // Spawn ocean sphere at sea level (only visible in continent view mode)
         if settings.show_ocean {
             spawn_ocean(
                 &mut commands,
@@ -117,6 +127,7 @@ pub fn spawn_planet_on_event(
                 &mut materials,
                 &settings,
                 planet_entity,
+                settings.view_mode_plates, // Pass view mode to control initial visibility
             );
         }
 
@@ -230,6 +241,7 @@ fn spawn_ocean(
     materials: &mut Assets<StandardMaterial>,
     settings: &PlanetGenerationSettings,
     planet_entity: Entity,
+    view_mode_plates: bool,
 ) {
     let ocean_config = OceanConfig {
         sea_level: settings.radius,
@@ -248,7 +260,13 @@ fn spawn_ocean(
             MeshMaterial3d(materials.add(ocean.material)),
             Transform::default(),
             GlobalTransform::default(),
+            if view_mode_plates {
+                Visibility::Hidden
+            } else {
+                Visibility::Visible
+            },
             OceanEntity,
+            ContinentView, // Marker component - will be toggled by view mode system
         ))
         .id();
 

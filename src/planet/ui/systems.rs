@@ -1,4 +1,4 @@
-use crate::planet::components::{ContinentViewMesh, PlateViewMesh};
+use crate::planet::components::{ContinentView, TectonicPlateView};
 use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use bevy::app::AppExit;
@@ -22,8 +22,8 @@ pub fn render_planet_generation_ui(
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
-    mut continent_mesh_query: Query<&mut Visibility, (With<ContinentViewMesh>, Without<PlateViewMesh>)>,
-    mut plate_mesh_query: Query<&mut Visibility, (With<PlateViewMesh>, Without<ContinentViewMesh>)>,
+    mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>)>,
+    mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>)>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -106,8 +106,8 @@ pub fn render_planet_generation_ui(
                 if ui.checkbox(&mut view_mode_plates, "View Tectonic Plates").changed() {
                     settings.view_mode_plates = view_mode_plates;
 
-                    // Update mesh visibility immediately
-                    for mut visibility in continent_mesh_query.iter_mut() {
+                    // Hide/show all entities in continent view
+                    for mut visibility in continent_view_query.iter_mut() {
                         *visibility = if view_mode_plates {
                             Visibility::Hidden
                         } else {
@@ -115,7 +115,8 @@ pub fn render_planet_generation_ui(
                         };
                     }
 
-                    for mut visibility in plate_mesh_query.iter_mut() {
+                    // Hide/show all entities in tectonic plate view
+                    for mut visibility in plate_view_query.iter_mut() {
                         *visibility = if view_mode_plates {
                             Visibility::Visible
                         } else {
