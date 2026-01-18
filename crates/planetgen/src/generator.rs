@@ -642,7 +642,7 @@ impl PlanetGenerator {
     }
 
     /// Adds mountain height near convergent plate boundaries using noisy ridges with a smooth falloff.
-    /// Mountains only form on land (above continent_threshold - 0.2), not underwater.
+    /// Mountains can form slightly below sea level based on mountain_underwater_threshold config.
     /// Uses layering to create varied mountain shapes with secondary ridges on one or both sides.
     fn apply_convergent_mountains(
         &self,
@@ -660,8 +660,9 @@ impl PlanetGenerator {
         // Layering noise - determines where to add secondary mountain layers (1-2 extra ridges)
         let layer_noise = NoiseConfig::new(self.seed_u32_for("mountains/layers"), 3.0, 1.0);
 
-        // Minimum elevation threshold for mountain formation (only on land, not underwater)
-        let min_elevation_for_mountains = self.config.continents.continent_threshold - 0.3;
+        // Minimum elevation threshold for mountain formation
+        // Mountains can form slightly below sea level (down to continent_threshold - mountain_underwater_threshold)
+        let min_elevation_for_mountains = self.config.continents.continent_threshold - self.config.mountains.mountain_underwater_threshold;
 
         let inv = 1.0 / (face_grid_size as f32 - 1.0);
         for face_idx in 0..6 {

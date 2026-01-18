@@ -122,6 +122,7 @@ pub struct MountainConfig {
     pub width: f32,
     pub noise_frequency: f32,
     pub snow_threshold: f32,
+    pub mountain_underwater_threshold: f32,
 }
 
 impl PlanetGenConfig {
@@ -179,6 +180,7 @@ impl PlanetGenConfig {
                 width: 0.08,
                 noise_frequency: 40.0,
                 snow_threshold: 1.0,
+                mountain_underwater_threshold: 0.2,
             },
         }
     }
