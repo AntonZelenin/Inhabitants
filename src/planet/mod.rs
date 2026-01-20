@@ -29,6 +29,9 @@ impl Plugin for PlanetPlugin {
                     handle_generate_new_seed,
                     planet_control,
                     smooth_camera_movement,
+                    spawn_wind_particles,
+                    update_wind_particles,
+                    despawn_wind_particles,
                 )
                     .run_if(in_state(GameState::PlanetGeneration)),
             );

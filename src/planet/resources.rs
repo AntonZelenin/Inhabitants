@@ -33,6 +33,11 @@ pub struct PlanetGenerationSettings {
     pub ocean_wave_amplitude: f32,
     pub ocean_wave_frequency: f32,
     pub ocean_wave_speed: f32,
+    // Wind visualization settings
+    pub show_wind: bool,
+    pub wind_particle_count: usize,
+    pub wind_speed: f32,
+    pub wind_trail_length: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -66,6 +71,10 @@ impl Default for PlanetGenerationSettings {
             ocean_wave_amplitude: 0.05,
             ocean_wave_frequency: 0.5,
             ocean_wave_speed: 0.5,
+            show_wind: false,
+            wind_particle_count: 500,
+            wind_speed: 0.5,
+            wind_trail_length: 2.0,
         }
     }
 }

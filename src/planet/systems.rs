@@ -2,7 +2,7 @@ use crate::camera::components::MainCamera;
 use crate::mesh::helpers::arrow_mesh;
 use crate::planet::components::{
     ArrowEntity, CameraLerp, ContinentView, ContinentViewMesh, OceanEntity, PlanetControls,
-    PlanetEntity, PlateViewMesh, TectonicPlateView,
+    PlanetEntity, PlateViewMesh, TectonicPlateView, WindParticle, WindView,
 };
 use crate::planet::events::*;
 use crate::planet::logic;
@@ -408,5 +408,136 @@ pub fn handle_generate_new_seed(
         settings.user_seed = new_user_seed;
         settings.seed = planetgen::tools::expand_seed64(new_user_seed);
         settings_changed_events.write(SettingsChanged);
+    }
+}
+
+/// Spawn wind particles when wind visualization is enabled
+pub fn spawn_wind_particles(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    settings: Res<PlanetGenerationSettings>,
+    existing_particles: Query<Entity, With<WindParticle>>,
+    planet_query: Query<Entity, With<PlanetEntity>>,
+) {
+    // Only spawn if wind is enabled and we don't have particles yet
+    if !settings.show_wind || !existing_particles.is_empty() {
+        return;
+    }
+
+    let Ok(planet_entity) = planet_query.single() else {
+        return;
+    };
+
+    let radius = settings.radius;
+
+    // Create shared particle mesh and material
+    let particle_mesh = meshes.add(Sphere::new(0.2).mesh().ico(2).unwrap());
+    let particle_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 1.0, 0.8),
+        emissive: LinearRgba::new(1.0, 1.0, 0.6, 1.0),
+        ..default()
+    });
+
+    // Spawn particles uniformly distributed on sphere
+    for i in 0..settings.wind_particle_count {
+        // Use golden angle spiral for uniform distribution
+        let golden_ratio = (1.0 + 5.0_f32.sqrt()) / 2.0;
+        let theta = 2.0 * std::f32::consts::PI * i as f32 / golden_ratio;
+        let phi = (1.0 - 2.0 * (i as f32 + 0.5) / settings.wind_particle_count as f32).acos();
+
+        let x = phi.sin() * theta.cos();
+        let y = phi.sin() * theta.sin();
+        let z = phi.cos();
+
+        let position = Vec3::new(x, y, z).normalize();
+
+        // Initial velocity: eastward (tangent to sphere, rotating around Y axis)
+        // For a point on sphere, eastward direction is perpendicular to both position and Y axis
+        let up = Vec3::Y;
+        let eastward = up.cross(position).normalize();
+        let velocity = eastward * settings.wind_speed;
+
+        let lifetime = 10.0; // particles live 10 seconds before respawn
+
+        commands.entity(planet_entity).with_children(|parent| {
+            parent.spawn((
+                Mesh3d(particle_mesh.clone()),
+                MeshMaterial3d(particle_material.clone()),
+                Transform::from_translation(position * (radius + 0.5)), // Slightly above surface
+                GlobalTransform::default(),
+                Visibility::Visible,
+                WindParticle {
+                    position,
+                    velocity,
+                    age: 0.0,
+                    lifetime,
+                },
+                WindView, // Marker for view toggling
+            ));
+        });
+    }
+}
+
+/// Update wind particle positions
+pub fn update_wind_particles(
+    time: Res<Time>,
+    settings: Res<PlanetGenerationSettings>,
+    mut particles: Query<(&mut Transform, &mut WindParticle)>,
+) {
+    let dt = time.delta_secs();
+    let radius = settings.radius;
+
+    for (mut transform, mut particle) in particles.iter_mut() {
+        // Age the particle
+        particle.age += dt;
+
+        // Respawn if too old
+        if particle.age > particle.lifetime {
+            // Reset to new random position
+            let golden_ratio = (1.0 + 5.0_f32.sqrt()) / 2.0;
+            let rand_val = (particle.age * 1000.0) % 1000.0; // pseudo-random
+            let theta = 2.0 * std::f32::consts::PI * rand_val / golden_ratio;
+            let phi = (1.0 - 2.0 * rand_val / 1000.0).acos();
+
+            let x = phi.sin() * theta.cos();
+            let y = phi.sin() * theta.sin();
+            let z = phi.cos();
+
+            particle.position = Vec3::new(x, y, z).normalize();
+            particle.age = 0.0;
+
+            // Recalculate eastward velocity
+            let up = Vec3::Y;
+            let eastward = up.cross(particle.position).normalize();
+            particle.velocity = eastward * settings.wind_speed;
+        }
+
+        // Move particle along velocity (on sphere surface)
+        let displacement = particle.velocity * dt;
+
+        // Update position on sphere
+        particle.position = (particle.position + displacement).normalize();
+
+        // Recalculate velocity to stay tangent to sphere
+        let up = Vec3::Y;
+        let eastward = up.cross(particle.position).normalize();
+        particle.velocity = eastward * settings.wind_speed;
+
+        // Update transform
+        transform.translation = particle.position * (radius + 0.5);
+    }
+}
+
+/// Despawn wind particles when wind visualization is disabled
+pub fn despawn_wind_particles(
+    mut commands: Commands,
+    settings: Res<PlanetGenerationSettings>,
+    particles: Query<Entity, With<WindParticle>>,
+) {
+    if !settings.show_wind {
+        for entity in particles.iter() {
+            commands.entity(entity).despawn();
+        }
     }
 }

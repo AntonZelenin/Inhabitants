@@ -233,15 +233,39 @@ fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSetting
     ui.checkbox(&mut settings.show_arrows, "Show Plate Direction Arrows");
 }
 
-fn render_wind_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSettings) {
-    ui.heading("Wind Patterns");
+fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
+    ui.heading("Wind Visualization");
     ui.add_space(5.0);
 
-    ui.label("Wind visualization coming soon...");
+    ui.checkbox(&mut settings.show_wind, "Show Wind Particles");
+    ui.add_space(10.0);
+
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Particle Settings");
+    ui.add_space(5.0);
+
+    ui.label("Particle Count");
+    let mut particle_count = settings.wind_particle_count as i32;
+    ui.add(egui::Slider::new(&mut particle_count, 100..=2000)
+        .step_by(100.0));
+    settings.wind_particle_count = particle_count as usize;
+
+    ui.label("Wind Speed");
+    ui.add(egui::Slider::new(&mut settings.wind_speed, 0.1..=2.0)
+        .step_by(0.1));
+
+    ui.label("Trail Length");
+    ui.add(egui::Slider::new(&mut settings.wind_trail_length, 0.5..=5.0)
+        .step_by(0.1));
+
+    ui.add_space(10.0);
+    ui.separator();
     ui.add_space(10.0);
 
     ui.colored_label(
         egui::Color32::GRAY,
-        "This tab will display wind pattern settings\nand atmospheric circulation models."
+        "Currently showing uniform eastward wind flow.\nFuture updates will add realistic atmospheric circulation."
     );
 }

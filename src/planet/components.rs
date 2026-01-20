@@ -23,6 +23,23 @@ pub struct ContinentView;
 #[derive(Component)]
 pub struct TectonicPlateView;
 
+/// Wind particle component - stores particle state for wind visualization
+#[derive(Component)]
+pub struct WindParticle {
+    /// Current position on sphere (normalized direction vector)
+    pub position: Vec3,
+    /// Velocity vector (tangent to sphere)
+    pub velocity: Vec3,
+    /// Age of particle (for fading/recycling)
+    pub age: f32,
+    /// Maximum lifetime before respawn
+    pub lifetime: f32,
+}
+
+/// Marker for wind visualization entities
+#[derive(Component)]
+pub struct WindView;
+
 #[derive(Component)]
 pub struct PlanetControls {
     pub rotation: Quat,
