@@ -54,6 +54,8 @@ pub struct PlanetGenConfig {
     pub continents: ContinentConfig,
     pub merging: MergingConfig,
     pub mountains: MountainConfig,
+    pub ocean: OceanConfig,
+    pub wind: WindConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,66 +127,22 @@ pub struct MountainConfig {
     pub mountain_underwater_threshold: f32,
 }
 
-impl PlanetGenConfig {
-    // todo can I simplify?
-    pub fn default() -> Self {
-        Self {
-            generation: GenerationConfig {
-                cells_per_unit: 10.0,
-                continental_freq: 3.0,
-                continental_amp: 0.7,
-                oceanic_freq: 1.5, // CONTINENTAL_FREQ / 2.0
-                oceanic_amp: 0.07, // CONTINENTAL_AMP / 10.0
-                planet_min_radius: 30.0,
-                planet_max_radius: 80.0,
-                default_num_plates: 7,
-                default_num_micro_plates: 6,
-            },
-            plates: PlateConfig {
-                min_separation_chord_distance: 0.5,
-                micro_plate_weight_factor: 2.7,
-            },
-            boundaries: BoundaryConfig {
-                distortion_frequency: 7.0,
-                distortion_amplitude: 0.2,
-                warp_multiplier: 0.2,
-            },
-            flow_warp: FlowWarpConfig {
-                default_freq: 0.8,
-                default_amp: 0.25,
-                default_steps: 2,
-                default_step_angle: 0.1,
-            },
-            microplates: MicroplateConfig {
-                frequency_multiplier: 1.5,
-                amplitude_multiplier: 0.3,
-                jitter_range_min: -0.1,
-                jitter_range_max: 0.1,
-            },
-            continents: ContinentConfig {
-                continent_frequency: 1.0,
-                continent_amplitude: 1.0,
-                distortion_frequency: 3.0,   // 3x continent freq for mid-scale
-                distortion_amplitude: 0.4,   // Strong warping
-                detail_frequency: 4.0,
-                detail_amplitude: 0.2,
-                continent_threshold: 0.0,
-                ocean_depth_amplitude: 0.8,
-            },
-            merging: MergingConfig {
-                selection_probability: 0.07,
-                two_neighbors_probability: 0.2,
-            },
-            mountains: MountainConfig {
-                height: 3.5,
-                width: 0.08,
-                noise_frequency: 40.0,
-                snow_threshold: 1.0,
-                mountain_underwater_threshold: 0.2,
-            },
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OceanConfig {
+    pub wave_amplitude: f32,
+    pub wave_frequency: f32,
+    pub wave_speed: f32,
+    pub normal_perturbation_scale: f32,
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindConfig {
+    pub particle_count: usize,
+    pub speed: f32,
+    pub trail_length: f32,
+}
+
+impl PlanetGenConfig {
     pub fn load_from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let config: PlanetGenConfig = toml::from_str(&content)?;

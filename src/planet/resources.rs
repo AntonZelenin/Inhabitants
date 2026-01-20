@@ -33,6 +33,7 @@ pub struct PlanetGenerationSettings {
     pub ocean_wave_amplitude: f32,
     pub ocean_wave_frequency: f32,
     pub ocean_wave_speed: f32,
+    pub ocean_normal_perturbation_scale: f32,
     // Wind visualization settings
     pub show_wind: bool,
     pub wind_particle_count: usize,
@@ -68,13 +69,14 @@ impl Default for PlanetGenerationSettings {
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
             show_ocean: true,
-            ocean_wave_amplitude: 0.05,
-            ocean_wave_frequency: 0.5,
-            ocean_wave_speed: 0.5,
+            ocean_wave_amplitude: config.ocean.wave_amplitude,
+            ocean_wave_frequency: config.ocean.wave_frequency,
+            ocean_wave_speed: config.ocean.wave_speed,
+            ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
             show_wind: false,
-            wind_particle_count: 500,
-            wind_speed: 0.5,
-            wind_trail_length: 2.0,
+            wind_particle_count: config.wind.particle_count,
+            wind_speed: config.wind.speed,
+            wind_trail_length: config.wind.trail_length,
         }
     }
 }

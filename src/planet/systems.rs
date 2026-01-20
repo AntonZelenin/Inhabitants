@@ -16,6 +16,7 @@ use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy_ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
+use crate::planet::wind_material::WindParticleMaterial;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
@@ -64,6 +65,9 @@ pub fn spawn_planet_on_event(
             .spawn((
                 Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(current_rotation),
                 GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 PlanetEntity,
                 PlanetControls {
                     rotation: current_rotation,
@@ -415,7 +419,7 @@ pub fn handle_generate_new_seed(
 pub fn spawn_wind_particles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<WindParticleMaterial>>,
     settings: Res<PlanetGenerationSettings>,
     existing_particles: Query<Entity, With<WindParticle>>,
     planet_query: Query<Entity, With<PlanetEntity>>,
@@ -431,13 +435,9 @@ pub fn spawn_wind_particles(
 
     let radius = settings.radius;
 
-    // Create shared particle mesh and material
+    // Create shared mesh and material (Bevy will batch these automatically)
     let particle_mesh = meshes.add(Sphere::new(0.2).mesh().ico(2).unwrap());
-    let particle_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 1.0, 0.8),
-        emissive: LinearRgba::new(1.0, 1.0, 0.6, 1.0),
-        ..default()
-    });
+    let particle_material = materials.add(crate::planet::wind_material::WindParticleMaterial::default());
 
     // Spawn particles uniformly distributed on sphere
     for i in 0..settings.wind_particle_count {
@@ -452,28 +452,37 @@ pub fn spawn_wind_particles(
 
         let position = Vec3::new(x, y, z).normalize();
 
-        // Initial velocity: eastward (tangent to sphere, rotating around Y axis)
-        // For a point on sphere, eastward direction is perpendicular to both position and Y axis
+        // Initial velocity: west to east
         let up = Vec3::Y;
-        let eastward = up.cross(position).normalize();
+        let eastward = position.cross(up).normalize();
         let velocity = eastward * settings.wind_speed;
 
-        let lifetime = 10.0; // particles live 10 seconds before respawn
+        // Randomize lifetime (8-12 seconds)
+        let lifetime_base = 10.0;
+        let lifetime_variation = 2.0;
+        let pseudo_random = ((i as f32 * 137.508) % 100.0) / 100.0;
+        let lifetime = lifetime_base + (pseudo_random - 0.5) * 2.0 * lifetime_variation;
+
+        // Randomize initial age
+        let initial_age = pseudo_random * lifetime;
 
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
                 Mesh3d(particle_mesh.clone()),
                 MeshMaterial3d(particle_material.clone()),
-                Transform::from_translation(position * (radius + 0.5)), // Slightly above surface
-                GlobalTransform::default(),
-                Visibility::Visible,
+                Transform::from_translation(position * (radius + 0.5)),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 WindParticle {
                     position,
                     velocity,
-                    age: 0.0,
+                    age: initial_age,
                     lifetime,
+                    particle_id: i as u32,
+                    respawn_count: 0,
                 },
-                WindView, // Marker for view toggling
+                WindView,
             ));
         });
     }
@@ -494,11 +503,15 @@ pub fn update_wind_particles(
 
         // Respawn if too old
         if particle.age > particle.lifetime {
-            // Reset to new random position
+            // Increment respawn counter for unique randomization
+            particle.respawn_count += 1;
+
+            // Use particle_id AND respawn_count for truly unique random position
             let golden_ratio = (1.0 + 5.0_f32.sqrt()) / 2.0;
-            let rand_val = (particle.age * 1000.0) % 1000.0; // pseudo-random
-            let theta = 2.0 * std::f32::consts::PI * rand_val / golden_ratio;
-            let phi = (1.0 - 2.0 * rand_val / 1000.0).acos();
+            let seed = ((particle.particle_id as f32 * 137.508) + (particle.respawn_count as f32 * 73.921)) % 1000.0;
+            let theta = 2.0 * std::f32::consts::PI * seed / golden_ratio;
+            let phi_seed = (seed + particle.respawn_count as f32 * 41.231) % 1000.0;
+            let phi = (1.0 - 2.0 * phi_seed / 1000.0).acos();
 
             let x = phi.sin() * theta.cos();
             let y = phi.sin() * theta.sin();
@@ -507,9 +520,15 @@ pub fn update_wind_particles(
             particle.position = Vec3::new(x, y, z).normalize();
             particle.age = 0.0;
 
-            // Recalculate eastward velocity
+            // Randomize next lifetime (8-12 seconds)
+            let lifetime_base = 10.0;
+            let lifetime_variation = 2.0;
+            let pseudo_random = ((particle.particle_id as f32 * 137.508 + particle.respawn_count as f32 * 89.123) % 100.0) / 100.0;
+            particle.lifetime = lifetime_base + (pseudo_random - 0.5) * 2.0 * lifetime_variation;
+
+            // Recalculate eastward velocity (west to east)
             let up = Vec3::Y;
-            let eastward = up.cross(particle.position).normalize();
+            let eastward = particle.position.cross(up).normalize();
             particle.velocity = eastward * settings.wind_speed;
         }
 
@@ -519,13 +538,26 @@ pub fn update_wind_particles(
         // Update position on sphere
         particle.position = (particle.position + displacement).normalize();
 
-        // Recalculate velocity to stay tangent to sphere
+        // Recalculate velocity to stay tangent to sphere (west to east)
         let up = Vec3::Y;
-        let eastward = up.cross(particle.position).normalize();
+        let eastward = particle.position.cross(up).normalize();
         particle.velocity = eastward * settings.wind_speed;
 
-        // Update transform
+        // Update transform with velocity-based stretching for trail effect
+        let velocity_length = particle.velocity.length();
+        let stretch_scale = 1.0 + (velocity_length * settings.wind_trail_length * 2.0);
+
+        // Calculate rotation to align with velocity direction
+        let velocity_dir = particle.velocity.normalize_or_zero();
+        let rotation = if velocity_dir.length() > 0.001 {
+            Quat::from_rotation_arc(Vec3::Z, velocity_dir)
+        } else {
+            Quat::IDENTITY
+        };
+
         transform.translation = particle.position * (radius + 0.5);
+        transform.rotation = rotation;
+        transform.scale = Vec3::new(1.0, 1.0, stretch_scale); // Stretch along Z (forward)
     }
 }
 

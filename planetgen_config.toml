@@ -100,3 +100,37 @@ snow_threshold = 1.4
 # Range: 0.0 to 0.5, Default: 0.2
 # Example: 0.2 means mountains form down to (continent_threshold - 0.2)
 mountain_underwater_threshold = 0.2
+
+[ocean]
+# === Ocean Visual Effects ===
+# Wave amplitude (height/intensity of ripples)
+# Range: 0.001 to 0.1, Default: 0.001
+# Lower values = flatter, calmer ocean; Higher values = more pronounced waves
+wave_amplitude = 0.001
+# Wave frequency (how many ripples per unit of space)
+# Range: 0.5 to 20.0, Default: 20.0
+# Lower values = larger, broader waves; Higher values = smaller, tighter ripples
+wave_frequency = 20.0
+# Wave animation speed (how fast ripples move)
+# Range: 0.1 to 5.0, Default: 0.5
+# Lower values = slow, peaceful motion; Higher values = fast, choppy motion
+wave_speed = 0.5
+# Normal perturbation scale (amplifies ripple visibility through lighting)
+# Range: 1.0 to 20.0, Default: 3.0
+# Lower values = subtle ripples; Higher values = very visible, dramatic ripples
+# This multiplies wave_amplitude when perturbing normals for lighting effects
+normal_perturbation_scale = 3.0
+
+[wind]
+# === Wind Visualization ===
+# Number of wind particles to spawn
+# Range: 100 to 2000, Default: 500
+# Higher values = more visible wind patterns but lower performance
+particle_count = 1500
+# Wind speed (how fast particles move across the surface)
+# Range: 0.1 to 2.0, Default: 0.5
+# Lower values = gentle breeze; Higher values = strong wind
+speed = 0.1
+# Trail length for wind particles (visual effect - not yet implemented)
+# Range: 1.0 to 5.0, Default: 2.0
+trail_length = 2.0

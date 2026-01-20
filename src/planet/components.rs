@@ -34,6 +34,10 @@ pub struct WindParticle {
     pub age: f32,
     /// Maximum lifetime before respawn
     pub lifetime: f32,
+    /// Unique particle ID for stable respawning
+    pub particle_id: u32,
+    /// Number of times this particle has respawned (for randomization)
+    pub respawn_count: u32,
 }
 
 /// Marker for wind visualization entities
