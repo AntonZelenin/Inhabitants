@@ -17,6 +17,7 @@ use bevy::prelude::*;
 use bevy_ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
 use crate::planet::wind_material::WindParticleMaterial;
+use rand::Rng;
 
 pub fn spawn_planet_on_event(
     mut commands: Commands,
@@ -436,8 +437,11 @@ pub fn spawn_wind_particles(
     let radius = settings.radius;
 
     // Create shared mesh and material (Bevy will batch these automatically)
-    let particle_mesh = meshes.add(Sphere::new(0.2).mesh().ico(2).unwrap());
+    // Using larger particles and stretching them creates visible trails
+    let particle_mesh = meshes.add(Sphere::new(0.5).mesh().ico(3).unwrap());
     let particle_material = materials.add(crate::planet::wind_material::WindParticleMaterial::default());
+
+    let mut rng = rand::rng();
 
     // Spawn particles uniformly distributed on sphere
     for i in 0..settings.wind_particle_count {
@@ -457,14 +461,11 @@ pub fn spawn_wind_particles(
         let eastward = position.cross(up).normalize();
         let velocity = eastward * settings.wind_speed;
 
-        // Randomize lifetime (8-12 seconds)
-        let lifetime_base = 10.0;
-        let lifetime_variation = 2.0;
-        let pseudo_random = ((i as f32 * 137.508) % 100.0) / 100.0;
-        let lifetime = lifetime_base + (pseudo_random - 0.5) * 2.0 * lifetime_variation;
+        // Randomize lifetime (3-5 seconds)
+        let lifetime = rng.random_range(2.0..4.0);
 
-        // Randomize initial age
-        let initial_age = pseudo_random * lifetime;
+        // Randomize initial age to prevent synchronized despawning
+        let initial_age = rng.random_range(0.0..lifetime);
 
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
@@ -496,6 +497,7 @@ pub fn update_wind_particles(
 ) {
     let dt = time.delta_secs();
     let radius = settings.radius;
+    let mut rng = rand::rng();
 
     for (mut transform, mut particle) in particles.iter_mut() {
         // Age the particle
@@ -506,25 +508,19 @@ pub fn update_wind_particles(
             // Increment respawn counter for unique randomization
             particle.respawn_count += 1;
 
-            // Use particle_id AND respawn_count for truly unique random position
-            let golden_ratio = (1.0 + 5.0_f32.sqrt()) / 2.0;
-            let seed = ((particle.particle_id as f32 * 137.508) + (particle.respawn_count as f32 * 73.921)) % 1000.0;
-            let theta = 2.0 * std::f32::consts::PI * seed / golden_ratio;
-            let phi_seed = (seed + particle.respawn_count as f32 * 41.231) % 1000.0;
-            let phi = (1.0 - 2.0 * phi_seed / 1000.0).acos();
+            // Randomly position on sphere
+            let theta = rng.random_range(0.0..std::f32::consts::TAU);
+            let z = rng.random_range(-1.0_f32..1.0_f32);
+            let r = (1.0 - z * z).sqrt();
 
-            let x = phi.sin() * theta.cos();
-            let y = phi.sin() * theta.sin();
-            let z = phi.cos();
+            let x = r * theta.cos();
+            let y = r * theta.sin();
 
             particle.position = Vec3::new(x, y, z).normalize();
             particle.age = 0.0;
 
-            // Randomize next lifetime (8-12 seconds)
-            let lifetime_base = 10.0;
-            let lifetime_variation = 2.0;
-            let pseudo_random = ((particle.particle_id as f32 * 137.508 + particle.respawn_count as f32 * 89.123) % 100.0) / 100.0;
-            particle.lifetime = lifetime_base + (pseudo_random - 0.5) * 2.0 * lifetime_variation;
+            // Randomize next lifetime (3-5 seconds)
+            particle.lifetime = rng.random_range(3.0..5.0);
 
             // Recalculate eastward velocity (west to east)
             let up = Vec3::Y;
@@ -545,7 +541,8 @@ pub fn update_wind_particles(
 
         // Update transform with velocity-based stretching for trail effect
         let velocity_length = particle.velocity.length();
-        let stretch_scale = 1.0 + (velocity_length * settings.wind_trail_length * 2.0);
+        // Much more aggressive stretching to make trails very visible
+        let stretch_scale = 1.0 + (velocity_length * settings.wind_trail_length * 10.0);
 
         // Calculate rotation to align with velocity direction
         let velocity_dir = particle.velocity.normalize_or_zero();

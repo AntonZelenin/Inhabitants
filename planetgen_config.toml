@@ -126,7 +126,7 @@ normal_perturbation_scale = 3.0
 # Number of wind particles to spawn
 # Range: 100 to 2000, Default: 500
 # Higher values = more visible wind patterns but lower performance
-particle_count = 1500
+particle_count = 3000
 # Wind speed (how fast particles move across the surface)
 # Range: 0.1 to 2.0, Default: 0.5
 # Lower values = gentle breeze; Higher values = strong wind
