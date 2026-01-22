@@ -246,11 +246,9 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.heading("Particle Settings");
     ui.add_space(5.0);
 
-    ui.label("Particle Count");
-    let mut particle_count = settings.wind_particle_count as i32;
-    ui.add(egui::Slider::new(&mut particle_count, 100..=2000)
-        .step_by(100.0));
-    settings.wind_particle_count = particle_count as usize;
+    // Display current particle count (read-only, set via config)
+    ui.label(format!("Particle Count: {} (set in config)", settings.wind_particle_count));
+    ui.add_space(5.0);
 
     ui.label("Wind Speed");
     ui.add(egui::Slider::new(&mut settings.wind_speed, 0.1..=2.0)

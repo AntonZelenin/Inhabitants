@@ -45,6 +45,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let fade = 1.0 - in.uv.x;
     alpha *= fade * fade * fade;  // Cubic falloff for very dramatic fade
 
+    // Age-based fade from vertex color alpha (set per-particle from Rust code)
+    // Vertex color alpha encodes the lifetime fade (0=just spawned/about to despawn, 1=mid-life)
+    alpha *= in.color.a;
+
     color.a = alpha;
 
     return color;

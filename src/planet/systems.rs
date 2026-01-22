@@ -19,6 +19,21 @@ use bevy_ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
 use rand::Rng;
 
+/// Calculate age-based fade for particle transparency
+/// Returns 0.0 at spawn/despawn, 1.0 at mid-life
+fn calculate_age_fade(lifetime_progress: f32) -> f32 {
+    if lifetime_progress < 0.2 {
+        // Fade in: 0% → 100% during first 20% of life
+        lifetime_progress / 0.2
+    } else if lifetime_progress > 0.8 {
+        // Fade out: 100% → 0% during last 20% of life
+        (1.0 - lifetime_progress) / 0.2
+    } else {
+        // Full opacity during middle 60% of life
+        1.0
+    }
+}
+
 pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut camera_events: MessageWriter<SetCameraPositionEvent>,
@@ -450,15 +465,14 @@ pub fn spawn_wind_particles(
 
     let radius = settings.radius;
 
-    // Create shared mesh and material (Bevy will batch these automatically)
-    // Using larger particles and stretching them creates visible trails
-    let particle_mesh = meshes.add(
-        Sphere::new(settings.wind_particle_mesh_size)
-            .mesh()
-            .ico(3)
-            .unwrap(),
-    );
-    let particle_material = materials.add(WindParticleMaterial::default());
+    // Create base mesh template
+    let base_mesh = Sphere::new(settings.wind_particle_mesh_size)
+        .mesh()
+        .ico(3)
+        .unwrap();
+
+    // Create single shared material (efficient batching!)
+    let particle_material_handle = materials.add(WindParticleMaterial::default());
 
     let mut rng = rand::rng();
 
@@ -487,10 +501,21 @@ pub fn spawn_wind_particles(
         // Randomize initial age to prevent synchronized despawning
         let initial_age = rng.random_range(0.0..lifetime);
 
+        // Calculate age-based fade for vertex colors
+        let lifetime_progress = initial_age / lifetime;
+        let age_fade = calculate_age_fade(lifetime_progress);
+
+        // Create mesh with vertex colors (white RGB, alpha = age_fade)
+        let mut particle_mesh = base_mesh.clone();
+        let vertex_count = particle_mesh.count_vertices();
+        let colors: Vec<[f32; 4]> = vec![[1.0, 1.0, 1.0, age_fade]; vertex_count];
+        particle_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+        let particle_mesh_handle = meshes.add(particle_mesh);
+
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
-                Mesh3d(particle_mesh.clone()),
-                MeshMaterial3d(particle_material.clone()),
+                Mesh3d(particle_mesh_handle),
+                MeshMaterial3d(particle_material_handle.clone()),
                 Transform::from_translation(
                     position * (radius + settings.wind_particle_height_offset),
                 ),
@@ -515,14 +540,26 @@ pub fn spawn_wind_particles(
 pub fn update_wind_particles(
     time: Res<Time>,
     settings: Res<PlanetGenerationSettings>,
-    mut particles: Query<(&mut Transform, &mut WindParticle)>,
+    mut particles: Query<(&mut Transform, &mut WindParticle, &Mesh3d)>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let dt = time.delta_secs();
     let radius = settings.radius;
     let mut rng = rand::rng();
 
-    for (mut transform, mut particle) in particles.iter_mut() {
+    for (mut transform, mut particle, mesh_handle) in particles.iter_mut() {
         // Age the particle
+        particle.age += dt;
+
+        // Update vertex colors for age-based fade
+        let lifetime_progress = (particle.age / particle.lifetime).clamp(0.0, 1.0);
+        let age_fade = calculate_age_fade(lifetime_progress);
+
+        if let Some(mesh) = meshes.get_mut(&mesh_handle.0) {
+            let vertex_count = mesh.count_vertices();
+            let colors: Vec<[f32; 4]> = vec![[1.0, 1.0, 1.0, age_fade]; vertex_count];
+            mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+        }
         particle.age += dt;
 
         // Respawn if too old
