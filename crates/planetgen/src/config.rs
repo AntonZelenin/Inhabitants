@@ -140,6 +140,11 @@ pub struct WindConfig {
     pub particle_count: usize,
     pub speed: f32,
     pub trail_length: f32,
+    pub particle_lifetime_min: f32,
+    pub particle_lifetime_max: f32,
+    pub particle_mesh_size: f32,
+    pub particle_height_offset: f32,
+    pub particle_stretch_multiplier: f32,
 }
 
 impl PlanetGenConfig {

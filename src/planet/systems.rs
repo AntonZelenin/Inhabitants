@@ -7,6 +7,7 @@ use crate::planet::components::{
 use crate::planet::events::*;
 use crate::planet::logic;
 use crate::planet::resources::*;
+use crate::planet::wind_material::WindParticleMaterial;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
@@ -16,7 +17,6 @@ use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
 use bevy_ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
-use crate::planet::wind_material::WindParticleMaterial;
 use rand::Rng;
 
 pub fn spawn_planet_on_event(
@@ -46,9 +46,18 @@ pub fn spawn_planet_on_event(
         let planet_data = logic::generate_planet_data(&settings);
 
         // PRESENTATION: Generate BOTH meshes (continent view and plate view)
-        let continent_mesh =
-            build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold, settings.continent_threshold);
-        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold, settings.continent_threshold);
+        let continent_mesh = build_stitched_planet_mesh(
+            &planet_data,
+            false,
+            settings.snow_threshold,
+            settings.continent_threshold,
+        );
+        let plate_mesh = build_stitched_planet_mesh(
+            &planet_data,
+            true,
+            settings.snow_threshold,
+            settings.continent_threshold,
+        );
 
         let continent_mesh_handle = meshes.add(continent_mesh);
         let plate_mesh_handle = meshes.add(plate_mesh);
@@ -188,7 +197,12 @@ fn build_stitched_planet_mesh(
         planetgen::mesh_data::ViewMode::Continents
     };
 
-    let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold, continent_threshold);
+    let mesh_data = planetgen::mesh_data::MeshData::from_planet(
+        planet,
+        view_mode,
+        snow_threshold,
+        continent_threshold,
+    );
 
     // Convert to Bevy mesh (thin presentation layer)
     let mut mesh = Mesh::new(
@@ -438,8 +452,13 @@ pub fn spawn_wind_particles(
 
     // Create shared mesh and material (Bevy will batch these automatically)
     // Using larger particles and stretching them creates visible trails
-    let particle_mesh = meshes.add(Sphere::new(0.5).mesh().ico(3).unwrap());
-    let particle_material = materials.add(crate::planet::wind_material::WindParticleMaterial::default());
+    let particle_mesh = meshes.add(
+        Sphere::new(settings.wind_particle_mesh_size)
+            .mesh()
+            .ico(3)
+            .unwrap(),
+    );
+    let particle_material = materials.add(WindParticleMaterial::default());
 
     let mut rng = rand::rng();
 
@@ -461,8 +480,9 @@ pub fn spawn_wind_particles(
         let eastward = position.cross(up).normalize();
         let velocity = eastward * settings.wind_speed;
 
-        // Randomize lifetime (3-5 seconds)
-        let lifetime = rng.random_range(2.0..4.0);
+        // Randomize lifetime using config values
+        let lifetime = rng
+            .random_range(settings.wind_particle_lifetime_min..settings.wind_particle_lifetime_max);
 
         // Randomize initial age to prevent synchronized despawning
         let initial_age = rng.random_range(0.0..lifetime);
@@ -471,7 +491,9 @@ pub fn spawn_wind_particles(
             parent.spawn((
                 Mesh3d(particle_mesh.clone()),
                 MeshMaterial3d(particle_material.clone()),
-                Transform::from_translation(position * (radius + 0.5)),
+                Transform::from_translation(
+                    position * (radius + settings.wind_particle_height_offset),
+                ),
                 Visibility::default(),
                 InheritedVisibility::default(),
                 ViewVisibility::default(),
@@ -519,8 +541,10 @@ pub fn update_wind_particles(
             particle.position = Vec3::new(x, y, z).normalize();
             particle.age = 0.0;
 
-            // Randomize next lifetime (3-5 seconds)
-            particle.lifetime = rng.random_range(3.0..5.0);
+            // Randomize next lifetime using config values
+            particle.lifetime = rng.random_range(
+                settings.wind_particle_lifetime_min..settings.wind_particle_lifetime_max,
+            );
 
             // Recalculate eastward velocity (west to east)
             let up = Vec3::Y;
@@ -541,8 +565,11 @@ pub fn update_wind_particles(
 
         // Update transform with velocity-based stretching for trail effect
         let velocity_length = particle.velocity.length();
-        // Much more aggressive stretching to make trails very visible
-        let stretch_scale = 1.0 + (velocity_length * settings.wind_trail_length * 10.0);
+        // Use config-based stretch multiplier for trail visibility
+        let stretch_scale = 1.0
+            + (velocity_length
+                * settings.wind_trail_length
+                * settings.wind_particle_stretch_multiplier);
 
         // Calculate rotation to align with velocity direction
         let velocity_dir = particle.velocity.normalize_or_zero();
@@ -552,7 +579,7 @@ pub fn update_wind_particles(
             Quat::IDENTITY
         };
 
-        transform.translation = particle.position * (radius + 0.5);
+        transform.translation = particle.position * (radius + settings.wind_particle_height_offset);
         transform.rotation = rotation;
         transform.scale = Vec3::new(1.0, 1.0, stretch_scale); // Stretch along Z (forward)
     }

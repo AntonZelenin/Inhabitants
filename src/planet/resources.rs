@@ -39,6 +39,11 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_count: usize,
     pub wind_speed: f32,
     pub wind_trail_length: f32,
+    pub wind_particle_lifetime_min: f32,
+    pub wind_particle_lifetime_max: f32,
+    pub wind_particle_mesh_size: f32,
+    pub wind_particle_height_offset: f32,
+    pub wind_particle_stretch_multiplier: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -77,6 +82,11 @@ impl Default for PlanetGenerationSettings {
             wind_particle_count: config.wind.particle_count,
             wind_speed: config.wind.speed,
             wind_trail_length: config.wind.trail_length,
+            wind_particle_lifetime_min: config.wind.particle_lifetime_min,
+            wind_particle_lifetime_max: config.wind.particle_lifetime_max,
+            wind_particle_mesh_size: config.wind.particle_mesh_size,
+            wind_particle_height_offset: config.wind.particle_height_offset,
+            wind_particle_stretch_multiplier: config.wind.particle_stretch_multiplier,
         }
     }
 }

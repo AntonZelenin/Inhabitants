@@ -126,11 +126,26 @@ normal_perturbation_scale = 3.0
 # Number of wind particles to spawn
 # Range: 100 to 2000, Default: 500
 # Higher values = more visible wind patterns but lower performance
-particle_count = 3000
+particle_count = 10000
 # Wind speed (how fast particles move across the surface)
 # Range: 0.1 to 2.0, Default: 0.5
 # Lower values = gentle breeze; Higher values = strong wind
-speed = 0.1
+speed = 0.07
 # Trail length for wind particles (visual effect - not yet implemented)
 # Range: 1.0 to 5.0, Default: 2.0
-trail_length = 2.0
+trail_length = 2.5
+# Particle lifetime range in seconds (min, max)
+# Range: 1.0 to 10.0, Default: (3.0, 5.0)
+# Lower values = particles respawn more frequently
+particle_lifetime_min = 3.0
+particle_lifetime_max = 5.0
+# Base mesh size for particles (sphere radius)
+# Range: 0.1 to 2.0, Default: 0.5
+particle_mesh_size = 0.5
+# Height offset above planet surface
+# Range: 0.1 to 2.0, Default: 0.5
+particle_height_offset = 0.5
+# Stretch multiplier for trail length
+# Range: 1.0 to 50.0, Default: 10.0
+# Higher values = longer visible trails
+particle_stretch_multiplier = 10.0
