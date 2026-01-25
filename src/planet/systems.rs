@@ -45,8 +45,8 @@ fn create_cone_mesh(radius: f32, height: f32) -> Mesh {
     let mut indices = Vec::new();
 
     // Simplified: only 4 rings and 6 segments for efficiency
-    let num_rings = 4;
-    let segments = 6; // Hexagonal cross-section
+    let num_rings = 3;
+    let segments = 4; // Hexagonal cross-section
     let angle_step = std::f32::consts::TAU / segments as f32;
 
     // Define radius at each ring position (creates the taper)
