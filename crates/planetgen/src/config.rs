@@ -145,6 +145,7 @@ pub struct WindConfig {
     pub particle_mesh_size: f32,
     pub particle_height_offset: f32,
     pub particle_stretch_multiplier: f32,
+    pub turn_rate: f32, // How quickly particles turn when changing direction (0.0-1.0, higher = faster turns)
 }
 
 impl PlanetGenConfig {

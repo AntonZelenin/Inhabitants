@@ -149,3 +149,7 @@ particle_height_offset = 0.5
 # Range: 1.0 to 50.0, Default: 10.0
 # Higher values = longer visible trails
 particle_stretch_multiplier = 10.0
+# Turn rate for directional changes at zone boundaries
+# Range: 0.01 to 1.0, Default: 0.1
+# Lower values = smoother, more gradual turns
+turn_rate = 0.1
