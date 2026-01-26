@@ -45,6 +45,8 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_height_offset: f32,
     pub wind_particle_stretch_multiplier: f32,
     pub wind_turn_rate: f32,
+    pub wind_particle_trail_segments: usize,
+    pub wind_particle_trail_width_ratio: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -89,6 +91,8 @@ impl Default for PlanetGenerationSettings {
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_particle_stretch_multiplier: config.wind.particle_stretch_multiplier,
             wind_turn_rate: config.wind.turn_rate,
+            wind_particle_trail_segments: config.wind.trail_segments,
+            wind_particle_trail_width_ratio: config.wind.trail_width_ratio,
         }
     }
 }

@@ -143,8 +143,8 @@ particle_lifetime_max = 5.0
 # Range: 0.1 to 2.0, Default: 0.5
 particle_mesh_size = 0.5
 # Height offset above planet surface
-# Range: 0.1 to 2.0, Default: 0.5
-particle_height_offset = 0.5
+# Range: 0.1 to 2.0, Default: 1.0
+particle_height_offset = 1.0
 # Stretch multiplier for trail length
 # Range: 1.0 to 50.0, Default: 10.0
 # Higher values = longer visible trails
@@ -153,3 +153,11 @@ particle_stretch_multiplier = 10.0
 # Range: 0.01 to 1.0, Default: 0.1
 # Lower values = smoother, more gradual turns
 turn_rate = 0.1
+# Number of trail segments (position history points) for curved trails
+# Range: 5 to 30, Default: 12
+# Higher values = smoother curved trails but more memory per particle
+trail_segments = 12
+# Trail width relative to particle head (0.0 = point, 1.0 = same width as head)
+# Range: 0.1 to 1.0, Default: 0.4
+# Lower values = thin, wispy trails; Higher values = thick, ribbon-like trails
+trail_width_ratio = 0.4
