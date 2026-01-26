@@ -24,6 +24,7 @@ impl Plugin for PlanetPlugin {
             .add_message::<ToggleArrowsEvent>()
             .add_message::<SetCameraPositionEvent>()
             .add_message::<SettingsChanged>()
+            .add_message::<WindTabActiveEvent>()
             .init_resource::<CurrentPlanetData>()
             .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle))
             .add_systems(
@@ -33,11 +34,10 @@ impl Plugin for PlanetPlugin {
                     handle_generate_new_seed,
                     planet_control,
                     smooth_camera_movement,
-                    wind_systems::despawn_wind_particles.run_if(resource_changed::<PlanetGenerationSettings>),
-                    wind_systems::spawn_wind_particles.run_if(resource_changed::<PlanetGenerationSettings>),
+                    wind_systems::despawn_wind_particles,
+                    wind_systems::spawn_wind_particles,
                     wind_systems::update_wind_particles,
                 )
-                    .chain() // Run in order
                     .run_if(in_state(GameState::PlanetGeneration)),
             );
     }

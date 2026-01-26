@@ -1,10 +1,133 @@
 use crate::planet::components::PlanetEntity;
+use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::wind::components::{WindParticle, WindView};
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-/// Spawn wind particles using GPU-based Hanabi particle system
+/// DEBUG: Spawn particles directly in front of camera to verify they work
+pub fn spawn_wind_particles(
+    mut commands: Commands,
+    mut effects: ResMut<Assets<EffectAsset>>,
+    mut events: MessageReader<WindTabActiveEvent>,
+    settings: Res<PlanetGenerationSettings>,
+    existing_particles: Query<Entity, With<WindParticle>>,
+    camera_query: Query<&Transform, With<Camera3d>>,
+) {
+    // Only process events
+    for event in events.read() {
+        if !event.active {
+            // Tab switched away from wind - handled by despawn system
+            continue;
+        }
+
+        // Wind tab activated - spawn particles
+        let existing_count = existing_particles.iter().count();
+        if existing_count > 0 {
+            info!("Wind particles already exist ({}), skipping spawn", existing_count);
+            continue;
+        }
+
+        let Ok(camera_transform) = camera_query.single() else {
+            warn!("Cannot spawn wind particles: no camera found");
+            continue;
+        };
+
+        info!("DEBUG: Spawning particles in front of camera at position: {:?}", camera_transform.translation);
+
+        // Create color gradient - BRIGHT RED for visibility
+        let mut color_gradient = bevy_hanabi::Gradient::new();
+        color_gradient.add_key(0.0, Vec4::new(1.0, 0.0, 0.0, 1.0)); // Bright red, opaque
+        color_gradient.add_key(1.0, Vec4::new(1.0, 0.0, 0.0, 1.0)); // Stay red
+
+        // Create size gradient - LARGE particles
+        let mut size_gradient = bevy_hanabi::Gradient::new();
+        let base_size = 5.0; // Very large for visibility
+        size_gradient.add_key(0.0, Vec3::splat(base_size));
+        size_gradient.add_key(1.0, Vec3::splat(base_size));
+
+        let avg_lifetime = 10.0; // Long lifetime for testing
+
+        let writer = ExprWriter::new();
+
+        let init_age = SetAttributeModifier::new(
+            Attribute::AGE,
+            writer.lit(0.0).expr(),
+        );
+
+        let lifetime = writer.lit(avg_lifetime).expr();
+        let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
+
+        // Position particles 50 units in front of camera
+        let spawn_position = camera_transform.translation + camera_transform.forward() * 50.0;
+
+        let init_pos = SetPositionCircleModifier {
+            center: writer.lit(spawn_position).expr(),
+            axis: writer.lit(Vec3::Z).expr(),
+            radius: writer.lit(20.0).expr(),
+            dimension: ShapeDimension::Surface,
+        };
+
+        let init_vel = SetVelocityCircleModifier {
+            center: writer.lit(spawn_position).expr(),
+            axis: writer.lit(Vec3::Z).expr(),
+            speed: writer.lit(0.0).expr(), // Stationary
+        };
+
+        info!(
+            "DEBUG: Spawning {} particles at position {:?} with size {}",
+            settings.wind_particle_count, spawn_position, base_size
+        );
+
+        // Use once spawner to create all particles at startup
+        let spawner = SpawnerSettings::once(CpuValue::Single(100.0)); // Just 100 particles for testing
+
+        let effect = EffectAsset::new(
+            32768,
+            spawner,
+            writer.finish(),
+        )
+        .with_name("debug_wind_particles")
+        .with_simulation_space(SimulationSpace::Global) // Global space for debugging
+        .init(init_pos)
+        .init(init_vel)
+        .init(init_age)
+        .init(init_lifetime)
+        .render(ColorOverLifetimeModifier::new(color_gradient))
+        .render(SizeOverLifetimeModifier {
+            gradient: size_gradient,
+            screen_space_size: false,
+        })
+        .render(OrientModifier::new(OrientMode::FaceCameraPosition));
+
+        let effect_handle = effects.add(effect);
+
+        // Spawn particle effect in world space (not as child of planet)
+        commands.spawn((
+            Name::new("debug_wind_particles"),
+            ParticleEffect::new(effect_handle),
+            Transform::from_translation(spawn_position),
+            GlobalTransform::default(),
+            Visibility::Visible,
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
+            WindParticle {
+                position: Vec3::ZERO,
+                velocity: Vec3::ZERO,
+                age: 0.0,
+                lifetime: 1.0,
+                particle_id: 0,
+                respawn_count: 0,
+                trail_positions: std::collections::VecDeque::new(),
+            },
+            WindView,
+        ));
+
+        info!("DEBUG: Wind particle effect spawned!");
+    }
+}
+
+/* ORIGINAL PRODUCTION CODE - COMMENTED OUT FOR DEBUGGING
 pub fn spawn_wind_particles(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
@@ -124,6 +247,7 @@ pub fn spawn_wind_particles(
         ));
     });
 }
+*/
 
 /// Update wind particles - with Hanabi, most updates happen on GPU
 /// This system just handles respawning the effect if settings change
@@ -143,18 +267,21 @@ pub fn update_wind_particles(
     }
 }
 
-/// Despawn wind particles when wind visualization is disabled
+/// Despawn wind particles when switching away from wind tab
 pub fn despawn_wind_particles(
     mut commands: Commands,
-    settings: Res<PlanetGenerationSettings>,
+    mut events: MessageReader<WindTabActiveEvent>,
     particles: Query<Entity, With<WindParticle>>,
 ) {
-    if !settings.show_wind {
-        let count = particles.iter().count();
-        if count > 0 {
-            info!("Despawning {} wind particle effects", count);
-            for entity in particles.iter() {
-                commands.entity(entity).despawn();
+    for event in events.read() {
+        if !event.active {
+            // Wind tab deactivated - despawn particles
+            let count = particles.iter().count();
+            if count > 0 {
+                info!("Despawning {} wind particle effects", count);
+                for entity in particles.iter() {
+                    commands.entity(entity).despawn();
+                }
             }
         }
     }

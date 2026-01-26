@@ -22,3 +22,4 @@ pub struct WindParticle {
 /// Marker for wind visualization entities
 #[derive(Component)]
 pub struct WindView;
+

@@ -32,6 +32,7 @@ pub fn render_planet_generation_ui(
     mut view_tab: ResMut<ViewTab>,
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
+    mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
     mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>)>,
     mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>)>,
@@ -70,6 +71,10 @@ pub fn render_planet_generation_ui(
                     if tab_changed {
                         let show_plates = *view_tab == ViewTab::Tectonic;
                         settings.view_mode_plates = show_plates;
+
+                        // Emit wind tab event when switching to/from wind tab
+                        let is_wind_active = *view_tab == ViewTab::Wind;
+                        wind_tab_events.write(WindTabActiveEvent { active: is_wind_active });
 
                         // Hide/show all entities in continent view
                         for mut visibility in continent_view_query.iter_mut() {
@@ -237,7 +242,6 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.heading("Wind Visualization");
     ui.add_space(5.0);
 
-    ui.checkbox(&mut settings.show_wind, "Show Wind Particles");
     ui.add_space(10.0);
 
     ui.separator();
