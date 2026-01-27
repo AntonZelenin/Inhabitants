@@ -10,13 +10,15 @@ use crate::core::state::GameState;
 use crate::planet::events::*;
 use crate::planet::resources::*;
 use crate::planet::systems::*;
+use crate::planet::wind::ComputeWindPlugin;
 use bevy::prelude::*;
 
 pub struct PlanetPlugin;
 
 impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<GeneratePlanetEvent>()
+        app.add_plugins(ComputeWindPlugin)
+            .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()
             .add_message::<SetCameraPositionEvent>()
