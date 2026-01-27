@@ -104,7 +104,35 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
 
     // TODO: Wind velocity calculation will go here
-    // For now, particles stay static (no movement)
+    // Calculate latitude-based wind velocity
+    // 0-30°: toward equator, 30-60°: away from equator, 60-90°: toward equator
+    let normalized_pos = normalize(particle.position);
+    
+    // Calculate latitude (angle from equator): asin(y)
+    let latitude_rad = asin(normalized_pos.y);
+    let latitude_deg = abs(degrees(latitude_rad));
+    
+    // Determine flow direction based on latitude bands
+    var flow_direction = 0.0;
+    if (latitude_deg < 30.0) {
+        flow_direction = -1.0; // toward equator
+    } else if (latitude_deg < 60.0) {
+        flow_direction = 1.0;  // away from equator
+    } else {
+        flow_direction = -1.0; // toward equator
+    }
+    
+    // Calculate tangent velocity (perpendicular to radial, moving in latitude direction)
+    // Create east-west tangent vector
+    let east = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), normalized_pos));
+    let north = normalize(cross(normalized_pos, east));
+    
+    // Move toward/away from equator based on latitude band
+    let speed = 3.0; // meters per second
+    particle.velocity = north * flow_direction * speed;
+    
+    // Apply velocity (move particle)
+    particle.position += particle.velocity * uniforms.delta_time;
 
     // Keep particle on sphere surface (in case of any floating point drift)
     let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
