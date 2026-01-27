@@ -3,7 +3,7 @@
 
 struct Particle {
     position: vec3<f32>,      // Position on sphere surface
-    velocity: vec3<f32>,      // Velocity tangent to sphere
+    velocity: vec3<f32>,      // Velocity tangent to sphere (unused for now - static particles)
     age: f32,                 // Current age in seconds
     lifetime: f32,            // Max lifetime before respawn
 }
@@ -18,20 +18,7 @@ struct Uniforms {
 @group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
 @group(0) @binding(1) var<uniform> uniforms: Uniforms;
 
-// Fibonacci sphere distribution for uniform points on a sphere
-fn fibonacci_sphere(i: u32, n: u32) -> vec3<f32> {
-    let phi = 3.14159265359 * (sqrt(5.0) - 1.0); // Golden angle
-    let y = 1.0 - (f32(i) / f32(n - 1u)) * 2.0;  // Y from 1 to -1
-    let radius = sqrt(1.0 - y * y);
-    let theta = phi * f32(i);
-
-    let x = cos(theta) * radius;
-    let z = sin(theta) * radius;
-
-    return normalize(vec3<f32>(x, y, z));
-}
-
-// Simple hash function for randomness
+// Hash function for pseudo-random values (similar to CPU's random_point_on_sphere approach)
 fn hash(n: u32) -> f32 {
     var x = n;
     x = x ^ (x >> 16u);
@@ -40,6 +27,25 @@ fn hash(n: u32) -> f32 {
     x = x * 0xc2b2ae35u;
     x = x ^ (x >> 16u);
     return f32(x) / 4294967296.0;
+}
+
+// Hash with two seeds for 2D randomness
+fn hash2(seed1: u32, seed2: u32) -> f32 {
+    return hash(seed1 * 7919u + seed2 * 31337u);
+}
+
+// Generate random point on sphere (similar to CPU's random_point_on_sphere)
+// Uses spherical coordinates with uniform distribution
+fn random_point_on_sphere(seed: u32) -> vec3<f32> {
+    let u = hash2(seed, 1u) * 2.0 - 1.0;  // cos(theta) in range [-1, 1]
+    let phi = hash2(seed, 2u) * 2.0 * 3.14159265359;  // azimuthal angle [0, 2π]
+    let t = sqrt(1.0 - u * u);  // sin(theta)
+
+    return vec3<f32>(
+        t * cos(phi),
+        u,
+        t * sin(phi)
+    );
 }
 
 @compute @workgroup_size(64)
@@ -51,16 +57,19 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         return;
     }
 
-    // Distribute particles uniformly on sphere using Fibonacci sphere
-    let direction = fibonacci_sphere(idx, particle_count);
+    // Generate RANDOM position on sphere (not Fibonacci - truly random!)
+    let direction = random_point_on_sphere(idx);
     let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
 
     particles[idx].position = direction * sphere_radius;
-    particles[idx].velocity = vec3<f32>(0.0, 0.0, 0.0);
+    particles[idx].velocity = vec3<f32>(0.0, 0.0, 0.0);  // Static for now
 
-    // Stagger particle ages so they don't all spawn at once
-    particles[idx].age = hash(idx) * 10.0;
-    particles[idx].lifetime = 10.0;
+    // ALL particles have SAME lifetime (5 seconds)
+    particles[idx].lifetime = 5.0;
+
+    // Stagger initial ages (0 to full lifetime) so particles spawn/despawn continuously
+    // This creates a rolling spawn/despawn effect
+    particles[idx].age = hash2(idx, 4u) * particles[idx].lifetime;
 }
 
 @compute @workgroup_size(64)
@@ -87,10 +96,8 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
         particle.position = direction * sphere_radius;
 
-        // New random lifetime
-        let lifetime_min = 3.0;
-        let lifetime_max = 10.0;
-        particle.lifetime = lifetime_min + hash2(time_seed, 5u) * (lifetime_max - lifetime_min);
+        // Keep SAME lifetime (5 seconds) - all particles have same lifecycle duration
+        particle.lifetime = 5.0;
 
         particle.age = 0.0;
         particle.velocity = vec3<f32>(0.0, 0.0, 0.0);  // Static for now - no wind movement yet

@@ -8,12 +8,14 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
+// CONSTANT: All particles have the same lifetime
+const PARTICLE_LIFETIME: f32 = 5.0;
+
 /// Marker component for wind particle visualization
 #[derive(Component)]
 pub struct WindParticle {
     pub index: u32,
-    pub age: f32,
-    pub lifetime: f32,
+    pub spawn_time: f32,  // When this particle was born (in elapsed seconds)
 }
 
 /// Update wind particle settings from planet generation settings
@@ -57,6 +59,7 @@ pub fn spawn_wind_particles(
     existing_particles: Query<Entity, With<WindParticle>>,
     settings: Res<WindParticleSettings>,
     planet_settings: Res<PlanetGenerationSettings>,
+    time: Res<Time>,
 ) {
     if !settings.enabled || !existing_particles.is_empty() {
         return;
@@ -67,7 +70,7 @@ pub fn spawn_wind_particles(
     };
 
     let particle_count = planet_settings.wind_particle_count;
-    info!("Spawning {} wind particles at TRULY random positions", particle_count);
+    info!("Spawning {} wind particles", particle_count);
 
     let sphere_mesh = meshes.add(Sphere::new(0.3).mesh().ico(2).unwrap());
     let material = materials.add(StandardMaterial {
@@ -77,20 +80,18 @@ pub fn spawn_wind_particles(
     });
 
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
-    let lifetime_min = planet_settings.wind_particle_lifetime_min;
-    let lifetime_max = planet_settings.wind_particle_lifetime_max;
 
     let mut rng = rand::rng();
+    let current_time = time.elapsed_secs();
 
     for i in 0..particle_count as u32 {
         // TRULY RANDOM position using proper RNG
         let position = random_point_on_sphere(&mut rng, sphere_radius as f64);
 
-        // Variable lifetime for each particle
-        let lifetime = rng.random_range(lifetime_min..=lifetime_max);
-
-        // Stagger initial ages so they don't all spawn at once
-        let initial_age = rng.random_range(0.0..lifetime * 0.95);
+        // Spawn time = current_time - rand(0, PARTICLE_LIFETIME)
+        // This makes each particle start at a different point in its lifecycle
+        let time_offset = rng.random_range(0.0..PARTICLE_LIFETIME);
+        let spawn_time = current_time - time_offset;
 
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
@@ -99,8 +100,7 @@ pub fn spawn_wind_particles(
                 Transform::from_translation(position),
                 WindParticle {
                     index: i,
-                    age: initial_age,
-                    lifetime,
+                    spawn_time,
                 },
             ));
         });
@@ -110,7 +110,6 @@ pub fn spawn_wind_particles(
 /// Update particle lifecycle - age, fade in/out, respawn
 pub fn update_particle_lifecycle(
     settings: Res<WindParticleSettings>,
-    planet_settings: Res<PlanetGenerationSettings>,
     time: Res<Time>,
     mut particles: Query<(
         &mut WindParticle,
@@ -123,10 +122,8 @@ pub fn update_particle_lifecycle(
         return;
     }
 
-    let delta = time.delta_secs();
+    let current_time = time.elapsed_secs();
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
-    let lifetime_min = planet_settings.wind_particle_lifetime_min;
-    let lifetime_max = planet_settings.wind_particle_lifetime_max;
 
     let fade_in_time = 0.3;
     let fade_out_time = 0.5;
@@ -134,25 +131,31 @@ pub fn update_particle_lifecycle(
     let mut rng = rand::rng();
 
     for (mut particle, mut transform, material_handle) in particles.iter_mut() {
-        // Update age
-        particle.age += delta;
+        // Calculate age: current_time - spawn_time
+        let age = current_time - particle.spawn_time;
 
         // Respawn if lifetime exceeded
-        if particle.age >= particle.lifetime {
-            particle.age = 0.0;
-
-            // New random lifetime
-            particle.lifetime = rng.random_range(lifetime_min..=lifetime_max);
+        if age >= PARTICLE_LIFETIME {
+            // Respawn NOW - set spawn_time to current moment
+            particle.spawn_time = current_time;
 
             // TRULY RANDOM position using proper RNG - different EVERY respawn!
             transform.translation = random_point_on_sphere(&mut rng, sphere_radius as f64);
         }
 
-        // Calculate alpha based on age (fade in/out)
-        let alpha = if particle.age < fade_in_time {
-            particle.age / fade_in_time
-        } else if particle.age > particle.lifetime - fade_out_time {
-            (particle.lifetime - particle.age) / fade_out_time
+        // Recalculate age after potential respawn
+        let age = current_time - particle.spawn_time;
+
+        // Calculate time until death: lifetime - age
+        let time_until_death = PARTICLE_LIFETIME - age;
+
+        // Calculate alpha based on age (fade in) and time_until_death (fade out)
+        // Fade in: first 0.3s after spawn
+        // Fade out: last 0.5s before death
+        let alpha = if age < fade_in_time {
+            age / fade_in_time
+        } else if time_until_death < fade_out_time {
+            time_until_death / fade_out_time
         } else {
             1.0
         };
