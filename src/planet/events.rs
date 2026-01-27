@@ -23,3 +23,6 @@ pub struct SettingsChanged;
 pub struct WindTabActiveEvent {
     pub active: bool,
 }
+
+#[derive(Message)]
+pub struct PlanetSpawnedEvent;

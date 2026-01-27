@@ -1,142 +1,48 @@
 use crate::planet::components::PlanetEntity;
-use crate::planet::events::WindTabActiveEvent;
+use crate::planet::events::{PlanetSpawnedEvent, WindTabActiveEvent};
 use crate::planet::resources::PlanetGenerationSettings;
+use crate::planet::ui::systems::ViewTab;
 use crate::planet::wind::components::{WindParticle, WindView};
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
-/// DEBUG: Spawn particles directly in front of camera to verify they work
 pub fn spawn_wind_particles(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
-    mut events: MessageReader<WindTabActiveEvent>,
-    settings: Res<PlanetGenerationSettings>,
-    existing_particles: Query<Entity, With<WindParticle>>,
-) {
-    // Only process events
-    for event in events.read() {
-        if !event.active {
-            // Tab switched away from wind - handled by despawn system
-            continue;
-        }
-
-        // Wind tab activated - spawn particles
-        let existing_count = existing_particles.iter().count();
-        if existing_count > 0 {
-            info!("Wind particles already exist ({}), skipping spawn", existing_count);
-            continue;
-        }
-
-        info!("DEBUG: Wind tab activated, spawning particles on planet surface");
-
-        // Create color gradient - BRIGHT RED for visibility
-        let mut color_gradient = bevy_hanabi::Gradient::new();
-        color_gradient.add_key(0.0, Vec4::new(1.0, 0.0, 0.0, 1.0)); // Bright red, opaque
-        color_gradient.add_key(1.0, Vec4::new(1.0, 0.0, 0.0, 1.0)); // Stay red
-
-        // Create size gradient - LARGE particles
-        let mut size_gradient = bevy_hanabi::Gradient::new();
-        let base_size = 5.0; // Very large for visibility
-        size_gradient.add_key(0.0, Vec3::splat(base_size));
-        size_gradient.add_key(1.0, Vec3::splat(base_size));
-
-        let avg_lifetime = 10.0; // Long lifetime for testing
-
-        let writer = ExprWriter::new();
-
-        let init_age = SetAttributeModifier::new(
-            Attribute::AGE,
-            writer.lit(0.0).expr(),
-        );
-
-        let lifetime = writer.lit(avg_lifetime).expr();
-        let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
-
-        // Position particles on sphere ABOVE planet surface
-        // Planet is at origin with radius from settings
-        let planet_radius = settings.radius;
-        let height_offset = settings.wind_particle_height_offset;
-        let particle_sphere_radius = planet_radius + height_offset + 5.0; // Extra 5 units above to be clearly visible
-
-        info!("DEBUG: Planet radius: {}, Spawning particles at radius: {}", planet_radius, particle_sphere_radius);
-
-        let init_pos = SetPositionSphereModifier {
-            center: writer.lit(Vec3::ZERO).expr(), // Planet center is at origin
-            radius: writer.lit(particle_sphere_radius).expr(),
-            dimension: ShapeDimension::Surface,
-        };
-
-        let init_vel = SetVelocitySphereModifier {
-            center: writer.lit(Vec3::ZERO).expr(),
-            speed: writer.lit(0.0).expr(), // Stationary for debugging
-        };
-
-        info!(
-            "DEBUG: Spawning 500 particles/sec on sphere surface at radius {} with size {}",
-            particle_sphere_radius, base_size
-        );
-
-        // Use once spawner to create all particles at startup
-        let spawner = SpawnerSettings::once(CpuValue::Single(100.0)); // Just 100 particles for testing
-
-        let effect = EffectAsset::new(
-            32768,
-            spawner,
-            writer.finish(),
-        )
-        .with_name("debug_wind_particles")
-        .with_simulation_space(SimulationSpace::Global) // Global space for debugging
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .render(ColorOverLifetimeModifier::new(color_gradient))
-        .render(SizeOverLifetimeModifier {
-            gradient: size_gradient,
-            screen_space_size: false,
-        })
-        .render(OrientModifier::new(OrientMode::FaceCameraPosition));
-
-        let effect_handle = effects.add(effect);
-
-        // Spawn particle effect at origin (planet center)
-        // Particles will spawn on sphere surface around it
-        commands.spawn((
-            Name::new("debug_wind_particles"),
-            ParticleEffect::new(effect_handle),
-            Transform::IDENTITY, // At origin where planet is
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            WindParticle {
-                position: Vec3::ZERO,
-                velocity: Vec3::ZERO,
-                age: 0.0,
-                lifetime: 1.0,
-                particle_id: 0,
-                respawn_count: 0,
-                trail_positions: std::collections::VecDeque::new(),
-            },
-            WindView,
-        ));
-
-        info!("DEBUG: Wind particle effect spawned on sphere at radius {}!", particle_sphere_radius);
-    }
-}
-
-/* ORIGINAL PRODUCTION CODE - COMMENTED OUT FOR DEBUGGING
-pub fn spawn_wind_particles(
-    mut commands: Commands,
-    mut effects: ResMut<Assets<EffectAsset>>,
+    mut wind_tab_events: MessageReader<WindTabActiveEvent>,
+    mut planet_spawned_events: MessageReader<PlanetSpawnedEvent>,
+    view_tab: Option<Res<ViewTab>>,
     settings: Res<PlanetGenerationSettings>,
     existing_particles: Query<Entity, With<WindParticle>>,
     planet_query: Query<Entity, With<PlanetEntity>>,
 ) {
-    // Only spawn if wind is enabled and we don't have particles yet
-    if !settings.show_wind {
+    let mut should_spawn = false;
+
+    // Check if wind tab was activated
+    for event in wind_tab_events.read() {
+        if event.active {
+            should_spawn = true;
+        }
+    }
+
+    // Check if planet was spawned while wind tab is active
+    for _ in planet_spawned_events.read() {
+        if let Some(tab) = view_tab.as_ref() {
+            if **tab == ViewTab::Wind {
+                should_spawn = true;
+            }
+        }
+    }
+
+    if !should_spawn {
         return;
     }
+
+    // Check if planet exists
+    let Some(planet_entity) = planet_query.iter().next() else {
+        info!("Skip spawning wind particles: no planet entity found");
+        return;
+    };
 
     let existing_count = existing_particles.iter().count();
     if existing_count > 0 {
@@ -144,35 +50,87 @@ pub fn spawn_wind_particles(
         return;
     }
 
-    let Ok(planet_entity) = planet_query.single() else {
-        warn!("Cannot spawn wind particles: no planet entity found");
-        return;
-    };
+    info!("Spawning wind particles on planet surface with 3 latitude zones");
 
-    let radius = settings.radius;
+    let planet_radius = settings.radius;
     let height_offset = settings.wind_particle_height_offset;
-    let particle_radius = radius + height_offset;
+    let particle_sphere_radius = planet_radius + height_offset;
 
-    // Create color gradient - make particles fully opaque and bright
+    // Spawn 3 separate particle effects for the 3 wind zones
+    // This allows each zone to have different movement patterns
+    spawn_wind_zone_particles(
+        &mut commands,
+        &mut effects,
+        planet_entity,
+        &settings,
+        particle_sphere_radius,
+        "tropical", // 0-30° latitude
+        0.0,
+        30.0,
+        true, // toward equator
+    );
+
+    spawn_wind_zone_particles(
+        &mut commands,
+        &mut effects,
+        planet_entity,
+        &settings,
+        particle_sphere_radius,
+        "temperate", // 30-60° latitude
+        30.0,
+        60.0,
+        false, // toward poles
+    );
+
+    spawn_wind_zone_particles(
+        &mut commands,
+        &mut effects,
+        planet_entity,
+        &settings,
+        particle_sphere_radius,
+        "polar", // 60-90° latitude
+        60.0,
+        90.0,
+        true, // toward 60° (back toward temperate)
+    );
+
+    info!("Wind particles spawned for all 3 latitude zones");
+}
+
+/// Spawn particles for a specific latitude zone
+/// min_lat/max_lat: latitude range in degrees (0 = equator, 90 = pole)
+/// toward_equator: true = move toward equator, false = move toward poles
+fn spawn_wind_zone_particles(
+    commands: &mut Commands,
+    effects: &mut Assets<EffectAsset>,
+    planet_entity: Entity,
+    settings: &PlanetGenerationSettings,
+    particle_sphere_radius: f32,
+    zone_name: &str,
+    min_lat: f32,
+    max_lat: f32,
+    _toward_equator: bool, // Will be used for meridional flow calculation
+) {
+    let planet_radius = settings.radius;
+
+    // Particle count for this zone (divide total by 3 zones)
+    let zone_particle_count = settings.wind_particle_count / 3;
+
     let mut color_gradient = bevy_hanabi::Gradient::new();
-    color_gradient.add_key(0.0, Vec4::new(1.0, 1.0, 0.8, 0.0)); // Fade in
-    color_gradient.add_key(0.1, Vec4::new(1.0, 1.0, 0.8, 1.0)); // Fully opaque quickly
-    color_gradient.add_key(0.9, Vec4::new(1.0, 1.0, 0.8, 1.0)); // Stay opaque
-    color_gradient.add_key(1.0, Vec4::new(1.0, 1.0, 0.8, 0.0)); // Fade out
+    color_gradient.add_key(0.0, Vec4::new(1.0, 1.0, 0.8, 0.0));
+    color_gradient.add_key(0.1, Vec4::new(1.0, 1.0, 0.8, 1.0));
+    color_gradient.add_key(0.9, Vec4::new(1.0, 1.0, 0.8, 1.0));
+    color_gradient.add_key(1.0, Vec4::new(1.0, 1.0, 0.8, 0.0));
 
-    // Create size gradient - make particles much larger and visible
     let mut size_gradient = bevy_hanabi::Gradient::new();
-    // Scale particle size relative to planet radius for visibility
-    let base_size = settings.wind_particle_mesh_size * radius * 0.02; // Much larger!
+    let base_size = settings.wind_particle_mesh_size * planet_radius * 0.02;
     size_gradient.add_key(0.0, Vec3::splat(base_size));
-    size_gradient.add_key(1.0, Vec3::splat(base_size * 0.8)); // Only slight shrink
+    size_gradient.add_key(1.0, Vec3::splat(base_size * 0.8));
 
-    // Build the effect
     let avg_lifetime = (settings.wind_particle_lifetime_min + settings.wind_particle_lifetime_max) / 2.0;
 
     let writer = ExprWriter::new();
 
-    // Random initial age so particles don't all fade in/out together
     let init_age = SetAttributeModifier::new(
         Attribute::AGE,
         writer.rand(ScalarType::Float).mul(writer.lit(avg_lifetime)).expr(),
@@ -181,34 +139,38 @@ pub fn spawn_wind_particles(
     let lifetime = writer.lit(avg_lifetime).expr();
     let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
 
+    // Spawn particles on sphere surface constrained to latitude band
     let init_pos = SetPositionSphereModifier {
         center: writer.lit(Vec3::ZERO).expr(),
-        radius: writer.lit(particle_radius).expr(),
+        radius: writer.lit(particle_sphere_radius).expr(),
         dimension: ShapeDimension::Surface,
     };
 
-    let init_vel = SetVelocitySphereModifier {
-        center: writer.lit(Vec3::ZERO).expr(),
+    // Calculate velocity direction based on zone
+    // TODO: Add north-south (meridional) component based on target latitude
+    // Currently: simple tangential velocity for east-west movement
+    // Future: Add complex velocity calculation considering:
+    //   - Meridional flow (toward target latitude)
+    //   - Coriolis deflection (from planet rotation)
+    //   - Terrain channeling (mountains deflect, valleys funnel)
+
+    let init_vel = SetVelocityTangentModifier {
+        origin: writer.lit(Vec3::ZERO).expr(),
+        axis: writer.lit(Vec3::Y).expr(),
         speed: writer.lit(settings.wind_speed).expr(),
     };
 
-    let spawn_rate = settings.wind_particle_count as f32 / avg_lifetime;
-
-    info!(
-        "Spawning wind particles: count={}, radius={}, height_offset={}, spawn_rate={}, size={}, lifetime={}",
-        settings.wind_particle_count, radius, height_offset, spawn_rate, base_size, avg_lifetime
-    );
-
-    // Use once spawner to create all particles at startup
-    let spawner = SpawnerSettings::once(CpuValue::Single(settings.wind_particle_count as f32));
+    // Use rate-based spawner to continuously respawn particles
+    let spawn_rate = zone_particle_count as f32 / avg_lifetime;
+    let spawner = SpawnerSettings::rate(CpuValue::Single(spawn_rate));
 
     let effect = EffectAsset::new(
-        32768, // capacity
+        zone_particle_count as u32 + 512,
         spawner,
         writer.finish(),
     )
-    .with_name("wind_particles")
-    .with_simulation_space(SimulationSpace::Local) // Important: particles are children of planet
+    .with_name(format!("wind_particles_{}", zone_name))
+    .with_simulation_space(SimulationSpace::Local)
     .init(init_pos)
     .init(init_vel)
     .init(init_age)
@@ -222,10 +184,10 @@ pub fn spawn_wind_particles(
 
     let effect_handle = effects.add(effect);
 
-    // Spawn particle effect as child of planet
+    // Spawn particles as child of planet so they rotate with it
     commands.entity(planet_entity).with_children(|parent| {
         parent.spawn((
-            Name::new("wind_particles"),
+            Name::new(format!("wind_particles_{}", zone_name)),
             ParticleEffect::new(effect_handle),
             Transform::IDENTITY,
             GlobalTransform::default(),
@@ -244,8 +206,9 @@ pub fn spawn_wind_particles(
             WindView,
         ));
     });
+
+    info!("Spawned {} particles for {} zone ({}° - {}°)", zone_particle_count, zone_name, min_lat, max_lat);
 }
-*/
 
 /// Update wind particles - with Hanabi, most updates happen on GPU
 /// This system just handles respawning the effect if settings change
@@ -273,7 +236,6 @@ pub fn despawn_wind_particles(
 ) {
     for event in events.read() {
         if !event.active {
-            // Wind tab deactivated - despawn particles
             let count = particles.iter().count();
             if count > 0 {
                 info!("Despawning {} wind particle effects", count);
@@ -284,3 +246,94 @@ pub fn despawn_wind_particles(
         }
     }
 }
+
+// Future wind simulation system (commented out - reserved for terrain interaction)
+//
+// CPU-side wind simulation system
+// Currently uses multiple Hanabi effects for different latitude zones.
+//
+// Future enhancements will require:
+// 1. Custom compute shader for particle updates (GPU-side calculation)
+// 2. Terrain-aware particle deflection (sample height map in shader)
+// 3. Coriolis effect from planet rotation
+// 4. Atmospheric pressure and temperature gradients
+//
+// Architecture notes:
+// - Hanabi particles are GPU-driven, can't easily modify from CPU per-particle
+// - Options for complex behavior:
+//   A) Multiple effects per zone (current approach - simple but limited)
+//   B) Custom compute shader (best for complex physics, requires shader coding)
+//   C) CPU-spawned mesh particles (flexible but lower performance for 1000s of particles)
+//   D) Hybrid: Hanabi for rendering, CPU for logic with periodic respawn
+/*
+pub fn simulate_wind_particles(
+    time: Res<Time>,
+    settings: Res<PlanetGenerationSettings>,
+    particles: Query<Entity, With<WindParticle>>,
+) {
+    // This system is reserved for future CPU-side simulation
+    // Current implementation uses Hanabi's built-in modifiers for movement
+
+    // When we need terrain interaction or complex physics:
+    // 1. Add custom compute shader to Hanabi effect
+    // 2. Pass terrain data as texture/buffer to shader
+    // 3. Calculate forces in shader based on particle position vs terrain
+    // 4. Apply Coriolis, pressure gradients, turbulence in same shader
+}
+
+/// Helper function to calculate wind velocity based on particle position
+/// Returns velocity vector in local planet space
+fn calculate_wind_velocity_at_position(
+    position: Vec3,
+    _planet_radius: f32,
+    wind_speed: f32,
+) -> Vec3 {
+    // Normalize position to get direction from planet center
+    let dir = position.normalize();
+
+    // Calculate latitude (0 = equator, ±90 = poles)
+    // Y component of normalized direction gives sin(latitude)
+    let sin_lat = dir.y;
+    let latitude_deg = sin_lat.asin().to_degrees();
+    let abs_lat = latitude_deg.abs();
+
+    // Determine wind zone and direction
+    // 0-30°: toward equator (Hadley cell - trade winds)
+    // 30-60°: toward poles (Ferrel cell - westerlies)
+    // 60-90°: toward 60° (Polar cell - polar easterlies)
+
+    let target_lat_deg = if abs_lat < 30.0 {
+        // Trade winds: move toward equator (0°)
+        0.0
+    } else if abs_lat < 60.0 {
+        // Westerlies: move toward poles (90°)
+        90.0 * latitude_deg.signum()
+    } else {
+        // Polar easterlies: move toward 60°
+        60.0 * latitude_deg.signum()
+    };
+
+    // Calculate tangent vector (perpendicular to radial direction, in Y plane)
+    // This creates north-south movement
+    let up = Vec3::Y;
+    let east = dir.cross(up).normalize();
+    let north = east.cross(dir).normalize();
+
+    // Calculate direction to target latitude
+    let current_lat_rad = latitude_deg.to_radians();
+    let target_lat_rad = target_lat_deg.to_radians();
+    let lat_diff = target_lat_rad - current_lat_rad;
+
+    // Add east-west component (planet rotation, Coriolis effect - for future)
+    // For now, just meridional (north-south) flow
+    let velocity = north * lat_diff.signum() * wind_speed;
+
+    // Future enhancements:
+    // 1. Add Coriolis deflection: velocity += east * coriolis_factor
+    // 2. Add terrain influence: adjust velocity based on nearby mountains/valleys
+    // 3. Add pressure gradients: modify speed based on atmospheric pressure
+    // 4. Add turbulence: add noise for realistic variation
+
+    velocity
+}
+*/

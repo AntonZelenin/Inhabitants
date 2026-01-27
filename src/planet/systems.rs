@@ -20,6 +20,7 @@ use planetgen::planet::PlanetData;
 pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut camera_events: MessageWriter<SetCameraPositionEvent>,
+    mut planet_spawned_events: MessageWriter<PlanetSpawnedEvent>,
     mut events: MessageReader<GeneratePlanetEvent>,
     mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -145,6 +146,9 @@ pub fn spawn_planet_on_event(
 
         // Store planet data after using it for generation
         current_planet_data.planet_data = Some(planet_data);
+
+        // Emit event to notify that planet was spawned
+        planet_spawned_events.write(PlanetSpawnedEvent);
     }
 }
 
