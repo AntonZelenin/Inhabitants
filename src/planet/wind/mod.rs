@@ -1,8 +1,6 @@
 pub mod components;
-pub mod systems;
 
 use bevy::prelude::*;
-use bevy_hanabi::prelude::*;
 
 pub struct WindPlugin;
 
