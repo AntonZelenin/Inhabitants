@@ -2992,6 +2992,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_egui",
  "bevy_kira_audio",
+ "bytemuck",
  "image",
  "log",
  "planetgen",
