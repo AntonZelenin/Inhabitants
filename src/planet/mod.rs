@@ -17,7 +17,8 @@ pub struct PlanetPlugin;
 
 impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ComputeWindPlugin)
+        app
+            .add_plugins(ComputeWindPlugin)
             .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()

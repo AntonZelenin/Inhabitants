@@ -17,7 +17,7 @@ use std::borrow::Cow;
 const WIND_COMPUTE_SHADER: &str = "shaders/wind_compute.wgsl";
 
 /// Number of particles to simulate
-pub const PARTICLE_COUNT: u32 = 500;
+pub const PARTICLE_COUNT: u32 = 2500;
 
 /// Workgroup size for compute shader (must match shader)
 const WORKGROUP_SIZE: u32 = 64;
