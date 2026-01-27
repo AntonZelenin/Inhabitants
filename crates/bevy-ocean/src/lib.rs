@@ -187,7 +187,10 @@ impl OceanMeshBuilder {
             metallic: 0.0,
             perceptual_roughness: 0.1,
             reflectance: 0.8,
-            alpha_mode: AlphaMode::Blend, // Enable transparency
+            // AlphaMode::Blend causes flickering with Hanabi particles due to Bevy's
+            // transparent-pass sorting (order-dependent transparency).
+            // alpha_mode: AlphaMode::Blend,
+            alpha_mode: AlphaMode::Opaque,
             unlit: false,
             double_sided: false,
             cull_mode: None,
