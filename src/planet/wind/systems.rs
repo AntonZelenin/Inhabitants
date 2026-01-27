@@ -3,13 +3,15 @@
 use crate::planet::components::PlanetEntity;
 use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
-use super::WindParticleSettings;
+use super::{WindParticleSettings, WindMaterial, WindParticleMaterial, WindTimeUniforms};
 use bevy::prelude::*;
 use rand::Rng;
 use std::f32::consts::PI;
 
 // CONSTANT: All particles have the same lifetime
 const PARTICLE_LIFETIME: f32 = 5.0;
+const FADE_IN_TIME: f32 = 0.3;
+const FADE_OUT_TIME: f32 = 0.5;
 
 /// Marker component for wind particle visualization
 #[derive(Component)]
@@ -35,7 +37,7 @@ pub fn update_wind_settings(
 pub fn handle_wind_tab_events(
     mut wind_tab_events: MessageReader<WindTabActiveEvent>,
     mut planet_settings: ResMut<PlanetGenerationSettings>,
-    mut existing_particles: Query<Entity, With<WindParticle>>,
+    existing_particles: Query<Entity, With<WindParticle>>,
     mut commands: Commands,
 ) {
     for event in wind_tab_events.read() {
@@ -54,7 +56,7 @@ pub fn handle_wind_tab_events(
 pub fn spawn_wind_particles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<WindMaterial>>,
     planet_query: Query<Entity, With<PlanetEntity>>,
     existing_particles: Query<Entity, With<WindParticle>>,
     settings: Res<WindParticleSettings>,
@@ -72,11 +74,22 @@ pub fn spawn_wind_particles(
     let particle_count = planet_settings.wind_particle_count;
     info!("Spawning {} wind particles", particle_count);
 
-    let sphere_mesh = meshes.add(Sphere::new(0.3).mesh().ico(2).unwrap());
-    let material = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 1.0, 0.8),
-        emissive: LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0,
-        ..default()
+    // Create shared material with time uniforms
+    let material = materials.add(WindMaterial {
+        base: StandardMaterial {
+            base_color: Color::srgb(1.0, 1.0, 0.8),
+            emissive: LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0,
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        },
+        extension: WindParticleMaterial {
+            time_uniforms: WindTimeUniforms {
+                time_now: time.elapsed_secs(),
+                lifetime: PARTICLE_LIFETIME,
+                fade_in: FADE_IN_TIME,
+                fade_out: FADE_OUT_TIME,
+            },
+        },
     });
 
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
@@ -93,9 +106,19 @@ pub fn spawn_wind_particles(
         let time_offset = rng.random_range(0.0..PARTICLE_LIFETIME);
         let spawn_time = current_time - time_offset;
 
+        // Create a unique mesh for each particle with spawn_time encoded in vertex color
+        let mut sphere_mesh = Sphere::new(0.3).mesh().ico(2).unwrap();
+
+        // Encode spawn_time in vertex color red channel
+        let vertex_count = sphere_mesh.count_vertices();
+        let spawn_time_colors = vec![[spawn_time, 0.0, 0.0, 1.0]; vertex_count];
+        sphere_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, spawn_time_colors);
+
+        let mesh_handle = meshes.add(sphere_mesh);
+
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
-                Mesh3d(sphere_mesh.clone()),
+                Mesh3d(mesh_handle),
                 MeshMaterial3d(material.clone()),
                 Transform::from_translation(position),
                 WindParticle {
@@ -107,16 +130,13 @@ pub fn spawn_wind_particles(
     }
 }
 
-/// Update particle lifecycle - age, fade in/out, respawn
-pub fn update_particle_lifecycle(
+/// Update time uniforms for all particles (shader calculates alpha)
+pub fn update_particle_time_uniforms(
     settings: Res<WindParticleSettings>,
     time: Res<Time>,
-    mut particles: Query<(
-        &mut WindParticle,
-        &mut Transform,
-        &MeshMaterial3d<StandardMaterial>,
-    )>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut particles: Query<(&mut WindParticle, &mut Transform, &Mesh3d, &MeshMaterial3d<WindMaterial>), With<WindParticle>>,
+    mut materials: ResMut<Assets<WindMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     if !settings.enabled {
         return;
@@ -124,13 +144,20 @@ pub fn update_particle_lifecycle(
 
     let current_time = time.elapsed_secs();
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
-
-    let fade_in_time = 0.3;
-    let fade_out_time = 0.5;
-
     let mut rng = rand::rng();
 
-    for (mut particle, mut transform, material_handle) in particles.iter_mut() {
+    // Update time uniforms in the shared material (only need to do once per frame)
+    let mut material_updated = false;
+
+    for (mut particle, mut transform, mesh_handle, material_handle) in particles.iter_mut() {
+        // Update time uniforms once
+        if !material_updated {
+            if let Some(material) = materials.get_mut(material_handle.id()) {
+                material.extension.time_uniforms.time_now = current_time;
+                material_updated = true;
+            }
+        }
+
         // Calculate age: current_time - spawn_time
         let age = current_time - particle.spawn_time;
 
@@ -141,30 +168,13 @@ pub fn update_particle_lifecycle(
 
             // TRULY RANDOM position using proper RNG - different EVERY respawn!
             transform.translation = random_point_on_sphere(&mut rng, sphere_radius as f64);
-        }
 
-        // Recalculate age after potential respawn
-        let age = current_time - particle.spawn_time;
-
-        // Calculate time until death: lifetime - age
-        let time_until_death = PARTICLE_LIFETIME - age;
-
-        // Calculate alpha based on age (fade in) and time_until_death (fade out)
-        // Fade in: first 0.3s after spawn
-        // Fade out: last 0.5s before death
-        let alpha = if age < fade_in_time {
-            age / fade_in_time
-        } else if time_until_death < fade_out_time {
-            time_until_death / fade_out_time
-        } else {
-            1.0
-        };
-
-        // Update material alpha
-        if let Some(material) = materials.get_mut(material_handle.id()) {
-            let base_emissive = LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0;
-            material.emissive = base_emissive * alpha;
-            material.base_color = Color::srgba(1.0, 1.0, 0.8, alpha);
+            // Update vertex colors to encode new spawn_time
+            if let Some(mesh) = meshes.get_mut(mesh_handle.id()) {
+                let vertex_count = mesh.count_vertices();
+                let spawn_time_colors = vec![[current_time, 0.0, 0.0, 1.0]; vertex_count];
+                mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, spawn_time_colors);
+            }
         }
     }
 }

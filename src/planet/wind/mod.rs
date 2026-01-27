@@ -3,6 +3,7 @@ pub mod systems;
 
 use bevy::{
     prelude::*,
+    pbr::{ExtendedMaterial, MaterialExtension},
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_graph::{RenderGraph, RenderLabel},
@@ -12,12 +13,39 @@ use bevy::{
     },
 };
 use std::borrow::Cow;
+use bevy::shader::ShaderRef;
 
 /// Shader asset path for wind particle compute shader
 const WIND_COMPUTE_SHADER: &str = "shaders/wind_compute.wgsl";
+const WIND_PARTICLE_SHADER: &str = "shaders/wind_particle.wgsl";
 
 /// Workgroup size for compute shader (must match shader)
 const WORKGROUP_SIZE: u32 = 64;
+
+// Material extension for wind particles with time uniforms
+// Extension bindings automatically go to bind group 2
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct WindParticleMaterial {
+    // StandardMaterial uses bindings 0..=12 in Bevy 0.17; extend at 13.
+    #[uniform(13)]
+    pub time_uniforms: WindTimeUniforms,
+}
+
+#[derive(Debug, Clone, ShaderType)]
+pub struct WindTimeUniforms {
+    pub time_now: f32,
+    pub lifetime: f32,
+    pub fade_in: f32,
+    pub fade_out: f32,
+}
+
+impl MaterialExtension for WindParticleMaterial {
+    fn fragment_shader() -> ShaderRef {
+        WIND_PARTICLE_SHADER.into()
+    }
+}
+
+pub type WindMaterial = ExtendedMaterial<StandardMaterial, WindParticleMaterial>;
 
 // Particle data structure matching the shader
 #[repr(C)]
@@ -66,12 +94,13 @@ pub struct ComputeWindPlugin;
 
 impl Plugin for ComputeWindPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WindParticleSettings>()
+        app.add_plugins(MaterialPlugin::<WindMaterial>::default())
+            .init_resource::<WindParticleSettings>()
             .add_plugins(ExtractResourcePlugin::<WindParticleSettings>::default())
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
             .add_systems(Update, systems::spawn_wind_particles)
-            .add_systems(Update, systems::update_particle_lifecycle);
+            .add_systems(Update, systems::update_particle_time_uniforms);
 
         let render_app = app.sub_app_mut(RenderApp);
         render_app
