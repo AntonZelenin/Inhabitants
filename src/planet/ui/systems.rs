@@ -254,7 +254,7 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
 
     ui.label("Wind Speed");
-    ui.add(egui::Slider::new(&mut settings.wind_speed, 0.1..=2.0)
+    ui.add(egui::Slider::new(&mut settings.wind_speed, 1.0..=10.0)
         .step_by(0.1));
 
     ui.label("Trail Length");

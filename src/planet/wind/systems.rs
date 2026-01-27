@@ -34,6 +34,16 @@ pub fn spawn_wind_particles(
         }
     }
 
+    // Also spawn if wind tab is active, particles don't exist, and planet exists
+    // This handles respawning after settings change (when update_wind_particles despawns old particles)
+    if !should_spawn {
+        if let Some(tab) = view_tab.as_ref() {
+            if **tab == ViewTab::Wind && existing_particles.is_empty() && !planet_query.is_empty() {
+                should_spawn = true;
+            }
+        }
+    }
+
     if !should_spawn {
         return;
     }
@@ -46,8 +56,7 @@ pub fn spawn_wind_particles(
 
     let existing_count = existing_particles.iter().count();
     if existing_count > 0 {
-        info!("Wind particles already exist ({}), skipping spawn", existing_count);
-        return;
+        return; // Already have particles, don't spawn more
     }
 
     info!("Spawning wind particles on planet surface with 3 latitude zones");
@@ -64,10 +73,9 @@ pub fn spawn_wind_particles(
         planet_entity,
         &settings,
         particle_sphere_radius,
-        "tropical", // 0-30° latitude
+        "tropical",
         0.0,
         30.0,
-        true, // toward equator
     );
 
     spawn_wind_zone_particles(
@@ -76,10 +84,9 @@ pub fn spawn_wind_particles(
         planet_entity,
         &settings,
         particle_sphere_radius,
-        "temperate", // 30-60° latitude
+        "temperate",
         30.0,
         60.0,
-        false, // toward poles
     );
 
     spawn_wind_zone_particles(
@@ -88,10 +95,9 @@ pub fn spawn_wind_particles(
         planet_entity,
         &settings,
         particle_sphere_radius,
-        "polar", // 60-90° latitude
+        "polar",
         60.0,
         90.0,
-        true, // toward 60° (back toward temperate)
     );
 
     info!("Wind particles spawned for all 3 latitude zones");
@@ -99,7 +105,7 @@ pub fn spawn_wind_particles(
 
 /// Spawn particles for a specific latitude zone
 /// min_lat/max_lat: latitude range in degrees (0 = equator, 90 = pole)
-/// toward_equator: true = move toward equator, false = move toward poles
+/// Wind direction is calculated automatically based on atmospheric circulation cells
 fn spawn_wind_zone_particles(
     commands: &mut Commands,
     effects: &mut Assets<EffectAsset>,
@@ -109,9 +115,21 @@ fn spawn_wind_zone_particles(
     zone_name: &str,
     min_lat: f32,
     max_lat: f32,
-    _toward_equator: bool, // Will be used for meridional flow calculation
 ) {
     let planet_radius = settings.radius;
+
+    // Calculate target latitude based on atmospheric circulation cells
+    let mid_lat = (min_lat + max_lat) / 2.0;
+    let target_latitude = if mid_lat < 30.0 {
+        // Hadley cell: move toward equator
+        0.0
+    } else if mid_lat < 60.0 {
+        // Ferrel cell: move toward poles
+        90.0
+    } else {
+        // Polar cell: move back toward 60°
+        60.0
+    };
 
     // Particle count for this zone (divide total by 3 zones)
     let zone_particle_count = settings.wind_particle_count / 3;
@@ -147,10 +165,10 @@ fn spawn_wind_zone_particles(
     };
 
     // Calculate velocity direction based on zone
-    // TODO: Add north-south (meridional) component based on target latitude
+    // TODO: Add north-south (meridional) component toward target_latitude
     // Currently: simple tangential velocity for east-west movement
     // Future: Add complex velocity calculation considering:
-    //   - Meridional flow (toward target latitude)
+    //   - Meridional flow (toward target_latitude calculated above)
     //   - Coriolis deflection (from planet rotation)
     //   - Terrain channeling (mountains deflect, valleys funnel)
 
@@ -160,9 +178,23 @@ fn spawn_wind_zone_particles(
         speed: writer.lit(settings.wind_speed).expr(),
     };
 
-    // Use rate-based spawner to continuously respawn particles
-    let spawn_rate = zone_particle_count as f32 / avg_lifetime;
+    // Use a rate spawner that will spawn all particles in the first frame
+    // Rate = particles_per_second, so set it very high to spawn all immediately
+    // Hanabi will naturally cap at the effect capacity and then maintain the count
+    let spawn_rate = zone_particle_count as f32 * 100.0; // Spawn 100x count per second = all in 0.01s
     let spawner = SpawnerSettings::rate(CpuValue::Single(spawn_rate));
+
+    // Keep particles constrained to sphere surface as they move
+    // This pulls particles back to the sphere if they drift away from the surface
+    let conform = ConformToSphereModifier {
+        origin: writer.lit(Vec3::ZERO).expr(),
+        radius: writer.lit(particle_sphere_radius).expr(),
+        influence_dist: writer.lit(particle_sphere_radius * 0.1).expr(),
+        attraction_accel: writer.lit(5.0).expr(),
+        max_attraction_speed: writer.lit(10.0).expr(),
+        shell_half_thickness: Some(writer.lit(0.5).expr()),
+        sticky_factor: Some(writer.lit(0.5).expr()),
+    };
 
     let effect = EffectAsset::new(
         zone_particle_count as u32 + 512,
@@ -175,6 +207,7 @@ fn spawn_wind_zone_particles(
     .init(init_vel)
     .init(init_age)
     .init(init_lifetime)
+    .update(conform)
     .render(ColorOverLifetimeModifier::new(color_gradient))
     .render(SizeOverLifetimeModifier {
         gradient: size_gradient,
@@ -207,24 +240,27 @@ fn spawn_wind_zone_particles(
         ));
     });
 
-    info!("Spawned {} particles for {} zone ({}° - {}°)", zone_particle_count, zone_name, min_lat, max_lat);
+    info!("Spawned {} particles for {} zone ({}° - {}°, target: {}°)", zone_particle_count, zone_name, min_lat, max_lat, target_latitude);
 }
 
-/// Update wind particles - with Hanabi, most updates happen on GPU
-/// This system just handles respawning the effect if settings change
+/// Update wind particles - respawn when settings change
+/// This ensures particles reflect updated wind speed and other settings
 pub fn update_wind_particles(
     mut commands: Commands,
     settings: Res<PlanetGenerationSettings>,
     particle_query: Query<(Entity, &ParticleEffect), With<WindParticle>>,
 ) {
-    // If settings changed, despawn old effect and spawn new one
+    // If settings changed while wind is visible, despawn and let spawn system recreate
     if settings.is_changed() && settings.show_wind {
-        // Despawn existing particles
-        for (entity, _) in particle_query.iter() {
-            commands.entity(entity).despawn();
+        let count = particle_query.iter().count();
+        if count > 0 {
+            info!("Wind settings changed, despawning {} particle effects for respawn", count);
+            for (entity, _) in particle_query.iter() {
+                commands.entity(entity).despawn();
+            }
+            // Respawn will happen automatically next frame via spawn_wind_particles
+            // which checks if particles exist before spawning
         }
-
-        // Respawn will happen automatically next frame via spawn_wind_particles
     }
 }
 

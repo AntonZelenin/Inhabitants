@@ -27,6 +27,10 @@ impl Plugin for PlanetPlugin {
             .add_message::<WindTabActiveEvent>()
             .add_message::<PlanetSpawnedEvent>()
             .init_resource::<CurrentPlanetData>()
+            .add_systems(
+                OnEnter(GameState::PlanetGeneration),
+                auto_generate_initial_planet,
+            )
             .add_systems(Update, (spawn_planet_on_event, handle_arrow_toggle))
             .add_systems(
                 Update,

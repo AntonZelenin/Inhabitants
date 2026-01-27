@@ -431,3 +431,12 @@ pub fn handle_generate_new_seed(
         settings_changed_events.write(SettingsChanged);
     }
 }
+
+/// Automatically generate a planet when entering PlanetGeneration state
+/// This eliminates the need to click "Generate" button on startup
+pub fn auto_generate_initial_planet(
+    mut planet_events: MessageWriter<GeneratePlanetEvent>,
+) {
+    info!("Auto-generating initial planet on game load");
+    planet_events.write(GeneratePlanetEvent);
+}
