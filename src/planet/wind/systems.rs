@@ -12,7 +12,6 @@ pub fn spawn_wind_particles(
     mut events: MessageReader<WindTabActiveEvent>,
     settings: Res<PlanetGenerationSettings>,
     existing_particles: Query<Entity, With<WindParticle>>,
-    camera_query: Query<&Transform, With<Camera3d>>,
 ) {
     // Only process events
     for event in events.read() {
@@ -28,12 +27,7 @@ pub fn spawn_wind_particles(
             continue;
         }
 
-        let Ok(camera_transform) = camera_query.single() else {
-            warn!("Cannot spawn wind particles: no camera found");
-            continue;
-        };
-
-        info!("DEBUG: Spawning particles in front of camera at position: {:?}", camera_transform.translation);
+        info!("DEBUG: Wind tab activated, spawning particles on planet surface");
 
         // Create color gradient - BRIGHT RED for visibility
         let mut color_gradient = bevy_hanabi::Gradient::new();
@@ -58,25 +52,28 @@ pub fn spawn_wind_particles(
         let lifetime = writer.lit(avg_lifetime).expr();
         let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
 
-        // Position particles 50 units in front of camera
-        let spawn_position = camera_transform.translation + camera_transform.forward() * 50.0;
+        // Position particles on sphere ABOVE planet surface
+        // Planet is at origin with radius from settings
+        let planet_radius = settings.radius;
+        let height_offset = settings.wind_particle_height_offset;
+        let particle_sphere_radius = planet_radius + height_offset + 5.0; // Extra 5 units above to be clearly visible
 
-        let init_pos = SetPositionCircleModifier {
-            center: writer.lit(spawn_position).expr(),
-            axis: writer.lit(Vec3::Z).expr(),
-            radius: writer.lit(20.0).expr(),
+        info!("DEBUG: Planet radius: {}, Spawning particles at radius: {}", planet_radius, particle_sphere_radius);
+
+        let init_pos = SetPositionSphereModifier {
+            center: writer.lit(Vec3::ZERO).expr(), // Planet center is at origin
+            radius: writer.lit(particle_sphere_radius).expr(),
             dimension: ShapeDimension::Surface,
         };
 
-        let init_vel = SetVelocityCircleModifier {
-            center: writer.lit(spawn_position).expr(),
-            axis: writer.lit(Vec3::Z).expr(),
-            speed: writer.lit(0.0).expr(), // Stationary
+        let init_vel = SetVelocitySphereModifier {
+            center: writer.lit(Vec3::ZERO).expr(),
+            speed: writer.lit(0.0).expr(), // Stationary for debugging
         };
 
         info!(
-            "DEBUG: Spawning {} particles at position {:?} with size {}",
-            settings.wind_particle_count, spawn_position, base_size
+            "DEBUG: Spawning 500 particles/sec on sphere surface at radius {} with size {}",
+            particle_sphere_radius, base_size
         );
 
         // Use once spawner to create all particles at startup
@@ -102,11 +99,12 @@ pub fn spawn_wind_particles(
 
         let effect_handle = effects.add(effect);
 
-        // Spawn particle effect in world space (not as child of planet)
+        // Spawn particle effect at origin (planet center)
+        // Particles will spawn on sphere surface around it
         commands.spawn((
             Name::new("debug_wind_particles"),
             ParticleEffect::new(effect_handle),
-            Transform::from_translation(spawn_position),
+            Transform::IDENTITY, // At origin where planet is
             GlobalTransform::default(),
             Visibility::Visible,
             InheritedVisibility::default(),
@@ -123,7 +121,7 @@ pub fn spawn_wind_particles(
             WindView,
         ));
 
-        info!("DEBUG: Wind particle effect spawned!");
+        info!("DEBUG: Wind particle effect spawned on sphere at radius {}!", particle_sphere_radius);
     }
 }
 

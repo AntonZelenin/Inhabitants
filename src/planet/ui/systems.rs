@@ -239,7 +239,6 @@ fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSetting
 }
 
 fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
-    ui.heading("Wind Visualization");
     ui.add_space(5.0);
 
     ui.add_space(10.0);
