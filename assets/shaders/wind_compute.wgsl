@@ -79,17 +79,27 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     // Respawn if lifetime exceeded
     if (particle.age >= particle.lifetime) {
-        let direction = fibonacci_sphere(idx, particle_count);
+        // Use total_time + idx for unique seed each respawn (changes over time!)
+        let time_seed = u32(uniforms.total_time * 1000.0) + idx;
+
+        // Generate NEW random position (different every respawn!)
+        let direction = random_point_on_sphere(time_seed);
         let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
         particle.position = direction * sphere_radius;
-        particle.velocity = vec3<f32>(0.0, 0.0, 0.0);
+
+        // New random lifetime
+        let lifetime_min = 3.0;
+        let lifetime_max = 10.0;
+        particle.lifetime = lifetime_min + hash2(time_seed, 5u) * (lifetime_max - lifetime_min);
+
         particle.age = 0.0;
+        particle.velocity = vec3<f32>(0.0, 0.0, 0.0);  // Static for now - no wind movement yet
     }
 
-    // Update position based on velocity
-    particle.position += particle.velocity * uniforms.delta_time;
+    // TODO: Wind velocity calculation will go here
+    // For now, particles stay static (no movement)
 
-    // Keep particle on sphere surface
+    // Keep particle on sphere surface (in case of any floating point drift)
     let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
     particle.position = normalize(particle.position) * sphere_radius;
 
