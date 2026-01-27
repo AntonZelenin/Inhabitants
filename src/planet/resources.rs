@@ -33,6 +33,20 @@ pub struct PlanetGenerationSettings {
     pub ocean_wave_amplitude: f32,
     pub ocean_wave_frequency: f32,
     pub ocean_wave_speed: f32,
+    pub ocean_normal_perturbation_scale: f32,
+    // Wind visualization settings
+    pub show_wind: bool,
+    pub wind_particle_count: usize,
+    pub wind_speed: f32,
+    pub wind_trail_length: f32,
+    pub wind_particle_lifetime_min: f32,
+    pub wind_particle_lifetime_max: f32,
+    pub wind_particle_mesh_size: f32,
+    pub wind_particle_height_offset: f32,
+    pub wind_particle_stretch_multiplier: f32,
+    pub wind_turn_rate: f32,
+    pub wind_particle_trail_segments: usize,
+    pub wind_particle_trail_width_ratio: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -63,9 +77,22 @@ impl Default for PlanetGenerationSettings {
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
             show_ocean: true,
-            ocean_wave_amplitude: 0.05,
-            ocean_wave_frequency: 0.5,
-            ocean_wave_speed: 0.5,
+            ocean_wave_amplitude: config.ocean.wave_amplitude,
+            ocean_wave_frequency: config.ocean.wave_frequency,
+            ocean_wave_speed: config.ocean.wave_speed,
+            ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
+            show_wind: false,
+            wind_particle_count: config.wind.particle_count,
+            wind_speed: config.wind.speed,
+            wind_trail_length: config.wind.trail_length,
+            wind_particle_lifetime_min: config.wind.particle_lifetime_min,
+            wind_particle_lifetime_max: config.wind.particle_lifetime_max,
+            wind_particle_mesh_size: config.wind.particle_mesh_size,
+            wind_particle_height_offset: config.wind.particle_height_offset,
+            wind_particle_stretch_multiplier: config.wind.particle_stretch_multiplier,
+            wind_turn_rate: config.wind.turn_rate,
+            wind_particle_trail_segments: config.wind.trail_segments,
+            wind_particle_trail_width_ratio: config.wind.trail_width_ratio,
         }
     }
 }

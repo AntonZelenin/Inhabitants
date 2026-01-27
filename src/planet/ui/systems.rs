@@ -32,6 +32,7 @@ pub fn render_planet_generation_ui(
     mut view_tab: ResMut<ViewTab>,
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
+    mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
     mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>)>,
     mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>)>,
@@ -70,6 +71,10 @@ pub fn render_planet_generation_ui(
                     if tab_changed {
                         let show_plates = *view_tab == ViewTab::Tectonic;
                         settings.view_mode_plates = show_plates;
+
+                        // Emit wind tab event when switching to/from wind tab
+                        let is_wind_active = *view_tab == ViewTab::Wind;
+                        wind_tab_events.write(WindTabActiveEvent { active: is_wind_active });
 
                         // Hide/show all entities in continent view
                         for mut visibility in continent_view_query.iter_mut() {
@@ -233,15 +238,35 @@ fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSetting
     ui.checkbox(&mut settings.show_arrows, "Show Plate Direction Arrows");
 }
 
-fn render_wind_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSettings) {
-    ui.heading("Wind Patterns");
+fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
 
-    ui.label("Wind visualization coming soon...");
+    ui.add_space(10.0);
+
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Particle Settings");
+    ui.add_space(5.0);
+
+    // Display current particle count (read-only, set via config)
+    ui.label(format!("Particle Count: {} (set in config)", settings.wind_particle_count));
+    ui.add_space(5.0);
+
+    ui.label("Wind Speed");
+    ui.add(egui::Slider::new(&mut settings.wind_speed, 1.0..=10.0)
+        .step_by(0.1));
+
+    ui.label("Trail Length");
+    ui.add(egui::Slider::new(&mut settings.wind_trail_length, 0.5..=5.0)
+        .step_by(0.1));
+
+    ui.add_space(10.0);
+    ui.separator();
     ui.add_space(10.0);
 
     ui.colored_label(
         egui::Color32::GRAY,
-        "This tab will display wind pattern settings\nand atmospheric circulation models."
+        "Currently showing uniform eastward wind flow.\nFuture updates will add realistic atmospheric circulation."
     );
 }
