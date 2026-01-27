@@ -16,9 +16,6 @@ use std::borrow::Cow;
 /// Shader asset path for wind particle compute shader
 const WIND_COMPUTE_SHADER: &str = "shaders/wind_compute.wgsl";
 
-/// Number of particles to simulate
-pub const PARTICLE_COUNT: u32 = 500;
-
 /// Workgroup size for compute shader (must match shader)
 const WORKGROUP_SIZE: u32 = 64;
 
@@ -50,6 +47,7 @@ struct WindUniforms {
 pub struct WindParticleSettings {
     pub planet_radius: f32,
     pub particle_height_offset: f32,
+    pub particle_count: usize,
     pub enabled: bool,
 }
 
@@ -58,6 +56,7 @@ impl Default for WindParticleSettings {
         Self {
             planet_radius: 50.0,
             particle_height_offset: 2.0,
+            particle_count: 500,
             enabled: true,
         }
     }
@@ -71,7 +70,8 @@ impl Plugin for ComputeWindPlugin {
             .add_plugins(ExtractResourcePlugin::<WindParticleSettings>::default())
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
-            .add_systems(Update, systems::spawn_debug_particles);
+            .add_systems(Update, systems::spawn_wind_particles)
+            .add_systems(Update, systems::update_particle_lifecycle);
 
         let render_app = app.sub_app_mut(RenderApp);
         render_app
@@ -178,7 +178,7 @@ fn prepare_wind_resources(
     if buffers.is_none() {
         let particle_buffer = render_device.create_buffer(&BufferDescriptor {
             label: Some("wind_particle_buffer"),
-            size: (PARTICLE_COUNT as usize * std::mem::size_of::<GpuParticle>()) as u64,
+            size: (settings.particle_count * std::mem::size_of::<GpuParticle>()) as u64,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -283,6 +283,7 @@ impl bevy::render::render_graph::Node for WindComputeNode {
 
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<WindComputePipeline>();
+        let settings = world.resource::<WindParticleSettings>();
         let Some(buffers) = world.get_resource::<WindGpuBuffers>() else {
             return Ok(());
         };
@@ -294,6 +295,8 @@ impl bevy::render::render_graph::Node for WindComputeNode {
                 timestamp_writes: None,
             });
 
+        let particle_count = settings.particle_count as u32;
+
         match state {
             WindComputeState::Loading => {}
             WindComputeState::Init => {
@@ -302,7 +305,7 @@ impl bevy::render::render_graph::Node for WindComputeNode {
                 };
                 pass.set_bind_group(0, &buffers.bind_group, &[]);
                 pass.set_pipeline(init_pipeline);
-                pass.dispatch_workgroups((PARTICLE_COUNT + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE, 1, 1);
+                pass.dispatch_workgroups((particle_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE, 1, 1);
             }
             WindComputeState::Update => {
                 let Some(update_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.update_pipeline) else {
@@ -310,7 +313,7 @@ impl bevy::render::render_graph::Node for WindComputeNode {
                 };
                 pass.set_bind_group(0, &buffers.bind_group, &[]);
                 pass.set_pipeline(update_pipeline);
-                pass.dispatch_workgroups((PARTICLE_COUNT + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE, 1, 1);
+                pass.dispatch_workgroups((particle_count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE, 1, 1);
             }
         }
 
