@@ -130,8 +130,8 @@ pub fn spawn_wind_particles(
     }
 }
 
-/// Update time uniforms for all particles (shader calculates alpha)
-pub fn update_particle_time_uniforms(
+/// Update particles with movement AND time uniforms (mimics GPU compute shader behavior)
+pub fn update_particle_with_movement(
     settings: Res<WindParticleSettings>,
     time: Res<Time>,
     mut particles: Query<(&mut WindParticle, &mut Transform, &Mesh3d, &MeshMaterial3d<WindMaterial>), With<WindParticle>>,
@@ -143,6 +143,7 @@ pub fn update_particle_time_uniforms(
     }
 
     let current_time = time.elapsed_secs();
+    let delta_time = time.delta_secs();
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
     let mut rng = rand::rng();
 
@@ -176,6 +177,49 @@ pub fn update_particle_time_uniforms(
                 mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, spawn_time_colors);
             }
         }
+
+        // === LATITUDE-BASED MOVEMENT (matching GPU compute shader) ===
+        let normalized_pos = transform.translation.normalize();
+        
+        // Calculate latitude (angle from equator): asin(y)
+        let latitude_rad = normalized_pos.y.asin();
+        let latitude_deg = latitude_rad.to_degrees().abs();
+        
+        // Determine flow direction based on latitude bands
+        // 0-30°: toward equator (-1.0)
+        // 30-60°: away from equator (+1.0)
+        // 60-90°: toward equator (-1.0)
+        let flow_direction = if latitude_deg < 30.0 {
+            -1.0
+        } else if latitude_deg < 60.0 {
+            1.0
+        } else {
+            -1.0
+        };
+        
+        // Calculate tangent velocity (perpendicular to radial, moving in latitude direction)
+        // Create east-west tangent vector
+        let up = Vec3::Y;
+        let east = up.cross(normalized_pos).normalize_or_zero();
+        
+        // Handle poles where cross product is zero
+        let east = if east.length_squared() < 0.001 {
+            Vec3::X
+        } else {
+            east
+        };
+        
+        let north = normalized_pos.cross(east).normalize();
+        
+        // Move toward/away from equator based on latitude band
+        let speed = 3.0; // meters per second (matches GPU shader)
+        let velocity = north * flow_direction * speed;
+        
+        // Apply velocity (move particle)
+        transform.translation += velocity * delta_time;
+        
+        // Keep particle on sphere surface (re-normalize to sphere radius)
+        transform.translation = transform.translation.normalize() * sphere_radius;
     }
 }
 

@@ -102,8 +102,7 @@ impl Plugin for ComputeWindPlugin {
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
             .add_systems(Update, systems::spawn_wind_particles)
-            .add_systems(Update, systems::update_particle_time_uniforms);
-            // CPU systems handle visualization while GPU compute updates positions in background
+            .add_systems(Update, systems::update_particle_with_movement);
 
         let render_app = app.sub_app_mut(RenderApp);
         render_app
