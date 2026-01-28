@@ -3,7 +3,7 @@
 
 struct Particle {
     position: vec3<f32>,      // Position on sphere surface
-    velocity: vec3<f32>,      // Velocity tangent to sphere (unused for now - static particles)
+    velocity: vec3<f32>,      // Velocity tangent to sphere
     age: f32,                 // Current age in seconds
     lifetime: f32,            // Max lifetime before respawn
 }
@@ -62,7 +62,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let sphere_radius = uniforms.planet_radius + uniforms.particle_height_offset;
 
     particles[idx].position = direction * sphere_radius;
-    particles[idx].velocity = vec3<f32>(0.0, 0.0, 0.0);  // Static for now
+    particles[idx].velocity = vec3<f32>(0.0, 0.0, 0.0);
 
     // ALL particles have SAME lifetime (5 seconds)
     particles[idx].lifetime = 5.0;
@@ -100,11 +100,10 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         particle.lifetime = 5.0;
 
         particle.age = 0.0;
-        particle.velocity = vec3<f32>(0.0, 0.0, 0.0);  // Static for now - no wind movement yet
+        particle.velocity = vec3<f32>(0.0, 0.0, 0.0);
     }
 
-    // TODO: Wind velocity calculation will go here
-    // Calculate latitude-based wind velocity
+    // Calculate latitude-based wind velocity (equator-relative)
     // 0-30°: toward equator, 30-60°: away from equator, 60-90°: toward equator
     let normalized_pos = normalize(particle.position);
     
@@ -112,14 +111,16 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let latitude_rad = asin(normalized_pos.y);
     let latitude_deg = abs(degrees(latitude_rad));
     
-    // Determine flow direction based on latitude bands
+    // Determine flow direction based on latitude bands (equator-relative)
+    // Use sign of latitude so particles move correctly in both hemispheres
+    let lat_sign = sign(latitude_rad);
     var flow_direction = 0.0;
     if (latitude_deg < 30.0) {
-        flow_direction = -1.0; // toward equator
+        flow_direction = -lat_sign;  // toward equator
     } else if (latitude_deg < 60.0) {
-        flow_direction = 1.0;  // away from equator
+        flow_direction = lat_sign;   // away from equator
     } else {
-        flow_direction = -1.0; // toward equator
+        flow_direction = -lat_sign;  // toward equator
     }
     
     // Calculate tangent velocity (perpendicular to radial, moving in latitude direction)
