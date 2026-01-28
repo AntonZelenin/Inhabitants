@@ -18,3 +18,11 @@ pub struct SetCameraPositionEvent {
 
 #[derive(Message)]
 pub struct SettingsChanged;
+
+#[derive(Message)]
+pub struct WindTabActiveEvent {
+    pub active: bool,
+}
+
+#[derive(Message)]
+pub struct PlanetSpawnedEvent;
