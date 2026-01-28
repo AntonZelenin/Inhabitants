@@ -10,7 +10,7 @@ use std::f32::consts::PI;
 
 // CONSTANT: All particles have the same lifetime
 const PARTICLE_LIFETIME: f32 = 5.0;
-const FADE_IN_TIME: f32 = 0.3;
+const FADE_IN_TIME: f32 = 0.5;
 const FADE_OUT_TIME: f32 = 0.5;
 
 /// Marker component for wind particle visualization
@@ -25,11 +25,11 @@ pub fn update_wind_settings(
     planet_settings: Res<PlanetGenerationSettings>,
     mut wind_settings: ResMut<WindParticleSettings>,
 ) {
+    wind_settings.enabled = planet_settings.show_wind;
     if planet_settings.is_changed() {
         wind_settings.planet_radius = planet_settings.radius;
         wind_settings.particle_height_offset = planet_settings.wind_particle_height_offset;
         wind_settings.particle_count = planet_settings.wind_particle_count;
-        wind_settings.enabled = planet_settings.show_wind;
     }
 }
 
@@ -62,6 +62,7 @@ pub fn spawn_wind_particles(
     settings: Res<WindParticleSettings>,
     planet_settings: Res<PlanetGenerationSettings>,
     time: Res<Time>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
 ) {
     if !settings.enabled || !existing_particles.is_empty() {
         return;
@@ -71,15 +72,19 @@ pub fn spawn_wind_particles(
         return;
     };
 
+    let camera_pos = camera_query.single().ok().map(|t| t.translation());
+
     let particle_count = planet_settings.wind_particle_count;
     info!("Spawning {} wind particles", particle_count);
 
     // Create shared material with time uniforms
     let material = materials.add(WindMaterial {
         base: StandardMaterial {
-            base_color: Color::srgb(1.0, 1.0, 0.8),
-            emissive: LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0,
+            base_color: Color::srgb(0.9, 0.9, 0.9),
+            emissive: LinearRgba::rgb(0.95, 0.95, 0.95) * 1.5,
             alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            cull_mode: None,
             ..default()
         },
         extension: WindParticleMaterial {
@@ -107,20 +112,24 @@ pub fn spawn_wind_particles(
         let spawn_time = current_time - time_offset;
 
         // Create a unique mesh for each particle with spawn_time encoded in vertex color
-        let mut sphere_mesh = Sphere::new(0.3).mesh().ico(2).unwrap();
+        let mut circle_mesh = Mesh::from(Circle::new(planet_settings.wind_particle_mesh_size.max(0.01)));
 
         // Encode spawn_time in vertex color red channel
-        let vertex_count = sphere_mesh.count_vertices();
+        let vertex_count = circle_mesh.count_vertices();
         let spawn_time_colors = vec![[spawn_time, 0.0, 0.0, 1.0]; vertex_count];
-        sphere_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, spawn_time_colors);
+        circle_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, spawn_time_colors);
 
-        let mesh_handle = meshes.add(sphere_mesh);
+        let mesh_handle = meshes.add(circle_mesh);
+        let mut transform = Transform::from_translation(position);
+        if let Some(camera_pos) = camera_pos {
+            transform.look_at(camera_pos, Vec3::Y);
+        }
 
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
                 Mesh3d(mesh_handle),
                 MeshMaterial3d(material.clone()),
-                Transform::from_translation(position),
+                transform,
                 WindParticle {
                     index: i,
                     spawn_time,
@@ -137,10 +146,13 @@ pub fn update_particle_with_movement(
     mut particles: Query<(&mut WindParticle, &mut Transform, &Mesh3d, &MeshMaterial3d<WindMaterial>), With<WindParticle>>,
     mut materials: ResMut<Assets<WindMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
 ) {
     if !settings.enabled {
         return;
     }
+
+    let camera_pos = camera_query.single().ok().map(|t| t.translation());
 
     let current_time = time.elapsed_secs();
     let delta_time = time.delta_secs();
@@ -180,11 +192,11 @@ pub fn update_particle_with_movement(
 
         // === LATITUDE-BASED MOVEMENT (matching GPU compute shader) ===
         let normalized_pos = transform.translation.normalize();
-        
+
         // Calculate latitude (angle from equator): asin(y)
         let latitude_rad = normalized_pos.y.asin();
         let latitude_deg = latitude_rad.to_degrees().abs();
-        
+
         // Determine flow direction based on latitude bands
         // 0-30°: toward equator (-1.0)
         // 30-60°: away from equator (+1.0)
@@ -196,30 +208,35 @@ pub fn update_particle_with_movement(
         } else {
             -1.0
         };
-        
+
         // Calculate tangent velocity (perpendicular to radial, moving in latitude direction)
         // Create east-west tangent vector
         let up = Vec3::Y;
         let east = up.cross(normalized_pos).normalize_or_zero();
-        
+
         // Handle poles where cross product is zero
         let east = if east.length_squared() < 0.001 {
             Vec3::X
         } else {
             east
         };
-        
+
         let north = normalized_pos.cross(east).normalize();
-        
+
         // Move toward/away from equator based on latitude band
         let speed = 3.0; // meters per second (matches GPU shader)
         let velocity = north * flow_direction * speed;
-        
+
         // Apply velocity (move particle)
         transform.translation += velocity * delta_time;
-        
+
         // Keep particle on sphere surface (re-normalize to sphere radius)
         transform.translation = transform.translation.normalize() * sphere_radius;
+
+        // Face the camera (billboard) so circles render as 2D sprites.
+        if let Some(camera_pos) = camera_pos {
+            transform.look_at(camera_pos, Vec3::Y);
+        }
     }
 }
 
