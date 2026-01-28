@@ -82,17 +82,18 @@ bevy = { version = "0.17", default-features = false, features = [
     "reflect_auto_register",
     "bevy_log",
 ] }
-bevy_kira_audio = { version = "0.24.0" }
 bevy_asset_loader = { version = "0.24.0-rc.1" }
-planetgen = { path = "crates/planetgen" }
-bevy-ocean = { path = "crates/bevy-ocean" }
 bevy_egui = "0.38"
-rand = "0.9"
+bevy_hanabi = "0.17"
+bevy_kira_audio = { version = "0.24.0" }
+bevy-ocean = { path = "crates/bevy-ocean" }
 bytemuck = { version = "1.14", features = ["derive"] }
+planetgen = { path = "crates/planetgen" }
+rand = "0.9"
 
 # keep the following in sync with Bevy's dependencies
-winit = { version = "0.30", default-features = false }
 image = { version = "0.25", default-features = false }
+winit = { version = "0.30", default-features = false }
 ## This greatly improves WGPU's performance due to its heavy use of trace! calls
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
 
