@@ -197,16 +197,16 @@ pub fn update_particle_with_movement(
         let latitude_rad = normalized_pos.y.asin();
         let latitude_deg = latitude_rad.to_degrees().abs();
 
-        // Determine flow direction based on latitude bands
-        // 0-30°: toward equator (-1.0)
-        // 30-60°: away from equator (+1.0)
-        // 60-90°: toward equator (-1.0)
+        // Determine flow direction based on latitude bands (equator-relative)
+        // 0-30°: toward equator, 30-60°: away from equator, 60-90°: toward equator
+        // Use the sign of latitude so north/south move toward/away from the equator correctly.
+        let lat_sign = latitude_rad.signum();
         let flow_direction = if latitude_deg < 30.0 {
-            -1.0
+            -lat_sign
         } else if latitude_deg < 60.0 {
-            1.0
+            lat_sign
         } else {
-            -1.0
+            -lat_sign
         };
 
         // Calculate tangent velocity (perpendicular to radial, moving in latitude direction)
