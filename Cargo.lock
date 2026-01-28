@@ -2992,9 +2992,11 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_egui",
  "bevy_kira_audio",
+ "bytemuck",
  "image",
  "log",
  "planetgen",
+ "rand 0.9.1",
  "rstest",
  "winit",
 ]
