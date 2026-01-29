@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 /// Wind constants
 const DEFAULT_WIND_SPEED: f32 = 3.0;
+const ZONAL_SPEED: f32 = DEFAULT_WIND_SPEED; // East/west speed
 const TURN_POINTS: [f32; 4] = [0.0, 30.0, 60.0, 90.0];
 // Signs at each point in NORTHERN HEMISPHERE:
 // towards equator = NEGATIVE (moving south), away from equator = POSITIVE (moving north)
@@ -97,18 +98,79 @@ impl WindField {
         position.cross(east).normalize()
     }
 
-    /// Get the wind velocity (pure latitudinal movement)
+    /// Get eastward direction for a position on the sphere
+    ///
+    /// # Arguments
+    /// * `position` - Position on the sphere surface (normalized direction vector)
+    ///
+    /// # Returns
+    /// Eastward unit vector tangent to the sphere (along lines of latitude)
+    fn get_eastward_direction(position: Vec3) -> Vec3 {
+        let world_north = Vec3::Y;
+        let up = position.normalize();
+
+        // Cross product: north × up = east
+        let east_raw = world_north.cross(up);
+
+        // Near poles, fallback to alternative calculation
+        if east_raw.length_squared() < 1e-12 {
+            let fallback = Vec3::X;
+            fallback.cross(up).normalize()
+        } else {
+            east_raw.normalize()
+        }
+    }
+
+    /// Get the desired zonal (east/west) velocity based on latitude
+    ///
+    /// # Arguments
+    /// * `position` - Position on the sphere surface (normalized direction vector)
+    ///
+    /// # Returns
+    /// Desired zonal velocity vector (east/west tangent to sphere)
+    pub fn get_desired_zonal_velocity(position: Vec3) -> Vec3 {
+        // Get latitude in degrees
+        let lat_rad = position.y.asin();
+        let lat_deg = lat_rad.to_degrees();
+        let abs_lat = lat_deg.abs();
+
+        // Determine zonal direction based on latitude band:
+        // 0-30°: east → west (z_sign = -1)
+        // 30-60°: west → east (z_sign = +1)
+        // 60-90°: east → west (z_sign = -1)
+        let z_sign = if abs_lat < 30.0 {
+            -1.0 // east → west
+        } else if abs_lat < 60.0 {
+            1.0  // west → east
+        } else {
+            -1.0 // east → west
+        };
+
+        // Get eastward direction
+        let east_dir = Self::get_eastward_direction(position);
+
+        // Return zonal velocity
+        east_dir * (z_sign * ZONAL_SPEED)
+    }
+
+    /// Get the wind velocity (meridional + zonal)
     ///
     /// # Arguments
     /// * `position` - Position on the sphere surface (normalized direction vector)
     /// * `current_latitudinal_speed` - Current latitudinal velocity component
     ///
     /// # Returns
-    /// Velocity vector tangent to the sphere surface (north/south only)
+    /// Velocity vector tangent to the sphere surface (north/south + east/west)
     pub fn get_velocity(position: Vec3, current_latitudinal_speed: f32) -> Vec3 {
-        // Pure latitudinal (north/south) movement only
+        // Meridional (north/south) movement
         let north = Self::get_northward_direction(position);
-        north * current_latitudinal_speed
+        let meridional_velocity = north * current_latitudinal_speed;
+
+        // Zonal (east/west) movement
+        let zonal_velocity = Self::get_desired_zonal_velocity(position);
+
+        // Combine both components
+        meridional_velocity + zonal_velocity
     }
 
     /// Update latitudinal speed towards desired value using relaxation
