@@ -28,7 +28,7 @@ pub fn update_wind_settings(
 pub fn handle_wind_tab_events(
     mut wind_tab_events: MessageReader<WindTabActiveEvent>,
     mut planet_settings: ResMut<PlanetGenerationSettings>,
-    mut existing_particles: Query<Entity, With<DebugWindParticle>>,
+    existing_particles: Query<Entity, With<DebugWindParticle>>,
     mut commands: Commands,
 ) {
     for event in wind_tab_events.read() {
@@ -62,7 +62,7 @@ pub fn spawn_debug_particles(
         return;
     };
 
-    info!("Spawning {} debug wind particles", PARTICLE_COUNT);
+    info!("Spawning {} debug wind particles with random positions", PARTICLE_COUNT);
 
     let sphere_mesh = meshes.add(Sphere::new(0.3).mesh().ico(2).unwrap());
     let material = materials.add(StandardMaterial {
@@ -73,9 +73,12 @@ pub fn spawn_debug_particles(
 
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
-    // Spawn particles using Fibonacci sphere distribution
+    // Spawn particles at random positions on sphere
+    // Note: The actual positions and lifetimes are managed by the GPU compute shader
+    // These debug spheres will be positioned at origin and should ideally be updated
+    // from GPU buffer data, but for now we spawn them randomly
     for i in 0..PARTICLE_COUNT {
-        let direction = fibonacci_sphere(i, PARTICLE_COUNT);
+        let direction = random_sphere_point(i);
         let position = direction * sphere_radius;
 
         commands.entity(planet_entity).with_children(|parent| {
@@ -89,18 +92,25 @@ pub fn spawn_debug_particles(
     }
 }
 
-// ...existing fibonacci_sphere function...
+/// Generate random point on sphere surface using PCG hash
+fn random_sphere_point(seed: u32) -> Vec3 {
+    let u = pcg_random(seed) as f32 / u32::MAX as f32;
+    let v = pcg_random(seed.wrapping_add(1)) as f32 / u32::MAX as f32;
 
-/// Fibonacci sphere distribution for uniform points on a sphere
-fn fibonacci_sphere(i: u32, n: u32) -> Vec3 {
-    let phi = std::f32::consts::PI * (5.0_f32.sqrt() - 1.0); // Golden angle
-    let y = 1.0 - (i as f32 / (n - 1) as f32) * 2.0; // Y from 1 to -1
-    let radius = (1.0 - y * y).sqrt();
-    let theta = phi * i as f32;
+    let theta = u * 2.0 * std::f32::consts::PI;
+    let phi = (2.0 * v - 1.0).acos();
 
-    let x = theta.cos() * radius;
-    let z = theta.sin() * radius;
+    let x = phi.sin() * theta.cos();
+    let y = phi.sin() * theta.sin();
+    let z = phi.cos();
 
     Vec3::new(x, y, z).normalize()
+}
+
+/// PCG hash function for pseudo-random number generation
+fn pcg_random(input: u32) -> u32 {
+    let state = input.wrapping_mul(747796405).wrapping_add(2891336453);
+    let word = ((state >> ((state >> 28) + 4)) ^ state).wrapping_mul(277803737);
+    (word >> 22) ^ word
 }
 
