@@ -1,3 +1,4 @@
+pub mod velocity;
 pub mod systems;
 
 use bevy::prelude::*;
@@ -30,7 +31,8 @@ impl Plugin for WindPlugin {
         app.init_resource::<WindParticleSettings>()
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
-            .add_systems(Update, systems::spawn_debug_particles);
+            .add_systems(Update, systems::spawn_debug_particles)
+            .add_systems(Update, systems::update_particles);
     }
 }
 

@@ -4,12 +4,17 @@ use crate::planet::components::PlanetEntity;
 use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
+use super::velocity::WindField;
 use bevy::prelude::*;
+use rand::{Rng, SeedableRng};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Marker component for wind particle visualization
 #[derive(Component)]
 pub struct WindParticle {
-    pub index: u32,
+    pub velocity: Vec3,
+    pub age: f32,
+    pub lifetime: f32,
 }
 
 /// Update wind particle settings from planet generation settings
@@ -73,25 +78,53 @@ pub fn spawn_debug_particles(
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
     // Spawn particles at random positions on sphere
-    for i in 0..PARTICLE_COUNT {
-        let direction = random_sphere_point(i);
+    for _ in 0..PARTICLE_COUNT {
+        use rand::SeedableRng;
+
+        let direction = random_sphere_point();
         let position = direction * sphere_radius;
+
+        // Get westward velocity from wind field
+        let velocity = WindField::get_velocity(direction);
+
+        // Random lifetime between 3.0 and 5.0 seconds
+        let time_seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
+        let lifetime: f32 = rng.random_range(3.0..5.0);
+
+        // Random initial age for staggered spawning
+        let age: f32 = rng.random_range(0.0..lifetime);
 
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
                 Mesh3d(sphere_mesh.clone()),
                 MeshMaterial3d(material.clone()),
                 Transform::from_translation(position),
-                WindParticle { index: i },
+                WindParticle {
+                    velocity,
+                    age,
+                    lifetime,
+                },
             ));
         });
     }
 }
 
-/// Generate random point on sphere surface using PCG hash
-fn random_sphere_point(seed: u32) -> Vec3 {
-    let u = pcg_random(seed) as f32 / u32::MAX as f32;
-    let v = pcg_random(seed.wrapping_add(1)) as f32 / u32::MAX as f32;
+/// Generate random point on sphere surface using current system time
+fn random_sphere_point() -> Vec3 {
+    // Get system time for random seed
+    let time_seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u64;
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
+
+    let u: f32 = rng.random();
+    let v: f32 = rng.random();
 
     let theta = u * 2.0 * std::f32::consts::PI;
     let phi = (2.0 * v - 1.0).acos();
@@ -103,10 +136,58 @@ fn random_sphere_point(seed: u32) -> Vec3 {
     Vec3::new(x, y, z).normalize()
 }
 
-/// PCG hash function for pseudo-random number generation
-fn pcg_random(input: u32) -> u32 {
-    let state = input.wrapping_mul(747796405).wrapping_add(2891336453);
-    let word = ((state >> ((state >> 28) + 4)) ^ state).wrapping_mul(277803737);
-    (word >> 22) ^ word
-}
 
+/// Update particle positions and handle respawning
+pub fn update_particles(
+    mut particles: Query<(&mut Transform, &mut WindParticle)>,
+    time: Res<Time>,
+    settings: Res<WindParticleSettings>,
+) {
+    if !settings.enabled {
+        return;
+    }
+
+    let delta = time.delta_secs();
+    let sphere_radius = settings.planet_radius + settings.particle_height_offset;
+
+    for (mut transform, mut particle) in particles.iter_mut() {
+        // Update age
+        particle.age += delta;
+
+        // Check if particle should respawn
+        if particle.age >= particle.lifetime {
+            use rand::SeedableRng;
+
+            // Respawn at new random position
+            let direction = random_sphere_point();
+            let position = direction * sphere_radius;
+
+            // Get new velocity
+            particle.velocity = WindField::get_velocity(direction);
+
+            // New random lifetime
+            let time_seed = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64;
+            let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
+            particle.lifetime = rng.random_range(3.0..5.0);
+            particle.age = 0.0;
+
+            transform.translation = position;
+        } else {
+            // Move particle along velocity
+            let current_pos = transform.translation;
+
+            // Move along surface
+            let new_pos = current_pos + particle.velocity * delta;
+
+            // Project back onto sphere surface
+            transform.translation = new_pos.normalize() * sphere_radius;
+
+            // Update velocity to remain tangent to sphere
+            let new_direction = transform.translation.normalize();
+            particle.velocity = WindField::get_velocity(new_direction);
+        }
+    }
+}

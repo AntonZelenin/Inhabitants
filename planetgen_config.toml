@@ -127,10 +127,6 @@ normal_perturbation_scale = 3.0
 # Default: 2000. Can be set to any value (higher = more visible patterns but lower performance)
 # Note: Particle count is only controlled via this config file, not adjustable in UI
 particle_count = 2000
-# Wind speed (how fast particles move across the surface)
-# Range: 0.1 to 10.0, Default: 2.0
-# Lower values = gentle breeze; Higher values = strong wind
-speed = 7.0
 # Trail length for wind particles (visual effect - not yet implemented)
 # Range: 1.0 to 5.0, Default: 2.0
 trail_length = 2.5

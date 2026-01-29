@@ -138,7 +138,6 @@ pub struct OceanConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindConfig {
     pub particle_count: usize,
-    pub speed: f32,
     pub trail_length: f32,
     pub particle_lifetime_min: f32,
     pub particle_lifetime_max: f32,

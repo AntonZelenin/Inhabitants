@@ -37,7 +37,6 @@ pub struct PlanetGenerationSettings {
     // Wind visualization settings
     pub show_wind: bool,
     pub wind_particle_count: usize,
-    pub wind_speed: f32,
     pub wind_trail_length: f32,
     pub wind_particle_lifetime_min: f32,
     pub wind_particle_lifetime_max: f32,
@@ -83,7 +82,6 @@ impl Default for PlanetGenerationSettings {
             ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
             show_wind: false,
             wind_particle_count: config.wind.particle_count,
-            wind_speed: config.wind.speed,
             wind_trail_length: config.wind.trail_length,
             wind_particle_lifetime_min: config.wind.particle_lifetime_min,
             wind_particle_lifetime_max: config.wind.particle_lifetime_max,
