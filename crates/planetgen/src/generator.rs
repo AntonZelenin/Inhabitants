@@ -21,6 +21,7 @@ pub struct PlanetGenerator {
     pub flow_warp_step_angle: f32,
     pub mountain_height: f32,
     pub mountain_width: f32,
+    pub wind_speed: f32,
     config: PlanetGenConfig,
 }
 
@@ -40,6 +41,7 @@ impl PlanetGenerator {
             flow_warp_step_angle: config.flow_warp.default_step_angle,
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
+            wind_speed: config.wind.speed,
             config,
         }
     }
@@ -124,6 +126,12 @@ impl PlanetGenerator {
         // Apply tectonic uplift for convergent boundaries (mountain ranges)
         self.apply_convergent_mountains(face_grid_size, &boundary_data, &mut faces);
 
+        // Generate wind field as part of planet generation
+        let wind_map = Some(crate::wind::generate_constant_wind_field(
+            face_grid_size,
+            self.wind_speed,
+        ));
+
         PlanetData {
             faces,
             face_grid_size,
@@ -132,6 +140,7 @@ impl PlanetGenerator {
             plates,
             continent_noise,
             boundary_data,
+            wind_map,
         }
     }
 

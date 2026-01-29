@@ -1,25 +1,10 @@
 use bevy::prelude::*;
 
-/// Wind particle component - stores particle state for wind visualization
+/// Marker component for the wind texture entity
+/// This marks the entity that holds the wind field texture (cube-sphere atlas)
 #[derive(Component)]
-pub struct WindParticle {
-    /// Current position on sphere (normalized direction vector)
-    pub position: Vec3,
-    /// Velocity vector (tangent to sphere)
-    pub velocity: Vec3,
-    /// Age of particle (for fading/recycling)
-    pub age: f32,
-    /// Maximum lifetime before respawn
-    pub lifetime: f32,
-    /// Unique particle ID for stable respawning
-    pub particle_id: u32,
-    /// Number of times this particle has respawned (for randomization)
-    pub respawn_count: u32,
-    /// Trail history - stores previous positions for curved trail rendering
-    pub trail_positions: std::collections::VecDeque<Vec3>,
-}
+pub struct WindMapMarker;
 
-/// Marker for wind visualization entities
+/// Component that holds the wind field texture handle
 #[derive(Component)]
-pub struct WindView;
-
+pub struct WindTextureHandle(pub Handle<Image>);

@@ -17,6 +17,7 @@ fn configure_planet_generator(settings: &PlanetGenerationSettings) -> PlanetGene
     generator.flow_warp_freq = settings.flow_warp_freq;
     generator.flow_warp_steps = settings.flow_warp_steps;
     generator.flow_warp_step_angle = settings.flow_warp_step_angle;
+    generator.wind_speed = settings.wind_speed;
 
     // Apply custom continent configuration from UI settings
     let continent_config = planetgen::config::ContinentConfig {
