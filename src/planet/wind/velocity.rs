@@ -5,7 +5,15 @@ use bevy::prelude::*;
 /// Wind constants
 const DEFAULT_WIND_SPEED: f32 = 3.0;
 const TURN_POINTS: [f32; 4] = [0.0, 30.0, 60.0, 90.0];
-const SIGNS: [f32; 4] = [-1.0, 1.0, -1.0, 1.0];
+// Signs at each point: towards equator = positive, away from equator = negative
+// 0° → towards equator (+1)
+// 30° → away from equator (-1)
+// 60° → towards equator (+1)
+// 90° → towards equator (+1)
+// Between 0-30: goes from +3 to -3 (crosses 0 at ~15°)
+// Between 30-60: goes from -3 to +3 (crosses 0 at ~45°)
+// Between 60-90: stays at +3 (always towards equator)
+const SIGNS: [f32; 4] = [1.0, -1.0, 1.0, 1.0];
 pub const TAU: f32 = 0.8; // Smoothing time constant in seconds
 
 /// Calculate wind direction and speed at a given position on the sphere
@@ -18,13 +26,13 @@ impl WindField {
     /// * `position` - Position on the sphere surface (normalized direction vector)
     ///
     /// # Returns
-    /// Desired latitudinal speed (scalar, positive = away from equator, negative = towards equator)
+    /// Desired latitudinal speed (scalar, positive = north, negative = south)
     pub fn get_desired_latitudinal_speed(position: Vec3) -> f32 {
         // Get latitude in degrees from Y component
         let lat_rad = position.y.asin();
         let lat_deg = lat_rad.to_degrees();
 
-        // Work with absolute latitude
+        // Work with absolute latitude for computation
         let abs_lat = lat_deg.abs();
 
         // Find which segment we're in
@@ -52,7 +60,13 @@ impl WindField {
         // Calculate desired latitudinal speed
         let v_des = DEFAULT_WIND_SPEED * sign;
 
-        // Flip sign for southern hemisphere (negative latitude)
+        // In Northern Hemisphere (lat > 0):
+        //   - positive sign = towards equator = south
+        //   - negative sign = away from equator = north
+        // In Southern Hemisphere (lat < 0):
+        //   - positive sign = towards equator = north (opposite direction)
+        //   - negative sign = away from equator = south (opposite direction)
+        // So we flip the sign for southern hemisphere
         if lat_deg < 0.0 {
             -v_des
         } else {
