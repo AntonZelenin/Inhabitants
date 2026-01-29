@@ -6,9 +6,9 @@ use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
 use bevy::prelude::*;
 
-/// Marker component for debug particle visualization
+/// Marker component for wind particle visualization
 #[derive(Component)]
-pub struct DebugWindParticle {
+pub struct WindParticle {
     pub index: u32,
 }
 
@@ -28,7 +28,7 @@ pub fn update_wind_settings(
 pub fn handle_wind_tab_events(
     mut wind_tab_events: MessageReader<WindTabActiveEvent>,
     mut planet_settings: ResMut<PlanetGenerationSettings>,
-    existing_particles: Query<Entity, With<DebugWindParticle>>,
+    existing_particles: Query<Entity, With<WindParticle>>,
     mut commands: Commands,
 ) {
     for event in wind_tab_events.read() {
@@ -43,14 +43,13 @@ pub fn handle_wind_tab_events(
     }
 }
 
-/// Spawn debug visualization spheres for particles
-/// This is a temporary solution - particles should be rendered from GPU buffers
+/// Spawn wind particle visualization spheres
 pub fn spawn_debug_particles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     planet_query: Query<Entity, With<PlanetEntity>>,
-    existing_particles: Query<Entity, With<DebugWindParticle>>,
+    existing_particles: Query<Entity, With<WindParticle>>,
     settings: Res<WindParticleSettings>,
 ) {
     // Only spawn if enabled and not already spawned
@@ -62,7 +61,7 @@ pub fn spawn_debug_particles(
         return;
     };
 
-    info!("Spawning {} debug wind particles with random positions", PARTICLE_COUNT);
+    info!("Spawning {} wind particles with random positions", PARTICLE_COUNT);
 
     let sphere_mesh = meshes.add(Sphere::new(0.3).mesh().ico(2).unwrap());
     let material = materials.add(StandardMaterial {
@@ -74,9 +73,6 @@ pub fn spawn_debug_particles(
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
     // Spawn particles at random positions on sphere
-    // Note: The actual positions and lifetimes are managed by the GPU compute shader
-    // These debug spheres will be positioned at origin and should ideally be updated
-    // from GPU buffer data, but for now we spawn them randomly
     for i in 0..PARTICLE_COUNT {
         let direction = random_sphere_point(i);
         let position = direction * sphere_radius;
@@ -86,7 +82,7 @@ pub fn spawn_debug_particles(
                 Mesh3d(sphere_mesh.clone()),
                 MeshMaterial3d(material.clone()),
                 Transform::from_translation(position),
-                DebugWindParticle { index: i },
+                WindParticle { index: i },
             ));
         });
     }
