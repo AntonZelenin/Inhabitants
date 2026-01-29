@@ -116,7 +116,8 @@ pub fn spawn_debug_particles(
     }
 }
 
-/// Generate random point on sphere surface using current system time
+/// Generate random point on sphere surface with latitude-based weighting
+/// Spawns more particles at source latitudes (30°) and fewer at sink latitudes (equator, poles)
 fn random_sphere_point() -> Vec3 {
     // Get system time for random seed
     let time_seed = SystemTime::now()
@@ -126,17 +127,43 @@ fn random_sphere_point() -> Vec3 {
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
 
-    let u: f32 = rng.random();
-    let v: f32 = rng.random();
+    loop {
+        // Generate random point on sphere
+        let u: f32 = rng.random();
+        let v: f32 = rng.random();
 
-    let theta = u * 2.0 * std::f32::consts::PI;
-    let phi = (2.0 * v - 1.0).acos();
+        let theta = u * 2.0 * std::f32::consts::PI;
+        let phi = (2.0 * v - 1.0).acos();
 
-    let x = phi.sin() * theta.cos();
-    let y = phi.sin() * theta.sin();
-    let z = phi.cos();
+        let x = phi.sin() * theta.cos();
+        let y = phi.sin() * theta.sin();
+        let z = phi.cos();
 
-    Vec3::new(x, y, z).normalize()
+        let point = Vec3::new(x, y, z).normalize();
+
+        // Get absolute latitude in degrees
+        let lat_deg = point.y.asin().to_degrees().abs();
+
+        // Weight function: higher near 30° (source), lower near 0° and 90° (sinks)
+        let weight = if lat_deg < 30.0 {
+            // Ramp up from equator (0°) to 30°
+            // At 0°: weight = 0.2, at 30°: weight = 1.0
+            0.2 + 0.8 * (lat_deg / 30.0)
+        } else if lat_deg < 60.0 {
+            // Ramp down from 30° to 60°
+            // At 30°: weight = 1.0, at 60°: weight = 0.3
+            1.0 - 0.7 * ((lat_deg - 30.0) / 30.0)
+        } else {
+            // Stay low near poles (60° to 90°)
+            // At 60°: weight = 0.3, at 90°: weight = 0.1
+            0.3 - 0.2 * ((lat_deg - 60.0) / 30.0)
+        };
+
+        // Accept point with probability proportional to weight
+        if rng.random::<f32>() < weight {
+            return point;
+        }
+    }
 }
 
 
@@ -165,7 +192,7 @@ pub fn update_particles(
 
             // Reset latitudinal speed to desired at new position
             particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
-            
+
             // Get new velocity
             particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed);
 
@@ -182,20 +209,20 @@ pub fn update_particles(
         } else {
             // Get current position direction
             let new_direction = transform.translation.normalize();
-            
+
             // Calculate desired latitudinal speed at current position
             let desired_speed = WindField::get_desired_latitudinal_speed(new_direction);
-            
+
             // Relax towards desired speed
             particle.latitudinal_speed = WindField::update_latitudinal_speed(
                 particle.latitudinal_speed,
                 desired_speed,
                 delta
             );
-            
+
             // Update velocity with new latitudinal component
             particle.velocity = WindField::get_velocity(new_direction, particle.latitudinal_speed);
-            
+
             // Move particle along velocity
             let current_pos = transform.translation;
             let new_pos = current_pos + particle.velocity * delta;
