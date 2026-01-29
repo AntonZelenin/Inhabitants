@@ -13,6 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Component)]
 pub struct WindParticle {
     pub velocity: Vec3,
+    pub latitudinal_speed: f32, // Current latitudinal velocity component
     pub age: f32,
     pub lifetime: f32,
 }
@@ -79,13 +80,14 @@ pub fn spawn_debug_particles(
 
     // Spawn particles at random positions on sphere
     for _ in 0..PARTICLE_COUNT {
-        use rand::SeedableRng;
-
         let direction = random_sphere_point();
         let position = direction * sphere_radius;
 
-        // Get westward velocity from wind field
-        let velocity = WindField::get_velocity(direction);
+        // Get initial latitudinal speed based on latitude
+        let latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
+
+        // Get initial velocity from wind field
+        let velocity = WindField::get_velocity(direction, latitudinal_speed);
 
         // Random lifetime between 3.0 and 5.0 seconds
         let time_seed = SystemTime::now()
@@ -105,6 +107,7 @@ pub fn spawn_debug_particles(
                 Transform::from_translation(position),
                 WindParticle {
                     velocity,
+                    latitudinal_speed,
                     age,
                     lifetime,
                 },
@@ -156,14 +159,15 @@ pub fn update_particles(
 
         // Check if particle should respawn
         if particle.age >= particle.lifetime {
-            use rand::SeedableRng;
-
             // Respawn at new random position
             let direction = random_sphere_point();
             let position = direction * sphere_radius;
 
+            // Reset latitudinal speed to desired at new position
+            particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
+            
             // Get new velocity
-            particle.velocity = WindField::get_velocity(direction);
+            particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed);
 
             // New random lifetime
             let time_seed = SystemTime::now()
@@ -176,18 +180,28 @@ pub fn update_particles(
 
             transform.translation = position;
         } else {
+            // Get current position direction
+            let new_direction = transform.translation.normalize();
+            
+            // Calculate desired latitudinal speed at current position
+            let desired_speed = WindField::get_desired_latitudinal_speed(new_direction);
+            
+            // Relax towards desired speed
+            particle.latitudinal_speed = WindField::update_latitudinal_speed(
+                particle.latitudinal_speed,
+                desired_speed,
+                delta
+            );
+            
+            // Update velocity with new latitudinal component
+            particle.velocity = WindField::get_velocity(new_direction, particle.latitudinal_speed);
+            
             // Move particle along velocity
             let current_pos = transform.translation;
-
-            // Move along surface
             let new_pos = current_pos + particle.velocity * delta;
 
             // Project back onto sphere surface
             transform.translation = new_pos.normalize() * sphere_radius;
-
-            // Update velocity to remain tangent to sphere
-            let new_direction = transform.translation.normalize();
-            particle.velocity = WindField::get_velocity(new_direction);
         }
     }
 }
