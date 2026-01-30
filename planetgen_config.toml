@@ -121,41 +121,13 @@ wave_speed = 0.5
 normal_perturbation_scale = 3.0
 
 [wind]
-# === Wind Visualization ===
 # Number of wind particles to spawn
 # Default: 2000. Can be set to any value (higher = more visible patterns but lower performance)
 # Note: Particle count is only controlled via this config file, not adjustable in UI
-particle_count = 2000
-# Trail length for wind particles (visual effect - not yet implemented)
-# Range: 1.0 to 5.0, Default: 2.0
-trail_length = 2.5
-# Particle lifetime range in seconds (min, max)
-# Range: 1.0 to 10.0, Default: (3.0, 5.0)
-# Lower values = particles respawn more frequently
-particle_lifetime_min = 3.0
-particle_lifetime_max = 5.0
-# Base mesh size for particles (sphere radius)
-# Range: 0.1 to 2.0, Default: 0.5
-particle_mesh_size = 0.5
+particle_count = 3000
 # Height offset above planet surface
 # Range: 0.1 to 2.0, Default: 1.0
 particle_height_offset = 1.0
-# Stretch multiplier for trail length
-# Range: 1.0 to 50.0, Default: 10.0
-# Higher values = longer visible trails
-particle_stretch_multiplier = 10.0
-# Turn rate for directional changes at zone boundaries
-# Range: 0.01 to 1.0, Default: 0.1
-# Lower values = smoother, more gradual turns
-turn_rate = 0.1
-# Number of trail segments (position history points) for curved trails
-# Range: 5 to 30, Default: 12
-# Higher values = smoother curved trails but more memory per particle
-trail_segments = 12
-# Trail width relative to particle head (0.0 = point, 1.0 = same width as head)
-# Range: 0.1 to 1.0, Default: 0.4
-# Lower values = thin, wispy trails; Higher values = thick, ribbon-like trails
-trail_width_ratio = 0.4
 # East-west (zonal) movement speed
 # Range: 0.0 to 10.0, Default: 5.0
 # Controls how fast particles move sideways at different latitudes

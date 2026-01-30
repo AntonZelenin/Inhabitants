@@ -121,6 +121,7 @@ impl WindField {
     }
 
     /// Get the desired zonal (east/west) velocity based on latitude
+    /// Uses smoothstep blending at zone boundaries for gradual direction changes
     ///
     /// # Arguments
     /// * `position` - Position on the sphere surface (normalized direction vector)
@@ -134,22 +135,42 @@ impl WindField {
         let lat_deg = lat_rad.to_degrees();
         let abs_lat = lat_deg.abs();
 
-        // Determine zonal direction based on latitude band:
-        // 0-30°: east → west (z_sign = -1)
-        // 30-60°: west → east (z_sign = +1)
-        // 60-90°: east → west (z_sign = -1)
-        let z_sign = if abs_lat < 30.0 {
-            -1.0 // east → west
+        // Zonal direction signs at key latitudes:
+        // 0°: -1 (east → west)
+        // 30°: +1 (west → east)
+        // 60°: -1 (east → west)
+        // 90°: -1 (east → west)
+        const ZONAL_SIGNS: [f32; 4] = [-1.0, 1.0, -1.0, -1.0];
+
+        // Find which segment we're in
+        let segment = if abs_lat < 30.0 {
+            0
         } else if abs_lat < 60.0 {
-            1.0  // west → east
+            1
         } else {
-            -1.0 // east → west
+            2
         };
+
+        // Get segment endpoints
+        let p0 = TURN_POINTS[segment];
+        let p1 = TURN_POINTS[segment + 1];
+
+        // Normalize position within segment [0, 1]
+        let t = (abs_lat - p0) / (p1 - p0);
+
+        // Smoothstep for smooth blending: s(t) = 3t² - 2t³
+        // This makes the transition gradual instead of instant
+        let s = 3.0 * t * t - 2.0 * t * t * t;
+
+        // Lerp between the signs at the segment endpoints
+        // At boundaries, this will smoothly transition from -1 to +1 (or vice versa)
+        // passing through 0 (stopped) in the middle
+        let z_sign = ZONAL_SIGNS[segment] + (ZONAL_SIGNS[segment + 1] - ZONAL_SIGNS[segment]) * s;
 
         // Get eastward direction
         let east_dir = Self::get_eastward_direction(position);
 
-        // Return zonal velocity
+        // Return smoothly blended zonal velocity
         east_dir * (z_sign * zonal_speed)
     }
 
