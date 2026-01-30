@@ -140,6 +140,7 @@ pub struct WindConfig {
     pub particle_count: usize,
     pub particle_height_offset: f32,
     pub zonal_speed: f32, // East-west movement speed
+    pub particle_lifespan: f32, // Particle lifetime in seconds
 }
 
 impl PlanetGenConfig {

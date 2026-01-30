@@ -13,6 +13,7 @@ pub struct WindParticleSettings {
     pub particle_height_offset: f32,
     pub enabled: bool,
     pub zonal_speed: f32,
+    pub particle_lifespan: f32,
 }
 
 impl Default for WindParticleSettings {
@@ -22,6 +23,7 @@ impl Default for WindParticleSettings {
             particle_height_offset: 2.0,
             enabled: true,
             zonal_speed: 5.0,
+            particle_lifespan: 4.0,
         }
     }
 }

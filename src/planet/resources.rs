@@ -39,6 +39,7 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_count: usize,
     pub wind_particle_height_offset: f32,
     pub wind_zonal_speed: f32,
+    pub wind_particle_lifespan: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -77,6 +78,7 @@ impl Default for PlanetGenerationSettings {
             wind_particle_count: config.wind.particle_count,
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_zonal_speed: config.wind.zonal_speed,
+            wind_particle_lifespan: config.wind.particle_lifespan,
         }
     }
 }

@@ -258,6 +258,13 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
 
     // Display current particle count (read-only, set via config)
     ui.label(format!("Particle Count: {} (set in config)", settings.wind_particle_count));
+
+    ui.add_space(10.0);
+
+    ui.label("Particle Lifespan (seconds)");
+    ui.add(egui::Slider::new(&mut settings.wind_particle_lifespan, 1.0..=10.0)
+        .step_by(0.1));
+    ui.label("Lower lifespan = faster respawn rate");
     ui.add_space(5.0);
 
     ui.add_space(10.0);

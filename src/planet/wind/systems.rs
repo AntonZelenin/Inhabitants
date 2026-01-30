@@ -28,6 +28,7 @@ pub fn update_wind_settings(
         wind_settings.particle_height_offset = planet_settings.wind_particle_height_offset;
         wind_settings.enabled = planet_settings.show_wind;
         wind_settings.zonal_speed = planet_settings.wind_zonal_speed;
+        wind_settings.particle_lifespan = planet_settings.wind_particle_lifespan;
     }
 }
 
@@ -90,13 +91,14 @@ pub fn spawn_debug_particles(
         // Get initial velocity from wind field
         let velocity = WindField::get_velocity(direction, latitudinal_speed, settings.zonal_speed);
 
-        // Random lifetime between 3.0 and 5.0 seconds
+        // Use lifespan from settings with ±20% variation
         let time_seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos() as u64;
         let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
-        let lifetime: f32 = rng.random_range(3.0..5.0);
+        let variation = rng.random_range(0.8..1.2);
+        let lifetime = settings.particle_lifespan * variation;
 
         // Random initial age for staggered spawning
         let age: f32 = rng.random_range(0.0..lifetime);
@@ -197,13 +199,14 @@ pub fn update_particles(
             // Get new velocity
             particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
 
-            // New random lifetime
+            // New lifetime based on settings with ±20% variation
             let time_seed = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos() as u64;
             let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
-            particle.lifetime = rng.random_range(3.0..5.0);
+            let variation = rng.random_range(0.8..1.2);
+            particle.lifetime = settings.particle_lifespan * variation;
             particle.age = 0.0;
 
             transform.translation = position;
