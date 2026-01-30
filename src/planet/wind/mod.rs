@@ -12,6 +12,7 @@ pub struct WindParticleSettings {
     pub planet_radius: f32,
     pub particle_height_offset: f32,
     pub enabled: bool,
+    pub zonal_speed: f32,
 }
 
 impl Default for WindParticleSettings {
@@ -20,6 +21,7 @@ impl Default for WindParticleSettings {
             planet_radius: 50.0,
             particle_height_offset: 2.0,
             enabled: true,
+            zonal_speed: 5.0,
         }
     }
 }

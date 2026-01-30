@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 /// Wind constants
 const DEFAULT_WIND_SPEED: f32 = 3.0;
-const ZONAL_SPEED: f32 = DEFAULT_WIND_SPEED; // East/west speed
 const TURN_POINTS: [f32; 4] = [0.0, 30.0, 60.0, 90.0];
 // Signs at each point in NORTHERN HEMISPHERE:
 // towards equator = NEGATIVE (moving south), away from equator = POSITIVE (moving north)
@@ -125,10 +124,11 @@ impl WindField {
     ///
     /// # Arguments
     /// * `position` - Position on the sphere surface (normalized direction vector)
+    /// * `zonal_speed` - Speed of east/west movement
     ///
     /// # Returns
     /// Desired zonal velocity vector (east/west tangent to sphere)
-    pub fn get_desired_zonal_velocity(position: Vec3) -> Vec3 {
+    pub fn get_desired_zonal_velocity(position: Vec3, zonal_speed: f32) -> Vec3 {
         // Get latitude in degrees
         let lat_rad = position.y.asin();
         let lat_deg = lat_rad.to_degrees();
@@ -150,7 +150,7 @@ impl WindField {
         let east_dir = Self::get_eastward_direction(position);
 
         // Return zonal velocity
-        east_dir * (z_sign * ZONAL_SPEED)
+        east_dir * (z_sign * zonal_speed)
     }
 
     /// Get the wind velocity (meridional + zonal)
@@ -158,16 +158,17 @@ impl WindField {
     /// # Arguments
     /// * `position` - Position on the sphere surface (normalized direction vector)
     /// * `current_latitudinal_speed` - Current latitudinal velocity component
+    /// * `zonal_speed` - Speed of east/west movement
     ///
     /// # Returns
     /// Velocity vector tangent to the sphere surface (north/south + east/west)
-    pub fn get_velocity(position: Vec3, current_latitudinal_speed: f32) -> Vec3 {
+    pub fn get_velocity(position: Vec3, current_latitudinal_speed: f32, zonal_speed: f32) -> Vec3 {
         // Meridional (north/south) movement
         let north = Self::get_northward_direction(position);
         let meridional_velocity = north * current_latitudinal_speed;
 
         // Zonal (east/west) movement
-        let zonal_velocity = Self::get_desired_zonal_velocity(position);
+        let zonal_velocity = Self::get_desired_zonal_velocity(position, zonal_speed);
 
         // Combine both components
         meridional_velocity + zonal_velocity

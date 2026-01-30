@@ -241,6 +241,13 @@ fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSetting
 fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
 
+    ui.heading("Wind Speed");
+    ui.add_space(5.0);
+
+    ui.label("Zonal Speed (East/West)");
+    ui.add(egui::Slider::new(&mut settings.wind_zonal_speed, 0.0..=10.0)
+        .step_by(0.1));
+
     ui.add_space(10.0);
 
     ui.separator();
@@ -252,10 +259,6 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     // Display current particle count (read-only, set via config)
     ui.label(format!("Particle Count: {} (set in config)", settings.wind_particle_count));
     ui.add_space(5.0);
-
-    ui.label("Trail Length");
-    ui.add(egui::Slider::new(&mut settings.wind_trail_length, 0.5..=5.0)
-        .step_by(0.1));
 
     ui.add_space(10.0);
     ui.separator();

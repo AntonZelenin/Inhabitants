@@ -37,15 +37,8 @@ pub struct PlanetGenerationSettings {
     // Wind visualization settings
     pub show_wind: bool,
     pub wind_particle_count: usize,
-    pub wind_trail_length: f32,
-    pub wind_particle_lifetime_min: f32,
-    pub wind_particle_lifetime_max: f32,
-    pub wind_particle_mesh_size: f32,
     pub wind_particle_height_offset: f32,
-    pub wind_particle_stretch_multiplier: f32,
-    pub wind_turn_rate: f32,
-    pub wind_particle_trail_segments: usize,
-    pub wind_particle_trail_width_ratio: f32,
+    pub wind_zonal_speed: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -82,15 +75,8 @@ impl Default for PlanetGenerationSettings {
             ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
             show_wind: false,
             wind_particle_count: config.wind.particle_count,
-            wind_trail_length: config.wind.trail_length,
-            wind_particle_lifetime_min: config.wind.particle_lifetime_min,
-            wind_particle_lifetime_max: config.wind.particle_lifetime_max,
-            wind_particle_mesh_size: config.wind.particle_mesh_size,
             wind_particle_height_offset: config.wind.particle_height_offset,
-            wind_particle_stretch_multiplier: config.wind.particle_stretch_multiplier,
-            wind_turn_rate: config.wind.turn_rate,
-            wind_particle_trail_segments: config.wind.trail_segments,
-            wind_particle_trail_width_ratio: config.wind.trail_width_ratio,
+            wind_zonal_speed: config.wind.zonal_speed,
         }
     }
 }

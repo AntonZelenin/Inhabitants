@@ -1,5 +1,4 @@
 # Planet Generation Configuration
-
 [generation]
 # cells per unit influences the performance of the planet generation quite a lot
 cells_per_unit = 5.0
@@ -157,3 +156,7 @@ trail_segments = 12
 # Range: 0.1 to 1.0, Default: 0.4
 # Lower values = thin, wispy trails; Higher values = thick, ribbon-like trails
 trail_width_ratio = 0.4
+# East-west (zonal) movement speed
+# Range: 0.0 to 10.0, Default: 5.0
+# Controls how fast particles move sideways at different latitudes
+zonal_speed = 5.0

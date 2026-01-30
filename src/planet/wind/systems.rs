@@ -27,6 +27,7 @@ pub fn update_wind_settings(
         wind_settings.planet_radius = planet_settings.radius;
         wind_settings.particle_height_offset = planet_settings.wind_particle_height_offset;
         wind_settings.enabled = planet_settings.show_wind;
+        wind_settings.zonal_speed = planet_settings.wind_zonal_speed;
     }
 }
 
@@ -87,7 +88,7 @@ pub fn spawn_debug_particles(
         let latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
 
         // Get initial velocity from wind field
-        let velocity = WindField::get_velocity(direction, latitudinal_speed);
+        let velocity = WindField::get_velocity(direction, latitudinal_speed, settings.zonal_speed);
 
         // Random lifetime between 3.0 and 5.0 seconds
         let time_seed = SystemTime::now()
@@ -194,7 +195,7 @@ pub fn update_particles(
             particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
 
             // Get new velocity
-            particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed);
+            particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
 
             // New random lifetime
             let time_seed = SystemTime::now()
@@ -221,7 +222,7 @@ pub fn update_particles(
             );
 
             // Update velocity with new latitudinal component
-            particle.velocity = WindField::get_velocity(new_direction, particle.latitudinal_speed);
+            particle.velocity = WindField::get_velocity(new_direction, particle.latitudinal_speed, settings.zonal_speed);
 
             // Move particle along velocity
             let current_pos = transform.translation;
