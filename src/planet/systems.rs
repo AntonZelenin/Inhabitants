@@ -20,6 +20,7 @@ use planetgen::planet::PlanetData;
 pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut camera_events: MessageWriter<SetCameraPositionEvent>,
+    mut planet_spawned_events: MessageWriter<PlanetSpawnedEvent>,
     mut events: MessageReader<GeneratePlanetEvent>,
     mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -44,9 +45,18 @@ pub fn spawn_planet_on_event(
         let planet_data = logic::generate_planet_data(&settings);
 
         // PRESENTATION: Generate BOTH meshes (continent view and plate view)
-        let continent_mesh =
-            build_stitched_planet_mesh(&planet_data, false, settings.snow_threshold, settings.continent_threshold);
-        let plate_mesh = build_stitched_planet_mesh(&planet_data, true, settings.snow_threshold, settings.continent_threshold);
+        let continent_mesh = build_stitched_planet_mesh(
+            &planet_data,
+            false,
+            settings.snow_threshold,
+            settings.continent_threshold,
+        );
+        let plate_mesh = build_stitched_planet_mesh(
+            &planet_data,
+            true,
+            settings.snow_threshold,
+            settings.continent_threshold,
+        );
 
         let continent_mesh_handle = meshes.add(continent_mesh);
         let plate_mesh_handle = meshes.add(plate_mesh);
@@ -64,6 +74,9 @@ pub fn spawn_planet_on_event(
             .spawn((
                 Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(current_rotation),
                 GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
                 PlanetEntity,
                 PlanetControls {
                     rotation: current_rotation,
@@ -133,6 +146,9 @@ pub fn spawn_planet_on_event(
 
         // Store planet data after using it for generation
         current_planet_data.planet_data = Some(planet_data);
+
+        // Emit event to notify that planet was spawned
+        planet_spawned_events.write(PlanetSpawnedEvent);
     }
 }
 
@@ -183,7 +199,12 @@ fn build_stitched_planet_mesh(
         planetgen::mesh_data::ViewMode::Continents
     };
 
-    let mesh_data = planetgen::mesh_data::MeshData::from_planet(planet, view_mode, snow_threshold, continent_threshold);
+    let mesh_data = planetgen::mesh_data::MeshData::from_planet(
+        planet,
+        view_mode,
+        snow_threshold,
+        continent_threshold,
+    );
 
     // Convert to Bevy mesh (thin presentation layer)
     let mut mesh = Mesh::new(
@@ -409,4 +430,13 @@ pub fn handle_generate_new_seed(
         settings.seed = planetgen::tools::expand_seed64(new_user_seed);
         settings_changed_events.write(SettingsChanged);
     }
+}
+
+/// Automatically generate a planet when entering PlanetGeneration state
+/// This eliminates the need to click "Generate" button on startup
+pub fn auto_generate_initial_planet(
+    mut planet_events: MessageWriter<GeneratePlanetEvent>,
+) {
+    info!("Auto-generating initial planet on game load");
+    planet_events.write(GeneratePlanetEvent);
 }

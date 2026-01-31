@@ -1,5 +1,4 @@
 # Planet Generation Configuration
-
 [generation]
 # cells per unit influences the performance of the planet generation quite a lot
 cells_per_unit = 5.0
@@ -100,3 +99,52 @@ snow_threshold = 1.4
 # Range: 0.0 to 0.5, Default: 0.2
 # Example: 0.2 means mountains form down to (continent_threshold - 0.2)
 mountain_underwater_threshold = 0.2
+
+[ocean]
+# === Ocean Visual Effects ===
+# Wave amplitude (height/intensity of ripples)
+# Range: 0.001 to 0.1, Default: 0.001
+# Lower values = flatter, calmer ocean; Higher values = more pronounced waves
+wave_amplitude = 0.001
+# Wave frequency (how many ripples per unit of space)
+# Range: 0.5 to 20.0, Default: 20.0
+# Lower values = larger, broader waves; Higher values = smaller, tighter ripples
+wave_frequency = 20.0
+# Wave animation speed (how fast ripples move)
+# Range: 0.1 to 5.0, Default: 0.5
+# Lower values = slow, peaceful motion; Higher values = fast, choppy motion
+wave_speed = 0.5
+# Normal perturbation scale (amplifies ripple visibility through lighting)
+# Range: 1.0 to 20.0, Default: 3.0
+# Lower values = subtle ripples; Higher values = very visible, dramatic ripples
+# This multiplies wave_amplitude when perturbing normals for lighting effects
+normal_perturbation_scale = 3.0
+
+[wind]
+# Number of wind particles to spawn
+# Default: 2000. Can be set to any value (higher = more visible patterns but lower performance)
+# Note: Particle count is only controlled via this config file, not adjustable in UI
+particle_count = 3000
+# Height offset above planet surface
+# Range: 0.1 to 2.0, Default: 1.0
+particle_height_offset = 1.0
+# East-west (zonal) movement speed
+# Range: 0.0 to 10.0, Default: 5.0
+# Controls how fast particles move sideways at different latitudes
+zonal_speed = 5.0
+# Particle lifespan in seconds
+# Range: 1.0 to 10.0, Default: 4.0
+# Lower values mean particles respawn faster (higher spawn rate)
+particle_lifespan = 4.0
+# Latitude bin size for density tracking (degrees)
+# Range: 0.25 to 5.0, Default: 2.0
+# Smaller bins = more precise density tracking but higher computation
+density_bin_deg = 2.0
+# Density pressure strength (force multiplier)
+# Range: 0.0 to 5.0, Default: 5.0
+# Higher values make particles spread away from crowded areas more strongly
+density_pressure_strength = 5.0
+# Uplift zone width near equator (degrees)
+# Range: 0.0 to 15.0, Default: 5.0
+# Width of the equatorial zone where particles slow down (simulating vertical uplift)
+uplift_zone_deg = 10.0

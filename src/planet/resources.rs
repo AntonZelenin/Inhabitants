@@ -33,6 +33,16 @@ pub struct PlanetGenerationSettings {
     pub ocean_wave_amplitude: f32,
     pub ocean_wave_frequency: f32,
     pub ocean_wave_speed: f32,
+    pub ocean_normal_perturbation_scale: f32,
+    // Wind visualization settings
+    pub show_wind: bool,
+    pub wind_particle_count: usize,
+    pub wind_particle_height_offset: f32,
+    pub wind_zonal_speed: f32,
+    pub wind_particle_lifespan: f32,
+    pub wind_density_bin_deg: f32,
+    pub wind_density_pressure_strength: f32,
+    pub wind_uplift_zone_deg: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -63,9 +73,18 @@ impl Default for PlanetGenerationSettings {
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
             show_ocean: true,
-            ocean_wave_amplitude: 0.05,
-            ocean_wave_frequency: 0.5,
-            ocean_wave_speed: 0.5,
+            ocean_wave_amplitude: config.ocean.wave_amplitude,
+            ocean_wave_frequency: config.ocean.wave_frequency,
+            ocean_wave_speed: config.ocean.wave_speed,
+            ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
+            show_wind: false,
+            wind_particle_count: config.wind.particle_count,
+            wind_particle_height_offset: config.wind.particle_height_offset,
+            wind_zonal_speed: config.wind.zonal_speed,
+            wind_particle_lifespan: config.wind.particle_lifespan,
+            wind_density_bin_deg: config.wind.density_bin_deg,
+            wind_density_pressure_strength: config.wind.density_pressure_strength,
+            wind_uplift_zone_deg: config.wind.uplift_zone_deg,
         }
     }
 }
