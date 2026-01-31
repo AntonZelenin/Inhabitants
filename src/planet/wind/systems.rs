@@ -6,8 +6,7 @@ use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
 use super::velocity::WindField;
 use bevy::prelude::*;
-use rand::{Rng, SeedableRng};
-use std::time::{SystemTime, UNIX_EPOCH};
+use rand::Rng;
 
 /// Marker component for wind particle visualization
 #[derive(Component)]
@@ -29,6 +28,9 @@ pub fn update_wind_settings(
         wind_settings.enabled = planet_settings.show_wind;
         wind_settings.zonal_speed = planet_settings.wind_zonal_speed;
         wind_settings.particle_lifespan = planet_settings.wind_particle_lifespan;
+        wind_settings.density_bin_deg = planet_settings.wind_density_bin_deg;
+        wind_settings.density_pressure_strength = planet_settings.wind_density_pressure_strength;
+        wind_settings.uplift_zone_deg = planet_settings.wind_uplift_zone_deg;
     }
 }
 
@@ -72,17 +74,14 @@ pub fn spawn_debug_particles(
     info!("Spawning {} wind particles with random positions", PARTICLE_COUNT);
 
     let sphere_mesh = meshes.add(Sphere::new(0.3).mesh().ico(2).unwrap());
-    let material = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 1.0, 0.8),
-        emissive: LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0,
-        ..default()
-    });
 
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
+    let mut rng = rand::rng();
+
     // Spawn particles at random positions on sphere
     for _ in 0..PARTICLE_COUNT {
-        let direction = random_sphere_point();
+        let direction = random_sphere_point(&mut rng);
         let position = direction * sphere_radius;
 
         // Get initial latitudinal speed based on latitude
@@ -92,21 +91,24 @@ pub fn spawn_debug_particles(
         let velocity = WindField::get_velocity(direction, latitudinal_speed, settings.zonal_speed);
 
         // Use lifespan from settings with ±20% variation
-        let time_seed = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
-        let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
         let variation = rng.random_range(0.8..1.2);
         let lifetime = settings.particle_lifespan * variation;
 
         // Random initial age for staggered spawning
         let age: f32 = rng.random_range(0.0..lifetime);
 
+        // Create material with alpha blending enabled
+        let material = materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 1.0, 0.8, 1.0),
+            emissive: LinearRgba::rgb(1.0, 1.0, 0.8) * 2.0,
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        });
+
         commands.entity(planet_entity).with_children(|parent| {
             parent.spawn((
                 Mesh3d(sphere_mesh.clone()),
-                MeshMaterial3d(material.clone()),
+                MeshMaterial3d(material),
                 Transform::from_translation(position),
                 WindParticle {
                     velocity,
@@ -119,60 +121,57 @@ pub fn spawn_debug_particles(
     }
 }
 
-/// Generate random point on sphere surface with latitude-based weighting
-/// Spawns more particles at source latitudes (30°) and fewer at sink latitudes (equator, poles)
-fn random_sphere_point() -> Vec3 {
-    // Get system time for random seed
-    let time_seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64;
+/// Generate random point on sphere surface (uniform distribution)
+fn random_sphere_point(rng: &mut impl Rng) -> Vec3 {
+    let u: f32 = rng.random();
+    let v: f32 = rng.random();
 
-    let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
+    let theta = u * 2.0 * std::f32::consts::PI;
+    let phi = (2.0 * v - 1.0).acos();
 
-    loop {
-        // Generate random point on sphere
-        let u: f32 = rng.random();
-        let v: f32 = rng.random();
+    let x = phi.sin() * theta.cos();
+    let y = phi.sin() * theta.sin();
+    let z = phi.cos();
 
-        let theta = u * 2.0 * std::f32::consts::PI;
-        let phi = (2.0 * v - 1.0).acos();
-
-        let x = phi.sin() * theta.cos();
-        let y = phi.sin() * theta.sin();
-        let z = phi.cos();
-
-        let point = Vec3::new(x, y, z).normalize();
-
-        // Get absolute latitude in degrees
-        let lat_deg = point.y.asin().to_degrees().abs();
-
-        // Weight function: higher near 30° (source), lower near 0° and 90° (sinks)
-        let weight = if lat_deg < 30.0 {
-            // Ramp up from equator (0°) to 30°
-            // At 0°: weight = 0.2, at 30°: weight = 1.0
-            0.2 + 0.8 * (lat_deg / 30.0)
-        } else if lat_deg < 60.0 {
-            // Ramp down from 30° to 60°
-            // At 30°: weight = 1.0, at 60°: weight = 0.3
-            1.0 - 0.7 * ((lat_deg - 30.0) / 30.0)
-        } else {
-            // Stay low near poles (60° to 90°)
-            // At 60°: weight = 0.3, at 90°: weight = 0.1
-            0.3 - 0.2 * ((lat_deg - 60.0) / 30.0)
-        };
-
-        // Accept point with probability proportional to weight
-        if rng.random::<f32>() < weight {
-            return point;
-        }
-    }
+    Vec3::new(x, y, z).normalize()
 }
 
+fn latitude_degrees(direction: Vec3) -> f32 {
+    direction.y.asin().to_degrees()
+}
+
+fn lat_to_bin(lat_deg: f32, bin_size_deg: f32, bin_count: usize) -> usize {
+    let clamped = lat_deg.clamp(-90.0, 90.0);
+    let raw = ((clamped + 90.0) / bin_size_deg).floor() as isize;
+    raw.clamp(0, (bin_count.saturating_sub(1)) as isize) as usize
+}
+
+fn respawn_particle(
+    particle: &mut WindParticle,
+    transform: &mut Transform,
+    settings: &WindParticleSettings,
+    sphere_radius: f32,
+    rng: &mut impl Rng,
+) {
+    let direction = random_sphere_point(rng);
+    let position = direction * sphere_radius;
+
+    particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
+    particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
+
+    let variation = rng.random_range(0.8..1.2);
+    particle.lifetime = settings.particle_lifespan * variation;
+    particle.age = 0.0;
+
+    transform.translation = position;
+}
 
 /// Update particle positions and handle respawning
 pub fn update_particles(
-    mut particles: Query<(&mut Transform, &mut WindParticle)>,
+    mut particles: ParamSet<(
+        Query<&Transform, With<WindParticle>>,
+        Query<(&mut Transform, &mut WindParticle)>,
+    )>,
     time: Res<Time>,
     settings: Res<WindParticleSettings>,
 ) {
@@ -183,56 +182,111 @@ pub fn update_particles(
     let delta = time.delta_secs();
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
-    for (mut transform, mut particle) in particles.iter_mut() {
-        // Update age
+    let bin_size_deg = settings.density_bin_deg.max(0.1);
+    let mut bin_count = (180.0 / bin_size_deg).ceil() as usize;
+    if bin_count == 0 {
+        bin_count = 1;
+    }
+
+    let mut density = vec![0u32; bin_count];
+    for transform in particles.p0().iter() {
+        let direction = transform.translation.normalize();
+        let lat_deg = latitude_degrees(direction);
+        let bin = lat_to_bin(lat_deg, bin_size_deg, bin_count);
+        density[bin] = density[bin].saturating_add(1);
+    }
+
+    let mut rng = rand::rng();
+
+    for (mut transform, mut particle) in particles.p1().iter_mut() {
         particle.age += delta;
 
-        // Check if particle should respawn
+        let direction = transform.translation.normalize();
+        let lat_deg = latitude_degrees(direction);
+
         if particle.age >= particle.lifetime {
-            // Respawn at new random position
-            let direction = random_sphere_point();
-            let position = direction * sphere_radius;
+            respawn_particle(&mut particle, &mut transform, &settings, sphere_radius, &mut rng);
+            continue;
+        }
 
-            // Reset latitudinal speed to desired at new position
-            particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
+        let desired_speed = WindField::get_desired_latitudinal_speed(direction);
 
-            // Get new velocity
-            particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
+        // Apply density-based pressure force
+        let bin = lat_to_bin(lat_deg, bin_size_deg, bin_count);
+        let north_bin = (bin + 1).min(bin_count - 1);
+        let south_bin = bin.saturating_sub(1);
+        let north_density = density[north_bin] as f32;
+        let south_density = density[south_bin] as f32;
+        let current_density = density[bin].max(1) as f32;
 
-            // New lifetime based on settings with ±20% variation
-            let time_seed = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64;
-            let mut rng = rand::rngs::StdRng::seed_from_u64(time_seed);
-            let variation = rng.random_range(0.8..1.2);
-            particle.lifetime = settings.particle_lifespan * variation;
-            particle.age = 0.0;
+        let pressure_gradient = (south_density - north_density) / current_density;
+        let pressure_speed = pressure_gradient * settings.density_pressure_strength;
 
-            transform.translation = position;
+        // Apply uplift zone force (reduces latitudinal speed to simulate vertical lift)
+        let in_uplift_zone = lat_deg.abs() <= settings.uplift_zone_deg;
+        let uplift_damping = if in_uplift_zone {
+            // Smoothly reduce latitudinal movement in uplift zone
+            let zone_center_dist = lat_deg.abs() / settings.uplift_zone_deg.max(0.1);
+            let damping_factor = 1.0 - (1.0 - zone_center_dist).powi(2); // Quadratic falloff
+            damping_factor.clamp(0.3, 1.0) // Keep some movement
         } else {
-            // Get current position direction
-            let new_direction = transform.translation.normalize();
+            1.0
+        };
 
-            // Calculate desired latitudinal speed at current position
-            let desired_speed = WindField::get_desired_latitudinal_speed(new_direction);
+        let desired_with_pressure = (desired_speed + pressure_speed) * uplift_damping;
 
-            // Relax towards desired speed
-            particle.latitudinal_speed = WindField::update_latitudinal_speed(
-                particle.latitudinal_speed,
-                desired_speed,
-                delta
-            );
+        particle.latitudinal_speed = WindField::update_latitudinal_speed(
+            particle.latitudinal_speed,
+            desired_with_pressure,
+            delta,
+        );
 
-            // Update velocity with new latitudinal component
-            particle.velocity = WindField::get_velocity(new_direction, particle.latitudinal_speed, settings.zonal_speed);
+        particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
 
-            // Move particle along velocity
-            let current_pos = transform.translation;
-            let new_pos = current_pos + particle.velocity * delta;
+        let current_pos = transform.translation;
+        let new_pos = current_pos + particle.velocity * delta;
 
-            // Project back onto sphere surface
-            transform.translation = new_pos.normalize() * sphere_radius;
+        transform.translation = new_pos.normalize() * sphere_radius;
+    }
+}
+
+/// Update particle transparency for fade in/out effects
+pub fn update_particle_fade(
+    mut particles: Query<(&WindParticle, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    settings: Res<WindParticleSettings>,
+) {
+    if !settings.enabled {
+        return;
+    }
+
+    for (particle, material_handle) in particles.iter_mut() {
+        if let Some(material) = materials.get_mut(&material_handle.0) {
+            let fade_in_progress = if settings.fade_in_duration > 0.0 {
+                (particle.age / settings.fade_in_duration).clamp(0.0, 1.0)
+            } else {
+                1.0
+            };
+
+            let time_until_death = particle.lifetime - particle.age;
+            let fade_out_progress = if settings.fade_out_duration > 0.0 {
+                (time_until_death / settings.fade_out_duration).clamp(0.0, 1.0)
+            } else {
+                1.0
+            };
+
+            // Combine both fade factors (use the minimum to handle both simultaneously)
+            let alpha = fade_in_progress.min(fade_out_progress);
+
+            // Update base color alpha
+            let mut color = material.base_color.to_srgba();
+            color.alpha = alpha;
+            material.base_color = color.into();
+
+            // Also fade emissive for consistency
+            let emissive_strength = alpha * 2.0; // Original emissive was * 2.0
+            material.emissive = LinearRgba::rgb(1.0, 1.0, 0.8) * emissive_strength;
         }
     }
 }
+

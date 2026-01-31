@@ -271,6 +271,32 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.separator();
     ui.add_space(10.0);
 
+    ui.heading("Density / Pressure");
+    ui.add_space(5.0);
+
+    ui.label("Latitude Bin Size (deg)");
+    ui.add(egui::Slider::new(&mut settings.wind_density_bin_deg, 0.25..=5.0)
+        .step_by(0.25));
+
+    ui.label("Pressure Strength");
+    ui.add(egui::Slider::new(&mut settings.wind_density_pressure_strength, 0.0..=10.0)
+        .step_by(0.05));
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Uplift / Sink");
+    ui.add_space(5.0);
+
+    ui.label("Uplift Zone Width (deg)");
+    ui.add(egui::Slider::new(&mut settings.wind_uplift_zone_deg, 0.0..=15.0)
+        .step_by(0.25));
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
     ui.colored_label(
         egui::Color32::GRAY,
         "Currently showing uniform eastward wind flow.\nFuture updates will add realistic atmospheric circulation."

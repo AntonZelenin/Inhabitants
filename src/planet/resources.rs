@@ -40,6 +40,9 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_height_offset: f32,
     pub wind_zonal_speed: f32,
     pub wind_particle_lifespan: f32,
+    pub wind_density_bin_deg: f32,
+    pub wind_density_pressure_strength: f32,
+    pub wind_uplift_zone_deg: f32,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -79,6 +82,9 @@ impl Default for PlanetGenerationSettings {
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
+            wind_density_bin_deg: config.wind.density_bin_deg,
+            wind_density_pressure_strength: config.wind.density_pressure_strength,
+            wind_uplift_zone_deg: config.wind.uplift_zone_deg,
         }
     }
 }
