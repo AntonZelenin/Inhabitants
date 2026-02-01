@@ -141,9 +141,6 @@ pub struct WindConfig {
     pub particle_height_offset: f32,
     pub zonal_speed: f32, // East-west movement speed
     pub particle_lifespan: f32, // Particle lifetime in seconds
-    pub density_bin_deg: f32, // Latitude bin size for density tracking
-    pub density_pressure_strength: f32, // Pressure force multiplier
-    pub uplift_zone_deg: f32, // Uplift zone width near equator
 }
 
 impl PlanetGenConfig {

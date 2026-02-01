@@ -4,7 +4,7 @@ use crate::planet::components::PlanetEntity;
 use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
-use super::velocity::{WindField, WindCubeMap};
+use super::velocity::WindCubeMap;
 use bevy::prelude::*;
 use rand::Rng;
 
