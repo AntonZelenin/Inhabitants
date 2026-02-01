@@ -4,7 +4,7 @@ use crate::planet::components::PlanetEntity;
 use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
-use super::velocity::WindField;
+use super::velocity::WindCubeMap;
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -15,6 +15,16 @@ pub struct WindParticle {
     pub latitudinal_speed: f32, // Current latitudinal velocity component
     pub age: f32,
     pub lifetime: f32,
+}
+
+/// Initialize the wind cube map resource at startup
+pub fn initialize_wind_cubemap(
+    mut commands: Commands,
+    settings: Res<WindParticleSettings>,
+) {
+    info!("Initializing wind cube map...");
+    let cubemap = WindCubeMap::build(settings.wind_cubemap_resolution, settings.zonal_speed);
+    commands.insert_resource(cubemap);
 }
 
 /// Update wind particle settings from planet generation settings
@@ -28,9 +38,6 @@ pub fn update_wind_settings(
         wind_settings.enabled = planet_settings.show_wind;
         wind_settings.zonal_speed = planet_settings.wind_zonal_speed;
         wind_settings.particle_lifespan = planet_settings.wind_particle_lifespan;
-        wind_settings.density_bin_deg = planet_settings.wind_density_bin_deg;
-        wind_settings.density_pressure_strength = planet_settings.wind_density_pressure_strength;
-        wind_settings.uplift_zone_deg = planet_settings.wind_uplift_zone_deg;
     }
 }
 
@@ -61,6 +68,7 @@ pub fn spawn_debug_particles(
     planet_query: Query<Entity, With<PlanetEntity>>,
     existing_particles: Query<Entity, With<WindParticle>>,
     settings: Res<WindParticleSettings>,
+    wind_cubemap: Res<WindCubeMap>,
 ) {
     // Only spawn if enabled and not already spawned
     if !settings.enabled || !existing_particles.is_empty() {
@@ -84,11 +92,8 @@ pub fn spawn_debug_particles(
         let direction = random_sphere_point(&mut rng);
         let position = direction * sphere_radius;
 
-        // Get initial latitudinal speed based on latitude
-        let latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
-
-        // Get initial velocity from wind field
-        let velocity = WindField::get_velocity(direction, latitudinal_speed, settings.zonal_speed);
+        // Get initial velocity from pre-computed wind cube map
+        let velocity = wind_cubemap.sample(direction);
 
         // Use lifespan from settings with ±20% variation
         let variation = rng.random_range(0.8..1.2);
@@ -112,7 +117,7 @@ pub fn spawn_debug_particles(
                 Transform::from_translation(position),
                 WindParticle {
                     velocity,
-                    latitudinal_speed,
+                    latitudinal_speed: 0.0, // No longer used, kept for compatibility
                     age,
                     lifetime,
                 },
@@ -136,28 +141,22 @@ fn random_sphere_point(rng: &mut impl Rng) -> Vec3 {
     Vec3::new(x, y, z).normalize()
 }
 
-fn latitude_degrees(direction: Vec3) -> f32 {
-    direction.y.asin().to_degrees()
-}
-
-fn lat_to_bin(lat_deg: f32, bin_size_deg: f32, bin_count: usize) -> usize {
-    let clamped = lat_deg.clamp(-90.0, 90.0);
-    let raw = ((clamped + 90.0) / bin_size_deg).floor() as isize;
-    raw.clamp(0, (bin_count.saturating_sub(1)) as isize) as usize
-}
-
 fn respawn_particle(
     particle: &mut WindParticle,
     transform: &mut Transform,
     settings: &WindParticleSettings,
     sphere_radius: f32,
+    wind_cubemap: &WindCubeMap,
     rng: &mut impl Rng,
 ) {
     let direction = random_sphere_point(rng);
     let position = direction * sphere_radius;
 
-    particle.latitudinal_speed = WindField::get_desired_latitudinal_speed(direction);
-    particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
+    // Get wind velocity from pre-computed cube map
+    let velocity = wind_cubemap.sample(direction);
+
+    particle.latitudinal_speed = 0.0; // No longer needed, kept for compatibility
+    particle.velocity = velocity;
 
     let variation = rng.random_range(0.8..1.2);
     particle.lifetime = settings.particle_lifespan * variation;
@@ -174,6 +173,7 @@ pub fn update_particles(
     )>,
     time: Res<Time>,
     settings: Res<WindParticleSettings>,
+    wind_cubemap: Res<WindCubeMap>,
 ) {
     if !settings.enabled {
         return;
@@ -182,66 +182,20 @@ pub fn update_particles(
     let delta = time.delta_secs();
     let sphere_radius = settings.planet_radius + settings.particle_height_offset;
 
-    let bin_size_deg = settings.density_bin_deg.max(0.1);
-    let mut bin_count = (180.0 / bin_size_deg).ceil() as usize;
-    if bin_count == 0 {
-        bin_count = 1;
-    }
-
-    let mut density = vec![0u32; bin_count];
-    for transform in particles.p0().iter() {
-        let direction = transform.translation.normalize();
-        let lat_deg = latitude_degrees(direction);
-        let bin = lat_to_bin(lat_deg, bin_size_deg, bin_count);
-        density[bin] = density[bin].saturating_add(1);
-    }
-
     let mut rng = rand::rng();
 
     for (mut transform, mut particle) in particles.p1().iter_mut() {
         particle.age += delta;
 
         let direction = transform.translation.normalize();
-        let lat_deg = latitude_degrees(direction);
 
         if particle.age >= particle.lifetime {
-            respawn_particle(&mut particle, &mut transform, &settings, sphere_radius, &mut rng);
+            respawn_particle(&mut particle, &mut transform, &settings, sphere_radius, &wind_cubemap, &mut rng);
             continue;
         }
 
-        let desired_speed = WindField::get_desired_latitudinal_speed(direction);
-
-        // Apply density-based pressure force
-        let bin = lat_to_bin(lat_deg, bin_size_deg, bin_count);
-        let north_bin = (bin + 1).min(bin_count - 1);
-        let south_bin = bin.saturating_sub(1);
-        let north_density = density[north_bin] as f32;
-        let south_density = density[south_bin] as f32;
-        let current_density = density[bin].max(1) as f32;
-
-        let pressure_gradient = (south_density - north_density) / current_density;
-        let pressure_speed = pressure_gradient * settings.density_pressure_strength;
-
-        // Apply uplift zone force (reduces latitudinal speed to simulate vertical lift)
-        let in_uplift_zone = lat_deg.abs() <= settings.uplift_zone_deg;
-        let uplift_damping = if in_uplift_zone {
-            // Smoothly reduce latitudinal movement in uplift zone
-            let zone_center_dist = lat_deg.abs() / settings.uplift_zone_deg.max(0.1);
-            let damping_factor = 1.0 - (1.0 - zone_center_dist).powi(2); // Quadratic falloff
-            damping_factor.clamp(0.3, 1.0) // Keep some movement
-        } else {
-            1.0
-        };
-
-        let desired_with_pressure = (desired_speed + pressure_speed) * uplift_damping;
-
-        particle.latitudinal_speed = WindField::update_latitudinal_speed(
-            particle.latitudinal_speed,
-            desired_with_pressure,
-            delta,
-        );
-
-        particle.velocity = WindField::get_velocity(direction, particle.latitudinal_speed, settings.zonal_speed);
+        // Sample wind velocity from pre-computed cube map
+        particle.velocity = wind_cubemap.sample(direction);
 
         let current_pos = transform.translation;
         let new_pos = current_pos + particle.velocity * delta;

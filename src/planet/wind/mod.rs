@@ -14,13 +14,9 @@ pub struct WindParticleSettings {
     pub enabled: bool,
     pub zonal_speed: f32,
     pub particle_lifespan: f32,
-    pub density_bin_deg: f32,
-    pub density_pressure_strength: f32,
-    pub uplift_zone_deg: f32,
     pub fade_in_duration: f32,
     pub fade_out_duration: f32,
-    pub source_zone_min_deg: f32,
-    pub source_zone_max_deg: f32,
+    pub wind_cubemap_resolution: usize,
 }
 
 impl Default for WindParticleSettings {
@@ -30,14 +26,10 @@ impl Default for WindParticleSettings {
             particle_height_offset: 2.0,
             enabled: true,
             zonal_speed: 5.0,
-            particle_lifespan: 4.0,
-            density_bin_deg: 2.0,
-            density_pressure_strength: 5.0,
-            uplift_zone_deg: 5.0,
+            particle_lifespan: 1.5,
             fade_in_duration: 0.6,
             fade_out_duration: 0.6,
-            source_zone_min_deg: 25.0,
-            source_zone_max_deg: 35.0,
+            wind_cubemap_resolution: velocity::DEFAULT_CUBEMAP_RESOLUTION,
         }
     }
 }
@@ -47,6 +39,7 @@ pub struct WindPlugin;
 impl Plugin for WindPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WindParticleSettings>()
+            .add_systems(Startup, systems::initialize_wind_cubemap)
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
             .add_systems(Update, systems::spawn_debug_particles)
