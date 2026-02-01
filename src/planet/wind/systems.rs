@@ -4,9 +4,26 @@ use crate::planet::components::PlanetEntity;
 use crate::planet::events::WindTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use super::{WindParticleSettings, PARTICLE_COUNT};
-use super::velocity::WindCubeMap;
 use bevy::prelude::*;
 use rand::Rng;
+use planetgen::wind::WindCubeMap as PlanetgenWindCubeMap;
+
+/// Bevy-compatible WindCubeMap resource
+#[derive(Resource, Clone)]
+pub struct WindCubeMap {
+    inner: PlanetgenWindCubeMap,
+}
+
+impl WindCubeMap {
+    pub fn build(resolution: usize, zonal_speed: f32) -> Self {
+        let inner = PlanetgenWindCubeMap::build(resolution, zonal_speed);
+        Self { inner }
+    }
+
+    pub fn sample(&self, position: Vec3) -> Vec3 {
+        self.inner.sample(position)
+    }
+}
 
 /// Marker component for wind particle visualization
 #[derive(Component)]

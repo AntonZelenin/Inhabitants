@@ -1,7 +1,7 @@
-pub mod velocity;
 pub mod systems;
 
 use bevy::prelude::*;
+use planetgen::wind::DEFAULT_CUBEMAP_RESOLUTION;
 
 /// Number of particles to simulate
 pub const PARTICLE_COUNT: u32 = 2500;
@@ -29,7 +29,7 @@ impl Default for WindParticleSettings {
             particle_lifespan: 1.5,
             fade_in_duration: 0.6,
             fade_out_duration: 0.6,
-            wind_cubemap_resolution: velocity::DEFAULT_CUBEMAP_RESOLUTION,
+            wind_cubemap_resolution: DEFAULT_CUBEMAP_RESOLUTION,
         }
     }
 }
@@ -42,8 +42,14 @@ impl Plugin for WindPlugin {
             .add_systems(Startup, systems::initialize_wind_cubemap)
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::handle_wind_tab_events)
-            .add_systems(Update, systems::spawn_debug_particles)
-            .add_systems(Update, systems::update_particles)
-            .add_systems(Update, systems::update_particle_fade);
+            .add_systems(
+                Update,
+                (
+                    systems::spawn_debug_particles,
+                    systems::update_particles,
+                    systems::update_particle_fade,
+                )
+                    .chain(),
+            );
     }
 }
