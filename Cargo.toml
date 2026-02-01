@@ -88,7 +88,6 @@ planetgen = { path = "crates/planetgen" }
 bevy-ocean = { path = "crates/bevy-ocean" }
 bevy_egui = "0.38"
 rand = "0.9"
-bytemuck = { version = "1.14", features = ["derive"] }
 
 # keep the following in sync with Bevy's dependencies
 winit = { version = "0.30", default-features = false }
