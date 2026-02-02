@@ -69,15 +69,15 @@ continent_frequency = 1.5
 # Height scaling for continents (higher = taller mountains and deeper valleys)
 continent_amplitude = 1.0
 # Mid-scale distortion for breaking up round shapes (creates torn, irregular continents)
-distortion_frequency = 4.0  # 3x continent_frequency for mid-scale features
-distortion_amplitude = 0.2   # Strong warping creates peninsulas and bays
+distortion_frequency = 3.6  # 3x continent_frequency for mid-scale features
+distortion_amplitude = 0.22   # Strong warping creates peninsulas and bays
 # Fine detail for rough coastlines (higher = more jagged coasts)
-detail_frequency = 14.0
+detail_frequency = 20.0
 # Detail layer strength (higher = more surface variation)
-detail_amplitude = 0.4
+detail_amplitude = 0.385
 # Threshold for land vs ocean (lower = more land, higher = more ocean)
 # Range: -1.0 to 1.0, typical: -0.3 to 0.3
-continent_threshold = 0.15
+continent_threshold = 0.1
 # Depth scaling for oceans (higher = deeper ocean trenches)
 ocean_depth_amplitude = 0.8
 

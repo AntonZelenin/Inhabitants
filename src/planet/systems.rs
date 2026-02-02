@@ -265,12 +265,12 @@ fn spawn_ocean(
     view_mode_plates: bool,
 ) {
     let ocean_config = OceanConfig {
-        sea_level: settings.radius,
-        grid_size: 256, // Much higher detail for smooth appearance
+        sea_level: settings.radius + settings.continent_threshold, // Raise ocean to hide flat coastal areas
+        grid_size: 256,
         wave_amplitude: 0.0,
         wave_frequency: 0.0,
         wave_speed: 0.0,
-        ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9), // Deep blue with some transparency
+        ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9),
     };
 
     let ocean = OceanMeshBuilder::new(ocean_config).with_time(0.0).build();

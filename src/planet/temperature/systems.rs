@@ -89,6 +89,7 @@ pub fn handle_temperature_tab_events(
                         original_mesh,
                         &temperature_cubemap,
                         planet_settings.radius,
+                        planet_settings.continent_threshold,
                     );
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
@@ -164,11 +165,12 @@ pub fn handle_temperature_tab_events(
     }
 }
 
-/// Create a copy of a mesh with temperature-based vertex colors and continent edge outlines
+/// Create a copy of a mesh with temperature-based vertex colors and continent darkening
 fn create_temperature_colored_mesh(
     original_mesh: &Mesh,
     temperature_cubemap: &TemperatureCubeMap,
     planet_radius: f32,
+    continent_threshold: f32,
 ) -> Mesh {
     let mut new_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -180,9 +182,10 @@ fn create_temperature_colored_mesh(
         if let Some(positions) = positions_attr.as_float3() {
             new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
 
-            let coastline_radius = planet_radius;
+            // Ocean level is now at planet_radius + continent_threshold
+            let ocean_level = planet_radius + continent_threshold;
 
-            // Generate temperature colors, darkening everything above coastline
+            // Generate temperature colors, darkening everything above ocean level
             let colors: Vec<[f32; 4]> = positions
                 .iter()
                 .map(|&[x, y, z]| {
@@ -192,8 +195,8 @@ fn create_temperature_colored_mesh(
 
                     let mut color = temperature_cubemap.sample_color(direction);
 
-                    // Darken vertices above coastline
-                    if vertex_radius > coastline_radius {
+                    // Darken vertices above ocean level (actual land)
+                    if vertex_radius > ocean_level {
                         color *= 0.3; // Darken to 30%
                     }
 
