@@ -43,10 +43,18 @@ pub fn initialize_temperature_cubemap(mut commands: Commands, settings: Res<Temp
 pub fn update_temperature_settings(
     planet_settings: Res<PlanetGenerationSettings>,
     mut temperature_settings: ResMut<TemperatureSettings>,
+    mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
 ) {
     if planet_settings.is_changed() {
         temperature_settings.planet_radius = planet_settings.radius;
+        let was_enabled = temperature_settings.enabled;
         temperature_settings.enabled = planet_settings.show_temperature;
+
+        // If temperature view is currently active and settings changed, regenerate
+        if was_enabled && planet_settings.show_temperature {
+            // Trigger regeneration by emitting the tab event
+            temperature_tab_events.write(TemperatureTabActiveEvent { active: true });
+        }
     }
 }
 
@@ -80,6 +88,11 @@ pub fn handle_temperature_tab_events(
                 continue;
             };
 
+            // Despawn any existing temperature meshes first (in case of planet regeneration)
+            for entity in existing_temp_meshes.iter() {
+                commands.entity(entity).despawn();
+            }
+
             // Hide original continent mesh and create temperature-colored copy
             for (entity, mesh_handle, _material) in continent_query.iter() {
                 commands.entity(entity).insert(Visibility::Hidden);
@@ -90,6 +103,7 @@ pub fn handle_temperature_tab_events(
                         &temperature_cubemap,
                         planet_settings.radius,
                         planet_settings.continent_threshold,
+                        planet_settings.land_temperature_bonus,
                     );
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
@@ -171,6 +185,7 @@ fn create_temperature_colored_mesh(
     temperature_cubemap: &TemperatureCubeMap,
     planet_radius: f32,
     continent_threshold: f32,
+    land_temperature_bonus: f32,
 ) -> Mesh {
     let mut new_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -185,7 +200,7 @@ fn create_temperature_colored_mesh(
             // Ocean level is now at planet_radius + continent_threshold
             let ocean_level = planet_radius + continent_threshold;
 
-            // Generate temperature colors, darkening everything above ocean level
+            // Generate temperature colors, applying land bonus and darkening land
             let colors: Vec<[f32; 4]> = positions
                 .iter()
                 .map(|&[x, y, z]| {
@@ -193,10 +208,24 @@ fn create_temperature_colored_mesh(
                     let direction = position.normalize();
                     let vertex_radius = (x * x + y * y + z * z).sqrt();
 
-                    let mut color = temperature_cubemap.sample_color(direction);
+                    // Check if this is land (above ocean level)
+                    let is_land = vertex_radius > ocean_level;
 
-                    // Darken vertices above ocean level (actual land)
-                    if vertex_radius > ocean_level {
+                    // Get base temperature from latitude
+                    let base_temp = temperature_cubemap.sample_temperature(direction);
+
+                    // Apply land temperature bonus if on land
+                    let adjusted_temp = if is_land {
+                        base_temp + land_temperature_bonus
+                    } else {
+                        base_temp
+                    };
+
+                    // Get color for the adjusted temperature
+                    let mut color = planetgen::temperature::TemperatureField::temperature_to_color(adjusted_temp);
+
+                    // Darken land vertices for visual distinction
+                    if is_land {
                         color *= 0.3; // Darken to 30%
                     }
 

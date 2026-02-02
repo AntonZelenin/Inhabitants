@@ -295,8 +295,21 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
 }
 
-fn render_temperature_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSettings) {
+fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
+
+    ui.heading("Temperature Settings");
+    ui.add_space(5.0);
+
+    ui.label("Land Temperature Bonus");
+    ui.add(egui::Slider::new(&mut settings.land_temperature_bonus, 0.0..=20.0)
+        .step_by(0.5)
+        .suffix("°C"));
+    ui.label("Extra warmth for land above sea level");
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
 
     ui.heading("Temperature Map");
     ui.add_space(5.0);

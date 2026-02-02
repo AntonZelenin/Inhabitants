@@ -38,6 +38,7 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_lifespan: f32,
     // Temperature visualization settings
     pub show_temperature: bool,
+    pub land_temperature_bonus: f32, // Temperature increase for land (above sea level)
 }
 
 impl Default for PlanetGenerationSettings {
@@ -74,6 +75,7 @@ impl Default for PlanetGenerationSettings {
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
             show_temperature: false,
+            land_temperature_bonus: 5.0, // Default: land is 5°C warmer than ocean
         }
     }
 }
