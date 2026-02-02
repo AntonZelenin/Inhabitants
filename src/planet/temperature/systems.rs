@@ -1,12 +1,12 @@
 // Temperature visualization systems
 
+use super::TemperatureSettings;
 use crate::planet::components::{PlanetEntity, TemperatureView};
 use crate::planet::events::TemperatureTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
-use super::TemperatureSettings;
-use bevy::prelude::*;
-use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::asset::RenderAssetUsages;
+use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy::prelude::*;
 use planetgen::temperature::TemperatureCubeMap as PlanetgenTemperatureCubeMap;
 
 /// Bevy-compatible TemperatureCubeMap resource
@@ -35,10 +35,7 @@ impl TemperatureCubeMap {
 pub struct TemperatureMesh;
 
 /// Initialize the temperature cube map resource at startup
-pub fn initialize_temperature_cubemap(
-    mut commands: Commands,
-    settings: Res<TemperatureSettings>,
-) {
+pub fn initialize_temperature_cubemap(mut commands: Commands, settings: Res<TemperatureSettings>) {
     info!("Initializing temperature cube map...");
     let cubemap = TemperatureCubeMap::build(settings.temperature_cubemap_resolution);
     commands.insert_resource(cubemap);
@@ -60,8 +57,14 @@ pub fn handle_temperature_tab_events(
     mut temperature_tab_events: MessageReader<TemperatureTabActiveEvent>,
     mut planet_settings: ResMut<PlanetGenerationSettings>,
     planet_query: Query<Entity, With<PlanetEntity>>,
-    continent_query: Query<(Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>), With<crate::planet::components::ContinentViewMesh>>,
-    ocean_query: Query<(Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>), With<crate::planet::components::OceanEntity>>,
+    continent_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::ContinentViewMesh>,
+    >,
+    ocean_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::OceanEntity>,
+    >,
     existing_temp_meshes: Query<Entity, With<TemperatureMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -99,14 +102,16 @@ pub fn handle_temperature_tab_events(
                         ..default()
                     });
 
-                    let temp_entity = commands.spawn((
-                        Mesh3d(temp_mesh_handle),
-                        MeshMaterial3d(temp_material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        TemperatureMesh,
-                    )).id();
+                    let temp_entity = commands
+                        .spawn((
+                            Mesh3d(temp_mesh_handle),
+                            MeshMaterial3d(temp_material),
+                            Transform::default(),
+                            GlobalTransform::default(),
+                            Visibility::Visible,
+                            TemperatureMesh,
+                        ))
+                        .id();
 
                     commands.entity(planet_entity).add_child(temp_entity);
                 }
@@ -118,7 +123,8 @@ pub fn handle_temperature_tab_events(
 
                 if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
                     // Ocean gets temperature colors but no edge detection
-                    let temp_mesh = create_simple_temperature_mesh(original_mesh, &temperature_cubemap);
+                    let temp_mesh =
+                        create_simple_temperature_mesh(original_mesh, &temperature_cubemap);
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
                     // Create solid unlit material for temperature colors
@@ -128,14 +134,16 @@ pub fn handle_temperature_tab_events(
                         ..default()
                     });
 
-                    let temp_entity = commands.spawn((
-                        Mesh3d(temp_mesh_handle),
-                        MeshMaterial3d(temp_material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        TemperatureMesh,
-                    )).id();
+                    let temp_entity = commands
+                        .spawn((
+                            Mesh3d(temp_mesh_handle),
+                            MeshMaterial3d(temp_material),
+                            Transform::default(),
+                            GlobalTransform::default(),
+                            Visibility::Visible,
+                            TemperatureMesh,
+                        ))
+                        .id();
 
                     commands.entity(planet_entity).add_child(temp_entity);
                 }
@@ -157,119 +165,6 @@ pub fn handle_temperature_tab_events(
             }
         }
     }
-}
-
-/// Spawn temperature visualization mesh
-pub fn spawn_temperature_mesh(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    planet_query: Query<Entity, With<PlanetEntity>>,
-    existing_meshes: Query<Entity, With<TemperatureMesh>>,
-    settings: Res<TemperatureSettings>,
-    temperature_cubemap: Res<TemperatureCubeMap>,
-) {
-    // Only spawn if enabled and not already spawned
-    if !settings.enabled || !existing_meshes.is_empty() {
-        return;
-    }
-
-    let Some(planet_entity) = planet_query.iter().next() else {
-        return;
-    };
-
-    info!("Spawning temperature visualization mesh");
-
-    // Generate a sphere mesh with vertex colors based on temperature
-    let mesh = generate_temperature_sphere_mesh(&temperature_cubemap, settings.planet_radius);
-    let mesh_handle = meshes.add(mesh);
-
-    // Create material that uses vertex colors
-    let material = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        ..default()
-    });
-
-    let temperature_mesh_entity = commands
-        .spawn((
-            Mesh3d(mesh_handle),
-            MeshMaterial3d(material),
-            Transform::default(),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            TemperatureMesh,
-            TemperatureView, // Marker component for visibility toggling
-        ))
-        .id();
-
-    // Make the temperature mesh a child of the planet entity
-    commands.entity(planet_entity).add_child(temperature_mesh_entity);
-}
-
-/// Generate a sphere mesh with vertex colors based on temperature data
-fn generate_temperature_sphere_mesh(
-    temperature_cubemap: &TemperatureCubeMap,
-    radius: f32,
-) -> Mesh {
-    let subdivisions = 64; // Higher resolution for smooth appearance
-
-    let mut positions = Vec::new();
-    let mut normals = Vec::new();
-    let mut colors = Vec::new();
-    let mut indices = Vec::new();
-
-    // Generate vertices using spherical coordinates
-    for lat_idx in 0..=subdivisions {
-        let lat = (lat_idx as f32 / subdivisions as f32) * std::f32::consts::PI;
-
-        for lon_idx in 0..=subdivisions {
-            let lon = (lon_idx as f32 / subdivisions as f32) * 2.0 * std::f32::consts::PI;
-
-            // Calculate position on unit sphere
-            let x = lat.sin() * lon.cos();
-            let y = lat.cos();
-            let z = lat.sin() * lon.sin();
-
-            let direction = Vec3::new(x, y, z);
-            let position = direction * radius;
-
-            // Sample color from temperature cubemap
-            let color = temperature_cubemap.sample_color(direction);
-
-            positions.push([position.x, position.y, position.z]);
-            normals.push([direction.x, direction.y, direction.z]);
-            colors.push([color.x, color.y, color.z, 1.0]);
-        }
-    }
-
-    // Generate indices for triangles
-    for lat in 0..subdivisions {
-        for lon in 0..subdivisions {
-            let first = lat * (subdivisions + 1) + lon;
-            let second = first + subdivisions + 1;
-
-            // First triangle
-            indices.push(first as u32);
-            indices.push(second as u32);
-            indices.push((first + 1) as u32);
-
-            // Second triangle
-            indices.push(second as u32);
-            indices.push((second + 1) as u32);
-            indices.push((first + 1) as u32);
-        }
-    }
-
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    );
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-    mesh.insert_indices(Indices::U32(indices));
-
-    mesh
 }
 
 /// Create a copy of a mesh with temperature-based vertex colors and continent edge outlines
@@ -373,42 +268,4 @@ fn create_simple_temperature_mesh(
     }
 
     new_mesh
-}
-
-/// Detect vertices that are near coastlines (transition between land and water elevation)
-fn detect_coastline_vertices(
-    positions: &[[f32; 3]],
-    planet_radius: f32,
-    continent_threshold: f32,
-) -> std::collections::HashSet<usize> {
-    use std::collections::HashSet;
-
-    let mut coastline_vertices = HashSet::new();
-
-    // Coastline radius = planet_radius + continent_threshold
-    let continent_radius = planet_radius + continent_threshold;
-
-    // Margin for edge detection (tune this value to adjust edge thickness)
-    let margin = planet_radius * 0.01; // 1% of planet radius
-
-    // Debug: track min/max radius
-    let mut min_radius = f32::MAX;
-    let mut max_radius = f32::MIN;
-
-    for (idx, &[x, y, z]) in positions.iter().enumerate() {
-        let vertex_radius = (x * x + y * y + z * z).sqrt();
-
-        min_radius = min_radius.min(vertex_radius);
-        max_radius = max_radius.max(vertex_radius);
-
-        // Mark vertices where: continent_radius - margin < vertex_radius < continent_radius + margin
-        if vertex_radius > (continent_radius - margin) && vertex_radius < (continent_radius + margin) {
-            coastline_vertices.insert(idx);
-        }
-    }
-
-    info!("Mesh radius range: {:.2} to {:.2}, planet_radius: {:.2}, continent_threshold: {:.2}, coastline_radius: {:.2}±{:.2}",
-          min_radius, max_radius, planet_radius, continent_threshold, continent_radius, margin);
-
-    coastline_vertices
 }
