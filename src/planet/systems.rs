@@ -7,6 +7,7 @@ use crate::planet::components::{
 use crate::planet::events::*;
 use crate::planet::logic;
 use crate::planet::resources::*;
+use crate::planet::ui::systems::ViewTab;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
@@ -21,11 +22,13 @@ pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut camera_events: MessageWriter<SetCameraPositionEvent>,
     mut planet_spawned_events: MessageWriter<PlanetSpawnedEvent>,
+    mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
     mut events: MessageReader<GeneratePlanetEvent>,
     mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
+    view_tab: Res<ViewTab>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
 ) {
@@ -86,28 +89,32 @@ pub fn spawn_planet_on_event(
                 },
             ))
             .with_children(|parent| {
-                // Continent view mesh (visible when NOT in plate view mode)
+                // Determine visibility based on current view tab
+                let is_tectonic_view = *view_tab == ViewTab::Tectonic;
+                let is_continent_or_wind_view = *view_tab == ViewTab::Continent || *view_tab == ViewTab::Wind;
+
+                // Continent view mesh (visible only in Continent or Wind view)
                 parent.spawn((
                     Mesh3d(continent_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    if settings.view_mode_plates {
-                        Visibility::Hidden
-                    } else {
+                    if is_continent_or_wind_view {
                         Visibility::Visible
+                    } else {
+                        Visibility::Hidden
                     },
                     ContinentViewMesh,
                     ContinentView, // Marker component
                 ));
 
-                // Plate view mesh (visible when IN plate view mode)
+                // Plate view mesh (visible only in Tectonic view)
                 parent.spawn((
                     Mesh3d(plate_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    if settings.view_mode_plates {
+                    if is_tectonic_view {
                         Visibility::Visible
                     } else {
                         Visibility::Hidden
@@ -132,15 +139,16 @@ pub fn spawn_planet_on_event(
             );
         }
 
-        // Spawn ocean sphere at sea level (only visible in continent view mode)
+        // Spawn ocean sphere at sea level (only visible in continent/temperature view mode)
         if settings.show_ocean {
+            let is_tectonic_view = *view_tab == ViewTab::Tectonic;
             spawn_ocean(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
                 &settings,
                 planet_entity,
-                settings.view_mode_plates, // Pass view mode to control initial visibility
+                is_tectonic_view, // Hide ocean only in tectonic view
             );
         }
 
@@ -149,6 +157,11 @@ pub fn spawn_planet_on_event(
 
         // Emit event to notify that planet was spawned
         planet_spawned_events.write(PlanetSpawnedEvent);
+
+        // If we're on the temperature tab, trigger temperature mesh generation
+        if *view_tab == ViewTab::Temperature {
+            temperature_tab_events.write(TemperatureTabActiveEvent { active: true });
+        }
     }
 }
 

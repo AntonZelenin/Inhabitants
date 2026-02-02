@@ -76,38 +76,41 @@ pub fn render_planet_generation_ui(
 
                     // Update visibility when tab changes
                     if tab_changed {
-                        let show_plates = *view_tab == ViewTab::Tectonic;
-                        settings.view_mode_plates = show_plates;
+                        let is_tectonic = *view_tab == ViewTab::Tectonic;
+                        let is_temperature = *view_tab == ViewTab::Temperature;
+                        let is_continent_or_wind = *view_tab == ViewTab::Continent || *view_tab == ViewTab::Wind;
+
+                        // Update settings for backward compatibility
+                        settings.view_mode_plates = is_tectonic;
 
                         // Emit wind tab event when switching to/from wind tab
                         let is_wind_active = *view_tab == ViewTab::Wind;
                         wind_tab_events.write(WindTabActiveEvent { active: is_wind_active });
 
                         // Emit temperature tab event when switching to/from temperature tab
-                        let is_temperature_active = *view_tab == ViewTab::Temperature;
-                        temperature_tab_events.write(TemperatureTabActiveEvent { active: is_temperature_active });
+                        temperature_tab_events.write(TemperatureTabActiveEvent { active: is_temperature });
 
-                        // Hide/show all entities in continent view
+                        // Hide/show all entities in continent view (visible only in Continent/Wind tabs)
                         for mut visibility in continent_view_query.iter_mut() {
-                            *visibility = if show_plates || is_temperature_active {
-                                Visibility::Hidden
-                            } else {
+                            *visibility = if is_continent_or_wind {
                                 Visibility::Visible
+                            } else {
+                                Visibility::Hidden
                             };
                         }
 
-                        // Hide/show all entities in tectonic plate view
+                        // Hide/show all entities in tectonic plate view (visible only in Tectonic tab)
                         for mut visibility in plate_view_query.iter_mut() {
-                            *visibility = if show_plates && !is_temperature_active {
+                            *visibility = if is_tectonic {
                                 Visibility::Visible
                             } else {
                                 Visibility::Hidden
                             };
                         }
 
-                        // Hide/show all entities in temperature view
+                        // Hide/show all entities in temperature view (visible only in Temperature tab)
                         for mut visibility in temperature_view_query.iter_mut() {
-                            *visibility = if is_temperature_active {
+                            *visibility = if is_temperature {
                                 Visibility::Visible
                             } else {
                                 Visibility::Hidden
@@ -301,35 +304,39 @@ fn render_temperature_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSet
     ui.label("Displaying latitude-based temperature distribution:");
     ui.add_space(10.0);
 
-    // Color legend
-    ui.label("Color Legend:");
+    // Color legend (5 equal steps of 20% each across -50°C to 50°C range)
+    ui.label("Color Scale (full range):");
     ui.horizontal(|ui| {
         ui.label("🔵 Light Blue:");
-        ui.label("-35°C (Poles)");
+        ui.label("-50°C");
+    });
+    ui.horizontal(|ui| {
+        ui.label("🟦 Cyan:");
+        ui.label("-30°C");
     });
     ui.horizontal(|ui| {
         ui.label("🟢 Green:");
-        ui.label("~0°C");
+        ui.label("-10°C");
     });
     ui.horizontal(|ui| {
         ui.label("🟡 Yellow:");
-        ui.label("~10°C");
+        ui.label("10°C");
     });
     ui.horizontal(|ui| {
         ui.label("🟠 Orange:");
-        ui.label("~20°C");
+        ui.label("30°C");
     });
     ui.horizontal(|ui| {
         ui.label("🔴 Red:");
-        ui.label("35°C (Equator)");
+        ui.label("50°C");
     });
 
     ui.add_space(10.0);
     ui.separator();
     ui.add_space(10.0);
 
-    ui.label("Temperature varies linearly with latitude:");
-    ui.label("• Highest at equator (35°C)");
-    ui.label("• Lowest at poles (-35°C)");
+    ui.label("Temperature varies with latitude:");
+    ui.label("• Current generation: -30°C (poles) to 30°C (equator)");
+    ui.label("• Color scale supports: -50°C to 50°C");
 }
 
