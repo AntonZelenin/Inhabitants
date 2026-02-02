@@ -28,7 +28,6 @@ impl Plugin for TemperaturePlugin {
         app.init_resource::<TemperatureSettings>()
             .add_systems(Startup, systems::initialize_temperature_cubemap)
             .add_systems(Update, systems::update_temperature_settings)
-            .add_systems(Update, systems::handle_temperature_tab_events)
-            .add_systems(Update, systems::spawn_temperature_mesh);
+            .add_systems(Update, systems::handle_temperature_tab_events);
     }
 }

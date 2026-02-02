@@ -59,16 +59,95 @@ pub fn update_temperature_settings(
 pub fn handle_temperature_tab_events(
     mut temperature_tab_events: MessageReader<TemperatureTabActiveEvent>,
     mut planet_settings: ResMut<PlanetGenerationSettings>,
-    existing_meshes: Query<Entity, With<TemperatureMesh>>,
+    planet_query: Query<Entity, With<PlanetEntity>>,
+    continent_query: Query<(Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>), With<crate::planet::components::ContinentViewMesh>>,
+    ocean_query: Query<(Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>), With<crate::planet::components::OceanEntity>>,
+    existing_temp_meshes: Query<Entity, With<TemperatureMesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    temperature_cubemap: Res<TemperatureCubeMap>,
     mut commands: Commands,
 ) {
     for event in temperature_tab_events.read() {
         planet_settings.show_temperature = event.active;
 
-        // Despawn temperature mesh when switching away from temperature tab
-        if !event.active {
-            for entity in existing_meshes.iter() {
+        if event.active {
+            info!("Creating temperature-colored mesh copies");
+
+            let Some(planet_entity) = planet_query.iter().next() else {
+                warn!("No planet entity found");
+                continue;
+            };
+
+            // Hide original continent mesh and create temperature-colored copy
+            for (entity, mesh_handle, _material) in continent_query.iter() {
+                commands.entity(entity).insert(Visibility::Hidden);
+
+                if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+                    let temp_mesh = create_temperature_colored_mesh(original_mesh, &temperature_cubemap);
+                    let temp_mesh_handle = meshes.add(temp_mesh);
+
+                    // Create solid unlit material for temperature colors
+                    let temp_material = materials.add(StandardMaterial {
+                        base_color: Color::WHITE,
+                        unlit: true, // Show temperature colors without lighting
+                        ..default()
+                    });
+
+                    let temp_entity = commands.spawn((
+                        Mesh3d(temp_mesh_handle),
+                        MeshMaterial3d(temp_material),
+                        Transform::default(),
+                        GlobalTransform::default(),
+                        Visibility::Visible,
+                        TemperatureMesh,
+                    )).id();
+
+                    commands.entity(planet_entity).add_child(temp_entity);
+                }
+            }
+
+            // Hide original ocean mesh and create temperature-colored copy
+            for (entity, mesh_handle, _material) in ocean_query.iter() {
+                commands.entity(entity).insert(Visibility::Hidden);
+
+                if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+                    let temp_mesh = create_temperature_colored_mesh(original_mesh, &temperature_cubemap);
+                    let temp_mesh_handle = meshes.add(temp_mesh);
+
+                    // Create solid unlit material for temperature colors
+                    let temp_material = materials.add(StandardMaterial {
+                        base_color: Color::WHITE,
+                        unlit: true, // Show temperature colors without lighting
+                        ..default()
+                    });
+
+                    let temp_entity = commands.spawn((
+                        Mesh3d(temp_mesh_handle),
+                        MeshMaterial3d(temp_material),
+                        Transform::default(),
+                        GlobalTransform::default(),
+                        Visibility::Visible,
+                        TemperatureMesh,
+                    )).id();
+
+                    commands.entity(planet_entity).add_child(temp_entity);
+                }
+            }
+        } else {
+            info!("Removing temperature-colored mesh copies");
+
+            // Despawn temperature mesh copies
+            for entity in existing_temp_meshes.iter() {
                 commands.entity(entity).despawn();
+            }
+
+            // Show original meshes again
+            for (entity, _, _) in continent_query.iter() {
+                commands.entity(entity).insert(Visibility::Visible);
+            }
+            for (entity, _, _) in ocean_query.iter() {
+                commands.entity(entity).insert(Visibility::Visible);
             }
         }
     }
@@ -186,3 +265,49 @@ fn generate_temperature_sphere_mesh(
 
     mesh
 }
+
+/// Create a copy of a mesh with temperature-based vertex colors
+fn create_temperature_colored_mesh(
+    original_mesh: &Mesh,
+    temperature_cubemap: &TemperatureCubeMap,
+) -> Mesh {
+    let mut new_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+
+    // Copy positions
+    if let Some(positions_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+        if let Some(positions) = positions_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
+
+            // Generate temperature colors based on positions
+            let colors: Vec<[f32; 4]> = positions
+                .iter()
+                .map(|&[x, y, z]| {
+                    let position = Vec3::new(x, y, z);
+                    let direction = position.normalize();
+                    let color = temperature_cubemap.sample_color(direction);
+                    [color.x, color.y, color.z, 1.0] // Solid color
+                })
+                .collect();
+
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+        }
+    }
+
+    // Copy normals
+    if let Some(normals_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_NORMAL) {
+        if let Some(normals) = normals_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.to_vec());
+        }
+    }
+
+    // Copy indices
+    if let Some(indices) = original_mesh.indices() {
+        new_mesh.insert_indices(indices.clone());
+    }
+
+    new_mesh
+}
+
