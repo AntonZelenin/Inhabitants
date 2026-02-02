@@ -1,11 +1,9 @@
-// Temperature visualization systems
-
 use super::TemperatureSettings;
-use crate::planet::components::{PlanetEntity, TemperatureView};
+use crate::planet::components::PlanetEntity;
 use crate::planet::events::TemperatureTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
 use bevy::asset::RenderAssetUsages;
-use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy::mesh::{PrimitiveTopology};
 use bevy::prelude::*;
 use planetgen::temperature::TemperatureCubeMap as PlanetgenTemperatureCubeMap;
 
@@ -91,7 +89,6 @@ pub fn handle_temperature_tab_events(
                         original_mesh,
                         &temperature_cubemap,
                         planet_settings.radius,
-                        planet_settings.continent_threshold,
                     );
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
@@ -172,7 +169,6 @@ fn create_temperature_colored_mesh(
     original_mesh: &Mesh,
     temperature_cubemap: &TemperatureCubeMap,
     planet_radius: f32,
-    continent_threshold: f32,
 ) -> Mesh {
     let mut new_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -184,8 +180,7 @@ fn create_temperature_colored_mesh(
         if let Some(positions) = positions_attr.as_float3() {
             new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
 
-            // Coastline radius = planet_radius + continent_threshold
-            let coastline_radius = planet_radius + continent_threshold;
+            let coastline_radius = planet_radius;
 
             // Generate temperature colors, darkening everything above coastline
             let colors: Vec<[f32; 4]> = positions

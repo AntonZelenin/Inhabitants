@@ -267,9 +267,9 @@ fn spawn_ocean(
     let ocean_config = OceanConfig {
         sea_level: settings.radius,
         grid_size: 256, // Much higher detail for smooth appearance
-        wave_amplitude: settings.ocean_wave_amplitude,
-        wave_frequency: settings.ocean_wave_frequency,
-        wave_speed: settings.ocean_wave_speed,
+        wave_amplitude: 0.0,
+        wave_frequency: 0.0,
+        wave_speed: 0.0,
         ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9), // Deep blue with some transparency
     };
 
