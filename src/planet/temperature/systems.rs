@@ -84,7 +84,12 @@ pub fn handle_temperature_tab_events(
                 commands.entity(entity).insert(Visibility::Hidden);
 
                 if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                    let temp_mesh = create_temperature_colored_mesh(original_mesh, &temperature_cubemap);
+                    let temp_mesh = create_temperature_colored_mesh(
+                        original_mesh,
+                        &temperature_cubemap,
+                        planet_settings.radius,
+                        planet_settings.continent_threshold,
+                    );
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
                     // Create solid unlit material for temperature colors
@@ -107,12 +112,13 @@ pub fn handle_temperature_tab_events(
                 }
             }
 
-            // Hide original ocean mesh and create temperature-colored copy
+            // Hide original ocean mesh and create temperature-colored copy (no edges)
             for (entity, mesh_handle, _material) in ocean_query.iter() {
                 commands.entity(entity).insert(Visibility::Hidden);
 
                 if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                    let temp_mesh = create_temperature_colored_mesh(original_mesh, &temperature_cubemap);
+                    // Ocean gets temperature colors but no edge detection
+                    let temp_mesh = create_simple_temperature_mesh(original_mesh, &temperature_cubemap);
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
                     // Create solid unlit material for temperature colors
@@ -266,10 +272,12 @@ fn generate_temperature_sphere_mesh(
     mesh
 }
 
-/// Create a copy of a mesh with temperature-based vertex colors
+/// Create a copy of a mesh with temperature-based vertex colors and continent edge outlines
 fn create_temperature_colored_mesh(
     original_mesh: &Mesh,
     temperature_cubemap: &TemperatureCubeMap,
+    planet_radius: f32,
+    continent_threshold: f32,
 ) -> Mesh {
     let mut new_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -281,14 +289,25 @@ fn create_temperature_colored_mesh(
         if let Some(positions) = positions_attr.as_float3() {
             new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
 
-            // Generate temperature colors based on positions
+            // Coastline radius = planet_radius + continent_threshold
+            let coastline_radius = planet_radius + continent_threshold;
+
+            // Generate temperature colors, darkening everything above coastline
             let colors: Vec<[f32; 4]> = positions
                 .iter()
                 .map(|&[x, y, z]| {
                     let position = Vec3::new(x, y, z);
                     let direction = position.normalize();
-                    let color = temperature_cubemap.sample_color(direction);
-                    [color.x, color.y, color.z, 1.0] // Solid color
+                    let vertex_radius = (x * x + y * y + z * z).sqrt();
+
+                    let mut color = temperature_cubemap.sample_color(direction);
+
+                    // Darken vertices above coastline
+                    if vertex_radius > coastline_radius {
+                        color *= 0.3; // Darken to 30%
+                    }
+
+                    [color.x, color.y, color.z, 1.0]
                 })
                 .collect();
 
@@ -311,3 +330,85 @@ fn create_temperature_colored_mesh(
     new_mesh
 }
 
+/// Create a simple temperature-colored mesh without edge detection (for ocean)
+fn create_simple_temperature_mesh(
+    original_mesh: &Mesh,
+    temperature_cubemap: &TemperatureCubeMap,
+) -> Mesh {
+    let mut new_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+
+    // Copy positions
+    if let Some(positions_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+        if let Some(positions) = positions_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
+
+            // Generate temperature colors without edges
+            let colors: Vec<[f32; 4]> = positions
+                .iter()
+                .map(|&[x, y, z]| {
+                    let position = Vec3::new(x, y, z);
+                    let direction = position.normalize();
+                    let color = temperature_cubemap.sample_color(direction);
+                    [color.x, color.y, color.z, 1.0]
+                })
+                .collect();
+
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+        }
+    }
+
+    // Copy normals
+    if let Some(normals_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_NORMAL) {
+        if let Some(normals) = normals_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.to_vec());
+        }
+    }
+
+    // Copy indices
+    if let Some(indices) = original_mesh.indices() {
+        new_mesh.insert_indices(indices.clone());
+    }
+
+    new_mesh
+}
+
+/// Detect vertices that are near coastlines (transition between land and water elevation)
+fn detect_coastline_vertices(
+    positions: &[[f32; 3]],
+    planet_radius: f32,
+    continent_threshold: f32,
+) -> std::collections::HashSet<usize> {
+    use std::collections::HashSet;
+
+    let mut coastline_vertices = HashSet::new();
+
+    // Coastline radius = planet_radius + continent_threshold
+    let continent_radius = planet_radius + continent_threshold;
+
+    // Margin for edge detection (tune this value to adjust edge thickness)
+    let margin = planet_radius * 0.01; // 1% of planet radius
+
+    // Debug: track min/max radius
+    let mut min_radius = f32::MAX;
+    let mut max_radius = f32::MIN;
+
+    for (idx, &[x, y, z]) in positions.iter().enumerate() {
+        let vertex_radius = (x * x + y * y + z * z).sqrt();
+
+        min_radius = min_radius.min(vertex_radius);
+        max_radius = max_radius.max(vertex_radius);
+
+        // Mark vertices where: continent_radius - margin < vertex_radius < continent_radius + margin
+        if vertex_radius > (continent_radius - margin) && vertex_radius < (continent_radius + margin) {
+            coastline_vertices.insert(idx);
+        }
+    }
+
+    info!("Mesh radius range: {:.2} to {:.2}, planet_radius: {:.2}, continent_threshold: {:.2}, coastline_radius: {:.2}±{:.2}",
+          min_radius, max_radius, planet_radius, continent_threshold, continent_radius, margin);
+
+    coastline_vertices
+}
