@@ -17,14 +17,17 @@ impl TemperatureField {
     pub fn calculate_temperature_at(position: Vec3) -> f32 {
         // Get latitude from Y component
         let lat_rad = position.y.asin();
-        let lat_deg = lat_rad.to_degrees();
-        let abs_lat = lat_deg.abs();
 
-        // Linear interpolation from equator (0°) to pole (90°)
-        let t = abs_lat / 90.0;
-        
-        // Lerp between equator temp and pole temp
-        EQUATOR_TEMP + (POLE_TEMP - EQUATOR_TEMP) * t
+        // Solar irradiance is proportional to cos(latitude)
+        // This creates slow change near equator, dramatic change near poles
+        // Physical explanation: sunlight hits equator perpendicularly (max energy per area),
+        // but hits poles at shallow angle (same energy spread over larger area)
+        let cos_lat = lat_rad.cos();
+
+        // Map cos(lat) from [1.0 (equator) to 0.0 (pole)] to temperature range
+        // cos_lat = 1.0 → EQUATOR_TEMP (35°C)
+        // cos_lat = 0.0 → POLE_TEMP (-35°C)
+        POLE_TEMP + (EQUATOR_TEMP - POLE_TEMP) * cos_lat
     }
 
     /// Convert temperature to a color for visualization
