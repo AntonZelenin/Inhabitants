@@ -40,6 +40,8 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_height_offset: f32,
     pub wind_zonal_speed: f32,
     pub wind_particle_lifespan: f32,
+    // Temperature visualization settings
+    pub show_temperature: bool,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -79,6 +81,7 @@ impl Default for PlanetGenerationSettings {
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
+            show_temperature: false,
         }
     }
 }

@@ -25,4 +25,9 @@ pub struct WindTabActiveEvent {
 }
 
 #[derive(Message)]
+pub struct TemperatureTabActiveEvent {
+    pub active: bool,
+}
+
+#[derive(Message)]
 pub struct PlanetSpawnedEvent;

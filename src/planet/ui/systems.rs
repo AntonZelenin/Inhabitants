@@ -1,4 +1,4 @@
-use crate::planet::components::{ContinentView, TectonicPlateView};
+use crate::planet::components::{ContinentView, TectonicPlateView, TemperatureView};
 use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use bevy::app::AppExit;
@@ -12,6 +12,7 @@ pub enum ViewTab {
     Continent,
     Tectonic,
     Wind,
+    Temperature,
 }
 
 pub fn setup_world_generation_menu(
@@ -33,9 +34,11 @@ pub fn render_planet_generation_ui(
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
     mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
+    mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
-    mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>)>,
-    mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>)>,
+    mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>, Without<TemperatureView>)>,
+    mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>, Without<TemperatureView>)>,
+    mut temperature_view_query: Query<&mut Visibility, (With<TemperatureView>, Without<ContinentView>, Without<TectonicPlateView>)>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -66,6 +69,10 @@ pub fn render_planet_generation_ui(
                         *view_tab = ViewTab::Wind;
                         tab_changed = old_tab != *view_tab;
                     }
+                    if ui.selectable_label(*view_tab == ViewTab::Temperature, "Temperature").clicked() {
+                        *view_tab = ViewTab::Temperature;
+                        tab_changed = old_tab != *view_tab;
+                    }
 
                     // Update visibility when tab changes
                     if tab_changed {
@@ -76,9 +83,13 @@ pub fn render_planet_generation_ui(
                         let is_wind_active = *view_tab == ViewTab::Wind;
                         wind_tab_events.write(WindTabActiveEvent { active: is_wind_active });
 
+                        // Emit temperature tab event when switching to/from temperature tab
+                        let is_temperature_active = *view_tab == ViewTab::Temperature;
+                        temperature_tab_events.write(TemperatureTabActiveEvent { active: is_temperature_active });
+
                         // Hide/show all entities in continent view
                         for mut visibility in continent_view_query.iter_mut() {
-                            *visibility = if show_plates {
+                            *visibility = if show_plates || is_temperature_active {
                                 Visibility::Hidden
                             } else {
                                 Visibility::Visible
@@ -87,7 +98,16 @@ pub fn render_planet_generation_ui(
 
                         // Hide/show all entities in tectonic plate view
                         for mut visibility in plate_view_query.iter_mut() {
-                            *visibility = if show_plates {
+                            *visibility = if show_plates && !is_temperature_active {
+                                Visibility::Visible
+                            } else {
+                                Visibility::Hidden
+                            };
+                        }
+
+                        // Hide/show all entities in temperature view
+                        for mut visibility in temperature_view_query.iter_mut() {
+                            *visibility = if is_temperature_active {
                                 Visibility::Visible
                             } else {
                                 Visibility::Hidden
@@ -113,6 +133,10 @@ pub fn render_planet_generation_ui(
                     ViewTab::Wind => {
                         // Wind tab content
                         render_wind_tab(ui, &mut settings);
+                    }
+                    ViewTab::Temperature => {
+                        // Temperature tab content
+                        render_temperature_tab(ui, &mut settings);
                     }
                 }
 
@@ -267,3 +291,45 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.label("Lower lifespan = faster respawn rate");
     ui.add_space(5.0);
 }
+
+fn render_temperature_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSettings) {
+    ui.add_space(5.0);
+
+    ui.heading("Temperature Map");
+    ui.add_space(5.0);
+
+    ui.label("Displaying latitude-based temperature distribution:");
+    ui.add_space(10.0);
+
+    // Color legend
+    ui.label("Color Legend:");
+    ui.horizontal(|ui| {
+        ui.label("🔵 Light Blue:");
+        ui.label("-35°C (Poles)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("🟢 Green:");
+        ui.label("~0°C");
+    });
+    ui.horizontal(|ui| {
+        ui.label("🟡 Yellow:");
+        ui.label("~10°C");
+    });
+    ui.horizontal(|ui| {
+        ui.label("🟠 Orange:");
+        ui.label("~20°C");
+    });
+    ui.horizontal(|ui| {
+        ui.label("🔴 Red:");
+        ui.label("35°C (Equator)");
+    });
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.label("Temperature varies linearly with latitude:");
+    ui.label("• Highest at equator (35°C)");
+    ui.label("• Lowest at poles (-35°C)");
+}
+

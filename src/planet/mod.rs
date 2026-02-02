@@ -4,6 +4,7 @@ pub mod resources;
 pub mod systems;
 pub mod ui;
 pub mod wind;
+pub mod temperature;
 mod logic;
 
 use crate::core::state::GameState;
@@ -11,6 +12,7 @@ use crate::planet::events::*;
 use crate::planet::resources::*;
 use crate::planet::systems::*;
 use crate::planet::wind::WindPlugin;
+use crate::planet::temperature::TemperaturePlugin;
 use bevy::prelude::*;
 
 pub struct PlanetPlugin;
@@ -19,12 +21,14 @@ impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(WindPlugin)
+            .add_plugins(TemperaturePlugin)
             .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()
             .add_message::<SetCameraPositionEvent>()
             .add_message::<SettingsChanged>()
             .add_message::<WindTabActiveEvent>()
+            .add_message::<TemperatureTabActiveEvent>()
             .add_message::<PlanetSpawnedEvent>()
             .init_resource::<CurrentPlanetData>()
             .add_systems(
