@@ -7,6 +7,7 @@ use crate::planet::components::{
 use crate::planet::events::*;
 use crate::planet::logic;
 use crate::planet::resources::*;
+use crate::planet::temperature::systems::TemperatureMesh;
 use crate::planet::ui::systems::ViewTab;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
@@ -31,6 +32,7 @@ pub fn spawn_planet_on_event(
     view_tab: Res<ViewTab>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
+    temperature_meshes: Query<Entity, With<TemperatureMesh>>,
 ) {
     for _ in events.read() {
         // Capture current rotation before despawning
@@ -40,7 +42,12 @@ pub fn spawn_planet_on_event(
             .map(|controls| controls.rotation)
             .unwrap_or(Quat::IDENTITY);
 
-        // Despawn existing planet entities before generating new ones
+        // Despawn temperature meshes first to avoid stale references
+        for entity in temperature_meshes.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        // Despawn existing planet entities before generating new ones (children will be cleaned up automatically)
         for entity in planet_entities.iter() {
             commands.entity(entity).despawn();
         }

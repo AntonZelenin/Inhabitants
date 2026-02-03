@@ -43,18 +43,10 @@ pub fn initialize_temperature_cubemap(mut commands: Commands, settings: Res<Temp
 pub fn update_temperature_settings(
     planet_settings: Res<PlanetGenerationSettings>,
     mut temperature_settings: ResMut<TemperatureSettings>,
-    mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
 ) {
     if planet_settings.is_changed() {
         temperature_settings.planet_radius = planet_settings.radius;
-        let was_enabled = temperature_settings.enabled;
         temperature_settings.enabled = planet_settings.show_temperature;
-
-        // If temperature view is currently active and settings changed, regenerate
-        if was_enabled && planet_settings.show_temperature {
-            // Trigger regeneration by emitting the tab event
-            temperature_tab_events.write(TemperatureTabActiveEvent { active: true });
-        }
     }
 }
 
@@ -81,17 +73,18 @@ pub fn handle_temperature_tab_events(
         planet_settings.show_temperature = event.active;
 
         if event.active {
+            // Only create temperature meshes if they don't already exist
+            if !existing_temp_meshes.is_empty() {
+                info!("Temperature meshes already exist, skipping creation");
+                continue;
+            }
+
             info!("Creating temperature-colored mesh copies");
 
             let Some(planet_entity) = planet_query.iter().next() else {
                 warn!("No planet entity found");
                 continue;
             };
-
-            // Despawn any existing temperature meshes first (in case of planet regeneration)
-            for entity in existing_temp_meshes.iter() {
-                commands.entity(entity).despawn();
-            }
 
             // Hide original continent mesh and create temperature-colored copy
             for (entity, mesh_handle, _material) in continent_query.iter() {
@@ -122,6 +115,7 @@ pub fn handle_temperature_tab_events(
                             GlobalTransform::default(),
                             Visibility::Visible,
                             TemperatureMesh,
+                            crate::planet::components::TemperatureView, // Add marker for visibility control
                         ))
                         .id();
 
@@ -154,6 +148,7 @@ pub fn handle_temperature_tab_events(
                             GlobalTransform::default(),
                             Visibility::Visible,
                             TemperatureMesh,
+                            crate::planet::components::TemperatureView, // Add marker for visibility control
                         ))
                         .id();
 
@@ -161,11 +156,11 @@ pub fn handle_temperature_tab_events(
                 }
             }
         } else {
-            info!("Removing temperature-colored mesh copies");
+            info!("Hiding temperature-colored mesh copies");
 
-            // Despawn temperature mesh copies
+            // Hide temperature mesh copies instead of despawning
             for entity in existing_temp_meshes.iter() {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_insert(Visibility::Hidden);
             }
 
             // Show original meshes again
