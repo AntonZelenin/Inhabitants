@@ -19,8 +19,26 @@ pub struct SetCameraPositionEvent {
 #[derive(Message)]
 pub struct SettingsChanged;
 
+#[derive(Message, Clone, Copy, Debug, PartialEq)]
+pub enum ViewTabType {
+    Continent,
+    Tectonic,
+    Wind,
+    Temperature,
+}
+
+#[derive(Message)]
+pub struct TabSwitchEvent {
+    pub tab: ViewTabType,
+}
+
 #[derive(Message)]
 pub struct WindTabActiveEvent {
+    pub active: bool,
+}
+
+#[derive(Message)]
+pub struct TectonicTabActiveEvent {
     pub active: bool,
 }
 

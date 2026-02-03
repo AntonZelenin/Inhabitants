@@ -33,12 +33,10 @@ pub fn render_planet_generation_ui(
     mut view_tab: ResMut<ViewTab>,
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
+    mut tab_switch_events: MessageWriter<TabSwitchEvent>,
     mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
     mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
-    mut continent_view_query: Query<&mut Visibility, (With<ContinentView>, Without<TectonicPlateView>, Without<TemperatureView>)>,
-    mut plate_view_query: Query<&mut Visibility, (With<TectonicPlateView>, Without<ContinentView>, Without<TemperatureView>)>,
-    mut temperature_view_query: Query<&mut Visibility, (With<TemperatureView>, Without<ContinentView>, Without<TectonicPlateView>)>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
         return;
@@ -76,46 +74,23 @@ pub fn render_planet_generation_ui(
 
                     // Update visibility when tab changes
                     if tab_changed {
-                        let is_tectonic = *view_tab == ViewTab::Tectonic;
+                        // Emit ONE event with the target tab
+                        let tab_type = match *view_tab {
+                            ViewTab::Continent => ViewTabType::Continent,
+                            ViewTab::Tectonic => ViewTabType::Tectonic,
+                            ViewTab::Wind => ViewTabType::Wind,
+                            ViewTab::Temperature => ViewTabType::Temperature,
+                        };
+                        
+                        tab_switch_events.write(TabSwitchEvent { tab: tab_type });
+                        
+                        // Emit wind event for particle spawning/despawning
+                        let is_wind = *view_tab == ViewTab::Wind;
+                        wind_tab_events.write(WindTabActiveEvent { active: is_wind });
+                        
+                        // Emit temperature event for mesh generation
                         let is_temperature = *view_tab == ViewTab::Temperature;
-                        let is_continent_or_wind = *view_tab == ViewTab::Continent || *view_tab == ViewTab::Wind;
-
-                        // Update settings for backward compatibility
-                        settings.view_mode_plates = is_tectonic;
-
-                        // Emit wind tab event when switching to/from wind tab
-                        let is_wind_active = *view_tab == ViewTab::Wind;
-                        wind_tab_events.write(WindTabActiveEvent { active: is_wind_active });
-
-                        // Emit temperature tab event when switching to/from temperature tab
                         temperature_tab_events.write(TemperatureTabActiveEvent { active: is_temperature });
-
-                        // Hide/show all entities in continent view (visible only in Continent/Wind tabs)
-                        for mut visibility in continent_view_query.iter_mut() {
-                            *visibility = if is_continent_or_wind {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Hidden
-                            };
-                        }
-
-                        // Hide/show all entities in tectonic plate view (visible only in Tectonic tab)
-                        for mut visibility in plate_view_query.iter_mut() {
-                            *visibility = if is_tectonic {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Hidden
-                            };
-                        }
-
-                        // Hide/show all entities in temperature view (visible only in Temperature tab)
-                        for mut visibility in temperature_view_query.iter_mut() {
-                            *visibility = if is_temperature {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Hidden
-                            };
-                        }
                     }
                 });
 
@@ -127,7 +102,7 @@ pub fn render_planet_generation_ui(
                 match *view_tab {
                     ViewTab::Continent => {
                         // Continent tab content
-                        render_continent_tab(ui, &mut settings, &mut generate_new_seed_events);
+                        render_continent_tab(ui, &mut settings, &mut generate_new_seed_events, &mut planet_generation_events);
                     }
                     ViewTab::Tectonic => {
                         // Tectonic tab content
@@ -148,11 +123,7 @@ pub fn render_planet_generation_ui(
                 ui.add_space(10.0);
 
                 // Common action buttons
-                if ui.button("Generate Planet").clicked() {
-                    planet_generation_events.write(GeneratePlanetEvent);
-                }
-
-                ui.add_space(10.0);
+                // Note: Generate Planet button is only shown in Continent tab
 
                 if ui.button("Quit").clicked() {
                     app_exit_events.write(AppExit::Success);
@@ -165,6 +136,7 @@ fn render_continent_tab(
     ui: &mut egui::Ui,
     settings: &mut PlanetGenerationSettings,
     generate_new_seed_events: &mut MessageWriter<GenerateNewSeedEvent>,
+    planet_generation_events: &mut MessageWriter<GeneratePlanetEvent>,
 ) {
     // Seed section
     ui.heading("General");
@@ -225,6 +197,15 @@ fn render_continent_tab(
     ui.label("Mountain Width");
     ui.add(egui::Slider::new(&mut settings.mountain_width, 0.03..=0.25)
         .step_by(0.001));
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    // Generate Planet button (only on Continent tab)
+    if ui.button("Generate Planet").clicked() {
+        planet_generation_events.write(GeneratePlanetEvent);
+    }
 }
 
 fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {

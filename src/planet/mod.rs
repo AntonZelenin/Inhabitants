@@ -5,6 +5,7 @@ pub mod systems;
 pub mod ui;
 pub mod wind;
 pub mod temperature;
+pub mod tectonic;
 mod logic;
 
 use crate::core::state::GameState;
@@ -13,6 +14,7 @@ use crate::planet::resources::*;
 use crate::planet::systems::*;
 use crate::planet::wind::WindPlugin;
 use crate::planet::temperature::TemperaturePlugin;
+use crate::planet::tectonic::TectonicPlugin;
 use bevy::prelude::*;
 
 pub struct PlanetPlugin;
@@ -22,12 +24,15 @@ impl Plugin for PlanetPlugin {
         app
             .add_plugins(WindPlugin)
             .add_plugins(TemperaturePlugin)
+            .add_plugins(TectonicPlugin)
             .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()
             .add_message::<SetCameraPositionEvent>()
             .add_message::<SettingsChanged>()
+            .add_message::<TabSwitchEvent>()
             .add_message::<WindTabActiveEvent>()
+            .add_message::<TectonicTabActiveEvent>()
             .add_message::<TemperatureTabActiveEvent>()
             .add_message::<PlanetSpawnedEvent>()
             .init_resource::<CurrentPlanetData>()

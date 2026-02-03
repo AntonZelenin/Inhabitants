@@ -307,7 +307,7 @@ fn spawn_ocean(
                 Visibility::Visible
             },
             OceanEntity,
-            ContinentView, // Marker component - will be toggled by view mode system
+            // Note: ContinentView marker removed - ocean visibility is handled separately by tab system
         ))
         .id();
 

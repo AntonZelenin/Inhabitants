@@ -88,7 +88,8 @@ pub fn handle_temperature_tab_events(
 
             // Hide original continent mesh and create temperature-colored copy
             for (entity, mesh_handle, _material) in continent_query.iter() {
-                commands.entity(entity).insert(Visibility::Hidden);
+                // DO NOT manipulate visibility - centralized system handles it
+                // Just create the temperature mesh copy
 
                 if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
                     let temp_mesh = create_temperature_colored_mesh(
@@ -125,7 +126,8 @@ pub fn handle_temperature_tab_events(
 
             // Hide original ocean mesh and create temperature-colored copy (no edges)
             for (entity, mesh_handle, _material) in ocean_query.iter() {
-                commands.entity(entity).insert(Visibility::Hidden);
+                // DO NOT manipulate visibility - centralized system handles it
+                // Just create the temperature mesh copy
 
                 if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
                     // Ocean gets temperature colors but no edge detection
@@ -163,13 +165,8 @@ pub fn handle_temperature_tab_events(
                 commands.entity(entity).try_insert(Visibility::Hidden);
             }
 
-            // Show original meshes again
-            for (entity, _, _) in continent_query.iter() {
-                commands.entity(entity).insert(Visibility::Visible);
-            }
-            for (entity, _, _) in ocean_query.iter() {
-                commands.entity(entity).insert(Visibility::Visible);
-            }
+            // DO NOT manipulate continent or ocean visibility here!
+            // The centralized tab visibility system handles ALL mesh visibility
         }
     }
 }
