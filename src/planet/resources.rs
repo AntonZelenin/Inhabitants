@@ -75,7 +75,7 @@ impl Default for PlanetGenerationSettings {
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
             show_temperature: false,
-            land_temperature_bonus: 5.0, // Default: land is 5°C warmer than ocean
+            land_temperature_bonus: 10.0, // Default: land is 5°C warmer than ocean
         }
     }
 }
