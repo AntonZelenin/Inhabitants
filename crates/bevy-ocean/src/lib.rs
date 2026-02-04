@@ -47,12 +47,6 @@ pub struct OceanConfig {
     pub sea_level: f32,
     /// Number of grid subdivisions (higher = more detailed)
     pub grid_size: u32,
-    /// Wave height amplitude
-    pub wave_amplitude: f32,
-    /// Wave frequency (how many waves per unit)
-    pub wave_frequency: f32,
-    /// Wave animation speed
-    pub wave_speed: f32,
     /// Base ocean color
     pub ocean_color: Color,
 }
@@ -62,9 +56,6 @@ impl Default for OceanConfig {
         Self {
             sea_level: 50.0,
             grid_size: 64,
-            wave_amplitude: 0.1,
-            wave_frequency: 2.0,
-            wave_speed: 1.0,
             ocean_color: Color::srgb(0.0, 0.4, 0.7),
         }
     }

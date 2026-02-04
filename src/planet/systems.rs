@@ -287,9 +287,6 @@ fn spawn_ocean(
     let ocean_config = OceanConfig {
         sea_level: settings.radius + settings.continent_threshold, // Raise ocean to hide flat coastal areas
         grid_size: 256,
-        wave_amplitude: 0.0,
-        wave_frequency: 0.0,
-        wave_speed: 0.0,
         ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9),
     };
 
