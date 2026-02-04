@@ -354,13 +354,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-ocean"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "bevy_a11y"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2988,12 +2981,12 @@ name = "inhabitants"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy-ocean",
  "bevy_asset_loader",
  "bevy_egui",
  "bevy_kira_audio",
  "image",
  "log",
+ "ocean",
  "planetgen",
  "rand 0.9.1",
  "rstest",
@@ -3787,6 +3780,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8bb09a4a2b1d668170cfe0a7d5bc103f8999fb316c98099b6a9939c9f2e79d"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ocean"
+version = "0.1.0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]

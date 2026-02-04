@@ -16,7 +16,7 @@ use bevy::math::{Quat, Vec3};
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::pbr::{MeshMaterial3d, StandardMaterial};
 use bevy::prelude::*;
-use bevy_ocean::{OceanConfig, OceanMeshBuilder};
+use ocean::{OceanConfig, OceanMeshBuilder};
 use planetgen::planet::PlanetData;
 
 pub fn spawn_planet_on_event(
