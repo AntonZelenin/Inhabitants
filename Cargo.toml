@@ -36,26 +36,26 @@ dev = [
 # All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis)
 # since they clash with bevy_kira_audio
 [dependencies]
-bevy = { version = "0.17", default-features = false, features = [
-    "animation",
+bevy = { version = "0.18", default-features = false, features = [
+    "bevy_animation",
     "bevy_asset",
     "bevy_color",
     "bevy_core_pipeline",
     "bevy_gilrs",
     "bevy_gizmos",
     "bevy_gltf",
-    "bevy_mesh_picking_backend",
+    "mesh_picking",
     "bevy_pbr",
     "bevy_picking",
     "bevy_render",
     "bevy_scene",
     "bevy_sprite",
-    "bevy_sprite_picking_backend",
+    "sprite_picking",
     "bevy_state",
     "bevy_text",
     "bevy_ui",
     "bevy_ui_render",
-    "bevy_ui_picking_backend",
+    "ui_picking",
     "bevy_window",
     "bevy_winit",
     "custom_cursor",
@@ -82,11 +82,11 @@ bevy = { version = "0.17", default-features = false, features = [
     "reflect_auto_register",
     "bevy_log",
 ] }
-bevy_kira_audio = { version = "0.24.0" }
-bevy_asset_loader = { version = "0.24.0-rc.1" }
+bevy_kira_audio = { version = "0.25" }
+bevy_asset_loader = { version = "0.25" }
 planetgen = { path = "crates/planetgen" }
 ocean = { path = "crates/ocean" }
-bevy_egui = "0.38"
+bevy_egui = "0.39"
 rand = "0.9"
 
 # keep the following in sync with Bevy's dependencies
