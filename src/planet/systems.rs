@@ -304,7 +304,6 @@ fn spawn_ocean(
                 Visibility::Visible
             },
             OceanEntity,
-            // Note: ContinentView marker removed - ocean visibility is handled separately by tab system
         ))
         .id();
 
