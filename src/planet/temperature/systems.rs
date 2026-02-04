@@ -115,11 +115,9 @@ pub fn regenerate_temperature_meshes_on_settings_change(
         return;
     }
 
-    // Check if cubemap changed OR land_temperature_bonus changed
-    let cubemap_changed = temperature_cubemap.is_changed();
-    let land_bonus_changed = previous_settings.is_changed();
-
-    if !cubemap_changed && !land_bonus_changed {
+    // Regenerate meshes if cubemap OR land_temperature_bonus changed
+    // Both trigger the same action: regenerate the temperature-colored meshes
+    if !temperature_cubemap.is_changed() && !previous_settings.is_changed() {
         return;
     }
 
