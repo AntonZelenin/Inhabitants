@@ -7,6 +7,8 @@ use crate::planet::components::{
 use crate::planet::events::*;
 use crate::planet::logic;
 use crate::planet::resources::*;
+use crate::planet::temperature::systems::TemperatureMesh;
+use crate::planet::ui::systems::ViewTab;
 use bevy::asset::{Assets, RenderAssetUsages};
 use bevy::color::{Color, LinearRgba};
 use bevy::input::mouse::{MouseMotion, MouseWheel};
@@ -21,13 +23,16 @@ pub fn spawn_planet_on_event(
     mut commands: Commands,
     mut camera_events: MessageWriter<SetCameraPositionEvent>,
     mut planet_spawned_events: MessageWriter<PlanetSpawnedEvent>,
+    mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
     mut events: MessageReader<GeneratePlanetEvent>,
     mut current_planet_data: ResMut<CurrentPlanetData>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
+    view_tab: Res<ViewTab>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
+    temperature_meshes: Query<Entity, With<TemperatureMesh>>,
 ) {
     for _ in events.read() {
         // Capture current rotation before despawning
@@ -37,7 +42,12 @@ pub fn spawn_planet_on_event(
             .map(|controls| controls.rotation)
             .unwrap_or(Quat::IDENTITY);
 
-        // Despawn existing planet entities before generating new ones
+        // Despawn temperature meshes first to avoid stale references
+        for entity in temperature_meshes.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        // Despawn existing planet entities before generating new ones (children will be cleaned up automatically)
         for entity in planet_entities.iter() {
             commands.entity(entity).despawn();
         }
@@ -86,28 +96,32 @@ pub fn spawn_planet_on_event(
                 },
             ))
             .with_children(|parent| {
-                // Continent view mesh (visible when NOT in plate view mode)
+                // Determine visibility based on current view tab
+                let is_tectonic_view = *view_tab == ViewTab::Tectonic;
+                let is_continent_or_wind_view = *view_tab == ViewTab::Continent || *view_tab == ViewTab::Wind;
+
+                // Continent view mesh (visible only in Continent or Wind view)
                 parent.spawn((
                     Mesh3d(continent_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    if settings.view_mode_plates {
-                        Visibility::Hidden
-                    } else {
+                    if is_continent_or_wind_view {
                         Visibility::Visible
+                    } else {
+                        Visibility::Hidden
                     },
                     ContinentViewMesh,
                     ContinentView, // Marker component
                 ));
 
-                // Plate view mesh (visible when IN plate view mode)
+                // Plate view mesh (visible only in Tectonic view)
                 parent.spawn((
                     Mesh3d(plate_mesh_handle),
                     MeshMaterial3d(planet_material.clone()),
                     Transform::default(),
                     GlobalTransform::default(),
-                    if settings.view_mode_plates {
+                    if is_tectonic_view {
                         Visibility::Visible
                     } else {
                         Visibility::Hidden
@@ -132,15 +146,16 @@ pub fn spawn_planet_on_event(
             );
         }
 
-        // Spawn ocean sphere at sea level (only visible in continent view mode)
+        // Spawn ocean sphere at sea level (only visible in continent/temperature view mode)
         if settings.show_ocean {
+            let is_tectonic_view = *view_tab == ViewTab::Tectonic;
             spawn_ocean(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
                 &settings,
                 planet_entity,
-                settings.view_mode_plates, // Pass view mode to control initial visibility
+                is_tectonic_view, // Hide ocean only in tectonic view
             );
         }
 
@@ -149,6 +164,11 @@ pub fn spawn_planet_on_event(
 
         // Emit event to notify that planet was spawned
         planet_spawned_events.write(PlanetSpawnedEvent);
+
+        // If we're on the temperature tab, trigger temperature mesh generation
+        if *view_tab == ViewTab::Temperature {
+            temperature_tab_events.write(TemperatureTabActiveEvent { active: true });
+        }
     }
 }
 
@@ -265,12 +285,9 @@ fn spawn_ocean(
     view_mode_plates: bool,
 ) {
     let ocean_config = OceanConfig {
-        sea_level: settings.radius,
-        grid_size: 256, // Much higher detail for smooth appearance
-        wave_amplitude: settings.ocean_wave_amplitude,
-        wave_frequency: settings.ocean_wave_frequency,
-        wave_speed: settings.ocean_wave_speed,
-        ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9), // Deep blue with some transparency
+        sea_level: settings.radius + settings.continent_threshold, // Raise ocean to hide flat coastal areas
+        grid_size: 256,
+        ocean_color: Color::srgba(0.02, 0.15, 0.35, 0.9),
     };
 
     let ocean = OceanMeshBuilder::new(ocean_config).with_time(0.0).build();
@@ -287,7 +304,6 @@ fn spawn_ocean(
                 Visibility::Visible
             },
             OceanEntity,
-            ContinentView, // Marker component - will be toggled by view mode system
         ))
         .id();
 

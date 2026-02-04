@@ -30,16 +30,20 @@ pub struct PlanetGenerationSettings {
     pub mountain_width: f32,
     // Ocean settings
     pub show_ocean: bool,
-    pub ocean_wave_amplitude: f32,
-    pub ocean_wave_frequency: f32,
-    pub ocean_wave_speed: f32,
-    pub ocean_normal_perturbation_scale: f32,
     // Wind visualization settings
     pub show_wind: bool,
     pub wind_particle_count: usize,
     pub wind_particle_height_offset: f32,
     pub wind_zonal_speed: f32,
     pub wind_particle_lifespan: f32,
+    // Temperature visualization settings
+    pub show_temperature: bool,
+    pub land_temperature_bonus: f32, // Temperature increase for land (above sea level)
+    pub temperature_equator_temp: f32,
+    pub temperature_pole_temp: f32,
+    pub temperature_max_temp: f32,
+    pub temperature_min_temp: f32,
+    pub temperature_cubemap_resolution: usize,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -70,15 +74,18 @@ impl Default for PlanetGenerationSettings {
             mountain_height: config.mountains.height,
             mountain_width: config.mountains.width,
             show_ocean: true,
-            ocean_wave_amplitude: config.ocean.wave_amplitude,
-            ocean_wave_frequency: config.ocean.wave_frequency,
-            ocean_wave_speed: config.ocean.wave_speed,
-            ocean_normal_perturbation_scale: config.ocean.normal_perturbation_scale,
             show_wind: false,
             wind_particle_count: config.wind.particle_count,
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
+            show_temperature: false,
+            land_temperature_bonus: config.temperature.land_temperature_bonus,
+            temperature_equator_temp: config.temperature.equator_temp,
+            temperature_pole_temp: config.temperature.pole_temp,
+            temperature_max_temp: config.temperature.max_temp,
+            temperature_min_temp: config.temperature.min_temp,
+            temperature_cubemap_resolution: config.temperature.cubemap_resolution,
         }
     }
 }

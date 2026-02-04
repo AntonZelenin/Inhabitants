@@ -23,6 +23,10 @@ pub struct ContinentView;
 #[derive(Component)]
 pub struct TectonicPlateView;
 
+/// Marker component for entities that should only be visible in temperature view mode
+#[derive(Component)]
+pub struct TemperatureView;
+
 #[derive(Component)]
 pub struct PlanetControls {
     pub rotation: Quat,

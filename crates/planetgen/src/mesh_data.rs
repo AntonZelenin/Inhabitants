@@ -158,15 +158,18 @@ fn calculate_continent_view_color(
     snow_threshold: f32,
     continent_threshold: f32,
 ) -> [f32; 4] {
-    if height > 0.0 {
-        // Land (above sea level)
+    // Calculate height relative to ocean level (which is at continent_threshold)
+    let height_above_ocean = height - continent_threshold;
+    
+    if height_above_ocean > 0.0 {
+        // Land (above ocean level)
 
         if height > snow_threshold {
             // Pure white snow above threshold
             [0.95, 0.95, 1.0, 1.0]
-        } else if height > continent_threshold * 0.5 {
+        } else if height > continent_threshold + (continent_threshold * 0.5) {
             // High elevation: Green mountains transitioning to snow
-            let mountain_factor = ((height - continent_threshold * 0.5) / (snow_threshold - continent_threshold * 0.5)).clamp(0.0, 1.0);
+            let mountain_factor = ((height - (continent_threshold + continent_threshold * 0.5)) / (snow_threshold - (continent_threshold + continent_threshold * 0.5))).clamp(0.0, 1.0);
             // Interpolate from much darker green at mid-elevation to lighter green near snow
             [
                 0.05 + mountain_factor * 0.2,     // Red: slight increase toward snow
@@ -174,9 +177,9 @@ fn calculate_continent_view_color(
                 0.05 + mountain_factor * 0.15,    // Blue: low to keep it earthy green
                 1.0,
             ]
-        } else if height > continent_threshold * 0.05 {
+        } else if height_above_ocean > continent_threshold * 0.05 {
             // Medium elevation: Transition from sandy shores to green mountains
-            let transition_factor = ((height - continent_threshold * 0.05) / (continent_threshold * 0.5 - continent_threshold * 0.05)).clamp(0.0, 1.0);
+            let transition_factor = ((height_above_ocean - continent_threshold * 0.05) / ((continent_threshold * 0.5) - (continent_threshold * 0.05))).clamp(0.0, 1.0);
             // Interpolate from light green/yellow to much darker forest green
             [
                 0.4 - transition_factor * 0.35,   // Red: from light to very dark green
@@ -185,8 +188,8 @@ fn calculate_continent_view_color(
                 1.0,
             ]
         } else {
-            // Low elevation near sea level: Sandy/yellow shores
-            let shore_factor = (height / (continent_threshold * 0.05)).clamp(0.0, 1.0);
+            // Low elevation near ocean level: Sandy/yellow shores
+            let shore_factor = (height_above_ocean / (continent_threshold * 0.05)).clamp(0.0, 1.0);
             // Interpolate from sandy yellow at coast to light green inland
             [
                 0.85 - shore_factor * 0.45,       // Red: sandy at coast, less inland
@@ -196,7 +199,7 @@ fn calculate_continent_view_color(
             ]
         }
     } else {
-        // Ocean floor (below sea level): sandy/light color visible through transparent ocean
+        // Ocean floor (below ocean level): sandy/light color visible through transparent ocean
         let depth = -height;
         let depth_factor = (depth / 1.0).clamp(0.0, 1.0);
         // Sandy light color
