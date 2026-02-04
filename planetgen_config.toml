@@ -83,56 +83,77 @@ ocean_depth_amplitude = 0.8
 
 [mountains]
 # Mountain height at convergent plate boundaries (world units)
-# Range: 1.0 to 8.0, Default: 3.5
+# Range: 1.0 to 8.0
 height = 3.3
 # Mountain width as fraction of planet size (0.08 = 8% of grid)
-# Range: 0.03 to 0.15, Default: 0.08
+# Range: 0.03 to 0.15
 width = 0.15
 # Mountain detail noise frequency (higher = more individual peaks)
-# Range: 20.0 to 60.0, Default: 40.0
+# Range: 20.0 to 60.0
 noise_frequency = 40.0
 # Snow threshold (elevation where snow caps appear on mountains)
-# Range: 0.5 to 4.0, Default: 1.0
+# Range: 0.5 to 4.0
 snow_threshold = 1.4
 # Allowed water depth for mountain spawn (how far below sea level mountains can form)
 # Positive value = depth below continent_threshold where mountains stop spawning
-# Range: 0.0 to 0.5, Default: 0.2
+# Range: 0.0 to 0.5
 # Example: 0.2 means mountains form down to (continent_threshold - 0.2)
 mountain_underwater_threshold = 0.2
 
 [ocean]
 # === Ocean Visual Effects ===
 # Wave amplitude (height/intensity of ripples)
-# Range: 0.001 to 0.1, Default: 0.001
+# Range: 0.001 to 0.1
 # Lower values = flatter, calmer ocean; Higher values = more pronounced waves
 wave_amplitude = 0.001
 # Wave frequency (how many ripples per unit of space)
-# Range: 0.5 to 20.0, Default: 20.0
+# Range: 0.5 to 20.0
 # Lower values = larger, broader waves; Higher values = smaller, tighter ripples
 wave_frequency = 20.0
 # Wave animation speed (how fast ripples move)
-# Range: 0.1 to 5.0, Default: 0.5
+# Range: 0.1 to 5.0
 # Lower values = slow, peaceful motion; Higher values = fast, choppy motion
 wave_speed = 0.5
 # Normal perturbation scale (amplifies ripple visibility through lighting)
-# Range: 1.0 to 20.0, Default: 3.0
+# Range: 1.0 to 20.0
 # Lower values = subtle ripples; Higher values = very visible, dramatic ripples
 # This multiplies wave_amplitude when perturbing normals for lighting effects
 normal_perturbation_scale = 3.0
 
 [wind]
 # Number of wind particles to spawn
-# Default: 2000. Can be set to any value (higher = more visible patterns but lower performance)
+# Can be set to any value (higher = more visible patterns but lower performance)
 # Note: Particle count is only controlled via this config file, not adjustable in UI
 particle_count = 3000
 # Height offset above planet surface
-# Range: 0.1 to 2.0, Default: 1.0
+# Range: 0.1 to 2.0
 particle_height_offset = 1.0
 # East-west (zonal) movement speed
-# Range: 0.0 to 10.0, Default: 5.0
+# Range: 0.0 to 10.0
 # Controls how fast particles move sideways at different latitudes
 zonal_speed = 5.0
 # Particle lifespan in seconds
-# Range: 1.0 to 10.0, Default: 4.0
+# Range: 1.0 to 10.0
 # Lower values mean particles respawn faster (higher spawn rate)
 particle_lifespan = 1.2
+
+[temperature]
+# Temperature at equator (Celsius) - the hottest generated temperature
+# Range: 20.0 to 50.0
+equator_temp = 35.0
+# Temperature at poles (Celsius) - the coldest generated temperature
+# Range: -50.0 to -10.0
+pole_temp = -30.0
+# Maximum temperature for color scale (Celsius) - defines red end of gradient
+# Range: 30.0 to 100.0
+max_temp = 50.0
+# Minimum temperature for color scale (Celsius) - defines blue end of gradient
+# Range: -100.0 to -20.0
+min_temp = -50.0
+# Land temperature bonus (Celsius) - extra warmth for land above sea level
+# Range: 0.0 to 20.0
+# This makes continents warmer than oceans at the same latitude
+land_temperature_bonus = 15.0
+# Resolution of temperature cubemap (pixels per face side)
+# Range: 32 to 256
+cubemap_resolution = 64

@@ -39,6 +39,11 @@ pub struct PlanetGenerationSettings {
     // Temperature visualization settings
     pub show_temperature: bool,
     pub land_temperature_bonus: f32, // Temperature increase for land (above sea level)
+    pub temperature_equator_temp: f32,
+    pub temperature_pole_temp: f32,
+    pub temperature_max_temp: f32,
+    pub temperature_min_temp: f32,
+    pub temperature_cubemap_resolution: usize,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -75,7 +80,12 @@ impl Default for PlanetGenerationSettings {
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
             show_temperature: false,
-            land_temperature_bonus: 10.0, // Default: land is 5°C warmer than ocean
+            land_temperature_bonus: config.temperature.land_temperature_bonus,
+            temperature_equator_temp: config.temperature.equator_temp,
+            temperature_pole_temp: config.temperature.pole_temp,
+            temperature_max_temp: config.temperature.max_temp,
+            temperature_min_temp: config.temperature.min_temp,
+            temperature_cubemap_resolution: config.temperature.cubemap_resolution,
         }
     }
 }

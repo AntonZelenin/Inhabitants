@@ -1,4 +1,4 @@
-use super::TemperatureSettings;
+use super::{PreviousPlanetSettings, TemperatureSettings};
 use crate::planet::components::PlanetEntity;
 use crate::planet::events::TemperatureTabActiveEvent;
 use crate::planet::resources::PlanetGenerationSettings;
@@ -14,8 +14,8 @@ pub struct TemperatureCubeMap {
 }
 
 impl TemperatureCubeMap {
-    pub fn build(resolution: usize) -> Self {
-        let inner = PlanetgenTemperatureCubeMap::build(resolution);
+    pub fn build(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32) -> Self {
+        let inner = PlanetgenTemperatureCubeMap::build(resolution, equator_temp, pole_temp, min_temp, max_temp);
         Self { inner }
     }
 
@@ -35,18 +35,167 @@ pub struct TemperatureMesh;
 /// Initialize the temperature cube map resource at startup
 pub fn initialize_temperature_cubemap(mut commands: Commands, settings: Res<TemperatureSettings>) {
     info!("Initializing temperature cube map...");
-    let cubemap = TemperatureCubeMap::build(settings.temperature_cubemap_resolution);
+    let config = planetgen::get_config();
+    let cubemap = TemperatureCubeMap::build(
+        settings.temperature_cubemap_resolution,
+        config.temperature.equator_temp,
+        config.temperature.pole_temp,
+        config.temperature.min_temp,
+        config.temperature.max_temp,
+    );
     commands.insert_resource(cubemap);
 }
 
 /// Update temperature settings from planet generation settings
+/// Only rebuilds the cubemap when temperature values actually change
 pub fn update_temperature_settings(
     planet_settings: Res<PlanetGenerationSettings>,
+    mut previous_settings: ResMut<PreviousPlanetSettings>,
     mut temperature_settings: ResMut<TemperatureSettings>,
+    mut temperature_cubemap: ResMut<TemperatureCubeMap>,
 ) {
-    if planet_settings.is_changed() {
-        temperature_settings.planet_radius = planet_settings.radius;
-        temperature_settings.enabled = planet_settings.show_temperature;
+    // Always update these basic settings
+    temperature_settings.planet_radius = planet_settings.radius;
+    temperature_settings.enabled = planet_settings.show_temperature;
+
+    // Check if temperature-related values have actually changed
+    let temp_changed =
+        previous_settings.0.temperature_equator_temp != planet_settings.temperature_equator_temp ||
+        previous_settings.0.temperature_pole_temp != planet_settings.temperature_pole_temp ||
+        previous_settings.0.temperature_max_temp != planet_settings.temperature_max_temp ||
+        previous_settings.0.temperature_min_temp != planet_settings.temperature_min_temp ||
+        previous_settings.0.temperature_cubemap_resolution != planet_settings.temperature_cubemap_resolution;
+
+    // Only rebuild cubemap if temperature values actually changed
+    if temp_changed {
+        info!("Rebuilding temperature cubemap with new settings...");
+        *temperature_cubemap = TemperatureCubeMap::build(
+            planet_settings.temperature_cubemap_resolution,
+            planet_settings.temperature_equator_temp,
+            planet_settings.temperature_pole_temp,
+            planet_settings.temperature_min_temp,
+            planet_settings.temperature_max_temp,
+        );
+
+        // Update the previous settings to track current values
+        previous_settings.0.temperature_equator_temp = planet_settings.temperature_equator_temp;
+        previous_settings.0.temperature_pole_temp = planet_settings.temperature_pole_temp;
+        previous_settings.0.temperature_max_temp = planet_settings.temperature_max_temp;
+        previous_settings.0.temperature_min_temp = planet_settings.temperature_min_temp;
+        previous_settings.0.temperature_cubemap_resolution = planet_settings.temperature_cubemap_resolution;
+    }
+
+    // Check if land_temperature_bonus changed (doesn't require cubemap rebuild, just mesh update)
+    if previous_settings.0.land_temperature_bonus != planet_settings.land_temperature_bonus {
+        previous_settings.0.land_temperature_bonus = planet_settings.land_temperature_bonus;
+    }
+}
+
+/// Regenerate temperature meshes when cubemap OR land_temperature_bonus changes
+pub fn regenerate_temperature_meshes_on_settings_change(
+    planet_settings: Res<PlanetGenerationSettings>,
+    previous_settings: Res<PreviousPlanetSettings>,
+    temperature_cubemap: Res<TemperatureCubeMap>,
+    planet_query: Query<Entity, With<PlanetEntity>>,
+    continent_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::ContinentViewMesh>,
+    >,
+    ocean_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::OceanEntity>,
+    >,
+    existing_temp_meshes: Query<Entity, With<TemperatureMesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    // Only regenerate if temperature view is active
+    if !planet_settings.show_temperature {
+        return;
+    }
+
+    // Check if cubemap changed OR land_temperature_bonus changed
+    let cubemap_changed = temperature_cubemap.is_changed();
+    let land_bonus_changed = previous_settings.is_changed();
+
+    if !cubemap_changed && !land_bonus_changed {
+        return;
+    }
+
+    info!("Regenerating temperature meshes due to settings change");
+
+    // Despawn existing temperature meshes
+    for entity in existing_temp_meshes.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    let Some(planet_entity) = planet_query.iter().next() else {
+        return;
+    };
+
+    // Recreate continent temperature mesh
+    for (_entity, mesh_handle, _material) in continent_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let temp_mesh = create_temperature_colored_mesh(
+                original_mesh,
+                &temperature_cubemap,
+                planet_settings.radius,
+                planet_settings.continent_threshold,
+                planet_settings.land_temperature_bonus,
+                planet_settings.temperature_min_temp,
+                planet_settings.temperature_max_temp,
+            );
+            let temp_mesh_handle = meshes.add(temp_mesh);
+
+            let temp_material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
+
+            let temp_entity = commands
+                .spawn((
+                    Mesh3d(temp_mesh_handle),
+                    MeshMaterial3d(temp_material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    TemperatureMesh,
+                    crate::planet::components::TemperatureView,
+                ))
+                .id();
+
+            commands.entity(planet_entity).add_child(temp_entity);
+        }
+    }
+
+    // Recreate ocean temperature mesh
+    for (_entity, mesh_handle, _material) in ocean_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let temp_mesh = create_simple_temperature_mesh(original_mesh, &temperature_cubemap);
+            let temp_mesh_handle = meshes.add(temp_mesh);
+
+            let temp_material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
+
+            let temp_entity = commands
+                .spawn((
+                    Mesh3d(temp_mesh_handle),
+                    MeshMaterial3d(temp_material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    TemperatureMesh,
+                    crate::planet::components::TemperatureView,
+                ))
+                .id();
+
+            commands.entity(planet_entity).add_child(temp_entity);
+        }
     }
 }
 
@@ -87,7 +236,7 @@ pub fn handle_temperature_tab_events(
             };
 
             // Hide original continent mesh and create temperature-colored copy
-            for (entity, mesh_handle, _material) in continent_query.iter() {
+            for (_entity, mesh_handle, _material) in continent_query.iter() {
                 // DO NOT manipulate visibility - centralized system handles it
                 // Just create the temperature mesh copy
 
@@ -98,6 +247,8 @@ pub fn handle_temperature_tab_events(
                         planet_settings.radius,
                         planet_settings.continent_threshold,
                         planet_settings.land_temperature_bonus,
+                        planet_settings.temperature_min_temp,
+                        planet_settings.temperature_max_temp,
                     );
                     let temp_mesh_handle = meshes.add(temp_mesh);
 
@@ -125,7 +276,7 @@ pub fn handle_temperature_tab_events(
             }
 
             // Hide original ocean mesh and create temperature-colored copy (no edges)
-            for (entity, mesh_handle, _material) in ocean_query.iter() {
+            for (_entity, mesh_handle, _material) in ocean_query.iter() {
                 // DO NOT manipulate visibility - centralized system handles it
                 // Just create the temperature mesh copy
 
@@ -178,6 +329,8 @@ fn create_temperature_colored_mesh(
     planet_radius: f32,
     continent_threshold: f32,
     land_temperature_bonus: f32,
+    min_temp: f32,
+    max_temp: f32,
 ) -> Mesh {
     let mut new_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -214,7 +367,11 @@ fn create_temperature_colored_mesh(
                     };
 
                     // Get color for the adjusted temperature
-                    let mut color = planetgen::temperature::TemperatureField::temperature_to_color(adjusted_temp);
+                    let mut color = planetgen::temperature::TemperatureField::temperature_to_color(
+                        adjusted_temp,
+                        min_temp,
+                        max_temp,
+                    );
 
                     // Darken land vertices for visual distinction
                     if is_land {

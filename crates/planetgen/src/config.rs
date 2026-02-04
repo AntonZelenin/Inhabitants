@@ -56,6 +56,7 @@ pub struct PlanetGenConfig {
     pub mountains: MountainConfig,
     pub ocean: OceanConfig,
     pub wind: WindConfig,
+    pub temperature: TemperatureConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,6 +142,16 @@ pub struct WindConfig {
     pub particle_height_offset: f32,
     pub zonal_speed: f32, // East-west movement speed
     pub particle_lifespan: f32, // Particle lifetime in seconds
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemperatureConfig {
+    pub equator_temp: f32,    // Temperature at equator (generated range)
+    pub pole_temp: f32,       // Temperature at poles (generated range)
+    pub max_temp: f32,        // Maximum temperature for color scale
+    pub min_temp: f32,        // Minimum temperature for color scale
+    pub land_temperature_bonus: f32, // Extra warmth for land above sea level
+    pub cubemap_resolution: usize, // Resolution of temperature cubemap
 }
 
 impl PlanetGenConfig {

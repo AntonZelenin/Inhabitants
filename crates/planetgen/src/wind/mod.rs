@@ -1,4 +1,4 @@
-// Pure wind simulation logic (engine-agnostic)
+// Pure wind simulation logic
 
 pub mod velocity;
 

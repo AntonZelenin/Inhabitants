@@ -1,4 +1,4 @@
-// Pure wind velocity calculation logic (engine-agnostic)
+// Pure wind velocity calculation logic
 
 use super::{DEFAULT_WIND_SPEED, TAU, TURN_POINTS, SIGNS, ZONAL_SIGNS};
 use glam::Vec3;

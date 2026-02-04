@@ -1,6 +1,5 @@
-// Pure temperature data calculation logic (engine-agnostic)
+// Pure temperature data calculation logic
 
-use super::{EQUATOR_TEMP, POLE_TEMP};
 use glam::Vec3;
 
 /// Pure temperature field calculations (no engine dependencies)
@@ -11,10 +10,12 @@ impl TemperatureField {
     ///
     /// # Arguments
     /// * `position` - Position on the sphere surface (normalized direction vector)
+    /// * `equator_temp` - Temperature at equator in Celsius
+    /// * `pole_temp` - Temperature at poles in Celsius
     ///
     /// # Returns
     /// Temperature in Celsius
-    pub fn calculate_temperature_at(position: Vec3) -> f32 {
+    pub fn calculate_temperature_at(position: Vec3, equator_temp: f32, pole_temp: f32) -> f32 {
         // Get latitude from Y component
         let lat_rad = position.y.asin();
 
@@ -25,28 +26,28 @@ impl TemperatureField {
         let cos_lat = lat_rad.cos();
 
         // Map cos(lat) from [1.0 (equator) to 0.0 (pole)] to temperature range
-        // cos_lat = 1.0 → EQUATOR_TEMP (35°C)
-        // cos_lat = 0.0 → POLE_TEMP (-35°C)
-        POLE_TEMP + (EQUATOR_TEMP - POLE_TEMP) * cos_lat
+        pole_temp + (equator_temp - pole_temp) * cos_lat
     }
 
     /// Convert temperature to a color for visualization
     ///
     /// # Arguments
     /// * `temp` - Temperature in Celsius
+    /// * `min_temp` - Minimum temperature for color scale
+    /// * `max_temp` - Maximum temperature for color scale
     ///
     /// # Returns
     /// RGB color as Vec3 (values in range 0.0-1.0)
-    pub fn temperature_to_color(temp: f32) -> Vec3 {
-        // Map temperature range [-35, 35] to [0, 1]
-        let t = (temp - POLE_TEMP) / (EQUATOR_TEMP - POLE_TEMP);
+    pub fn temperature_to_color(temp: f32, min_temp: f32, max_temp: f32) -> Vec3 {
+        // Map temperature range [min_temp, max_temp] to [0, 1]
+        let t = (temp - min_temp) / (max_temp - min_temp);
         let t = t.clamp(0.0, 1.0);
 
         // Color gradient: light blue (cold) -> cyan -> green -> yellow -> orange -> red (hot)
         // Using multiple color stops for smooth transition
         
         if t < 0.2 {
-            // Light blue to cyan (very cold: -35°C to -21°C)
+            // Light blue to cyan (very cold)
             let local_t = t / 0.2;
             Vec3::new(
                 0.5 + 0.0 * local_t,  // R: 0.5 -> 0.5
@@ -54,7 +55,7 @@ impl TemperatureField {
                 1.0,                   // B: 1.0
             )
         } else if t < 0.4 {
-            // Cyan to green (cold: -21°C to -7°C)
+            // Cyan to green (cold)
             let local_t = (t - 0.2) / 0.2;
             Vec3::new(
                 0.5 - 0.3 * local_t,  // R: 0.5 -> 0.2
@@ -62,7 +63,7 @@ impl TemperatureField {
                 1.0 - 0.5 * local_t,  // B: 1.0 -> 0.5
             )
         } else if t < 0.6 {
-            // Green to yellow (mild: -7°C to 7°C)
+            // Green to yellow (mild)
             let local_t = (t - 0.4) / 0.2;
             Vec3::new(
                 0.2 + 0.8 * local_t,  // R: 0.2 -> 1.0
@@ -70,7 +71,7 @@ impl TemperatureField {
                 0.5 - 0.5 * local_t,  // B: 0.5 -> 0.0
             )
         } else if t < 0.8 {
-            // Yellow to orange (warm: 7°C to 21°C)
+            // Yellow to orange (warm)
             let local_t = (t - 0.6) / 0.2;
             Vec3::new(
                 1.0,                   // R: 1.0
@@ -78,7 +79,7 @@ impl TemperatureField {
                 0.0,                   // B: 0.0
             )
         } else {
-            // Orange to red (hot: 21°C to 35°C)
+            // Orange to red (hot)
             let local_t = (t - 0.8) / 0.2;
             Vec3::new(
                 1.0,                   // R: 1.0
@@ -112,10 +113,14 @@ impl TemperatureCubeMap {
     ///
     /// # Arguments
     /// * `resolution` - Grid resolution per face (e.g., 64 means 64x64 grid per face)
+    /// * `equator_temp` - Temperature at equator in Celsius
+    /// * `pole_temp` - Temperature at poles in Celsius
+    /// * `min_temp` - Minimum temperature for color scale
+    /// * `max_temp` - Maximum temperature for color scale
     ///
     /// # Returns
     /// Pre-computed temperature cube map ready for sampling
-    pub fn build(resolution: usize) -> Self {
+    pub fn build(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32) -> Self {
         let blank_face = TemperatureCubeFace {
             temperatures: vec![vec![0.0; resolution]; resolution],
             colors: vec![vec![Vec3::ZERO; resolution]; resolution],
@@ -141,8 +146,8 @@ impl TemperatureCubeMap {
                     let dir = cube_face_point(face_idx, u, v).normalize();
 
                     // Calculate temperature at this position
-                    let temp = TemperatureField::calculate_temperature_at(dir);
-                    let color = TemperatureField::temperature_to_color(temp);
+                    let temp = TemperatureField::calculate_temperature_at(dir, equator_temp, pole_temp);
+                    let color = TemperatureField::temperature_to_color(temp, min_temp, max_temp);
 
                     faces[face_idx].temperatures[y][x] = temp;
                     faces[face_idx].colors[y][x] = color;
