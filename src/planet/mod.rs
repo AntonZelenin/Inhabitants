@@ -3,18 +3,18 @@ pub mod events;
 pub mod resources;
 pub mod systems;
 pub mod ui;
+pub mod view;
 pub mod wind;
 pub mod temperature;
-pub mod tectonic;
 mod logic;
 
 use crate::core::state::GameState;
 use crate::planet::events::*;
 use crate::planet::resources::*;
 use crate::planet::systems::*;
+use crate::planet::view::handle_tab_visibility;
 use crate::planet::wind::WindPlugin;
 use crate::planet::temperature::TemperaturePlugin;
-use crate::planet::tectonic::TectonicPlugin;
 use bevy::prelude::*;
 
 pub struct PlanetPlugin;
@@ -24,7 +24,6 @@ impl Plugin for PlanetPlugin {
         app
             .add_plugins(WindPlugin)
             .add_plugins(TemperaturePlugin)
-            .add_plugins(TectonicPlugin)
             .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()
@@ -48,6 +47,7 @@ impl Plugin for PlanetPlugin {
                     handle_generate_new_seed,
                     planet_control,
                     smooth_camera_movement,
+                    handle_tab_visibility, // Centralized tab visibility handling
                 )
                     .run_if(in_state(GameState::PlanetGeneration)),
             );
