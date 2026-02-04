@@ -29,7 +29,6 @@ pub struct ButtonBundle {
     pub button: Button,
     pub node: Node,
     pub background: BackgroundColor,
-    pub border_radius: BorderRadius,
     pub interaction: Interaction,
     pub ui_button: UIButton,
     pub button_config: ButtonConfig,
@@ -51,10 +50,10 @@ impl ButtonBundle {
                 height: Val::Px(height),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
+                border_radius: BorderRadius::all(Val::Px(border_radius)),
                 ..default()
             },
             background: BackgroundColor(normal_color),
-            border_radius: BorderRadius::all(Val::Px(border_radius)),
             interaction: Interaction::None,
             ui_button: UIButton,
             button_config: ButtonConfig {
@@ -70,7 +69,6 @@ impl ButtonBundle {
 pub struct SliderTrackBundle {
     pub node: Node,
     pub background: BackgroundColor,
-    pub border_radius: BorderRadius,
 }
 
 impl SliderTrackBundle {
@@ -80,10 +78,10 @@ impl SliderTrackBundle {
                 width: Val::Px(width),
                 height: Val::Px(height),
                 position_type: PositionType::Relative,
+                border_radius: BorderRadius::all(Val::Px(height / 2.0)),
                 ..default()
             },
             background: BackgroundColor(color),
-            border_radius: BorderRadius::all(Val::Px(height / 2.0)),
         }
     }
 }
@@ -93,7 +91,6 @@ pub struct SliderHandleBundle {
     pub button: Button,
     pub node: Node,
     pub background: BackgroundColor,
-    pub border_radius: BorderRadius,
 }
 
 impl SliderHandleBundle {
@@ -106,10 +103,10 @@ impl SliderHandleBundle {
                 position_type: PositionType::Absolute,
                 top: Val::Px(-5.0), // Center vertically on track
                 left: Val::Px(0.0), // Will be updated based on value
+                border_radius: BorderRadius::all(Val::Px(size / 2.0)),
                 ..default()
             },
             background: BackgroundColor(color),
-            border_radius: BorderRadius::all(Val::Px(size / 2.0)),
         }
     }
 
@@ -124,7 +121,6 @@ pub struct ToggleBundle {
     pub button: Button,
     pub node: Node,
     pub background: BackgroundColor,
-    pub border_radius: BorderRadius,
     pub interaction: Interaction,
     pub ui_toggle: UIToggle,
     pub toggle_state: ToggleState,
@@ -145,10 +141,10 @@ impl ToggleBundle {
                 height: Val::Px(height),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
+                border_radius: BorderRadius::all(Val::Px(border_radius)),
                 ..default()
             },
             background: BackgroundColor(background_color),
-            border_radius: BorderRadius::all(Val::Px(border_radius)),
             interaction: Interaction::None,
             ui_toggle: UIToggle,
             toggle_state: ToggleState {

@@ -5,7 +5,7 @@
 //! ## Usage
 //! ```no_run
 //! use bevy::prelude::*;
-//! use bevy_ocean::*;
+//! use ocean::*;
 //!
 //! fn setup(
 //!     mut commands: Commands,
