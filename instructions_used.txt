@@ -1,0 +1,50 @@
+We've got wind and temperature cube-map, now we need to implement wind moving temperature in its direction, here's the approach:
+You have:
+a scalar field: temperature on a cubemap surface
+a vector field: wind on the same surface
+You want to advect temperature by wind without artefacts (streaks, parallel lines, per-cell motion).
+Those artefacts come from forward (push) advection or from advecting in face-local UV space.
+Correct model
+This is scalar advection:
+∂T∂t+v⃗⋅∇T=0
+∂t
+∂T
+​
+
+v
+⋅∇T=0
+You must pull, not push.
+Algorithm (semi-Lagrangian advection)
+For every texel:
+Treat the texel centre as a 3D point on the cube-sphere
+(direction vector from planet centre).
+Treat wind as a 3D tangent vector at that point
+(orthogonal to surface normal).
+Backtrace:
+move backwards in time along wind:
+p′=move_on_surface(p,−v⃗⋅Δt)
+p
+′
+=move_on_surface(p,−
+v
+⋅Δt)
+Convert
+p′
+p
+′
+back to cubemap coordinates.
+Sample old temperature at
+p′
+p
+′
+(bilinear, cross-face correct).
+Write that value as the new temperature at
+p
+p.
+This moves the field coherently and avoids striping.
+Important details
+Do not advect in face UV space directly.
+Do not push values forward.
+Δt must be small relative to texel size.
+Sampling must work across cube faces.
+Nearest-neighbour sampling causes streaks.

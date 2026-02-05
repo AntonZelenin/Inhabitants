@@ -42,6 +42,7 @@ impl Plugin for TemperaturePlugin {
             .add_systems(Startup, systems::initialize_temperature_cubemap)
             .add_systems(Update, systems::update_temperature_settings)
             .add_systems(Update, systems::regenerate_temperature_meshes_on_settings_change)
-            .add_systems(Update, systems::handle_temperature_tab_events);
+            .add_systems(Update, systems::handle_temperature_tab_events)
+            .add_systems(Update, systems::advect_temperature_by_wind);
     }
 }

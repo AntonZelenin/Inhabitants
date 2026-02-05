@@ -11,7 +11,7 @@ use planetgen::wind::WindCubeMap as PlanetgenWindCubeMap;
 /// Bevy-compatible WindCubeMap resource
 #[derive(Resource, Clone)]
 pub struct WindCubeMap {
-    inner: PlanetgenWindCubeMap,
+    pub(crate) inner: PlanetgenWindCubeMap,
 }
 
 impl WindCubeMap {

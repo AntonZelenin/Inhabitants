@@ -44,6 +44,9 @@ pub struct PlanetGenerationSettings {
     pub temperature_max_temp: f32,
     pub temperature_min_temp: f32,
     pub temperature_cubemap_resolution: usize,
+    // Temperature advection settings
+    pub temperature_advection_enabled: bool,
+    pub temperature_advection_speed: f32, // Time scale multiplier for advection
 }
 
 impl Default for PlanetGenerationSettings {
@@ -86,6 +89,8 @@ impl Default for PlanetGenerationSettings {
             temperature_max_temp: config.temperature.max_temp,
             temperature_min_temp: config.temperature.min_temp,
             temperature_cubemap_resolution: config.temperature.cubemap_resolution,
+            temperature_advection_enabled: false,
+            temperature_advection_speed: 1.0,
         }
     }
 }

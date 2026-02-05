@@ -443,3 +443,24 @@ fn create_simple_temperature_mesh(
 
     new_mesh
 }
+
+/// Advect temperature by wind when advection is enabled
+pub fn advect_temperature_by_wind(
+    mut temperature_cubemap: ResMut<TemperatureCubeMap>,
+    wind_cubemap: Res<WindCubeMap>,
+    planet_settings: Res<PlanetGenerationSettings>,
+    time: Res<Time>,
+) {
+    // Only advect when temperature tab is active and advection is enabled
+    if !planet_settings.show_temperature || !planet_settings.temperature_advection_enabled {
+        return;
+    }
+
+    // Calculate time step with speed multiplier
+    // Use a small fixed time step to ensure stability
+    let dt = time.delta_secs() * planet_settings.temperature_advection_speed * 0.01;
+
+    // Advect temperature field
+    *temperature_cubemap = temperature_cubemap.advect_by_wind(&wind_cubemap, dt);
+}
+

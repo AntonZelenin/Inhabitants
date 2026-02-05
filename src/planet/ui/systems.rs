@@ -301,6 +301,23 @@ fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSett
     ui.separator();
     ui.add_space(10.0);
 
+    ui.heading("Wind Advection");
+    ui.add_space(5.0);
+
+    ui.checkbox(&mut settings.temperature_advection_enabled, "Enable Wind-Driven Temperature Movement");
+    ui.label("Wind will move temperature patterns across the planet");
+
+    if settings.temperature_advection_enabled {
+        ui.add_space(5.0);
+        ui.label("Advection Speed");
+        ui.add(egui::Slider::new(&mut settings.temperature_advection_speed, 0.1..=5.0).step_by(0.1));
+        ui.label("Time scale multiplier for temperature movement");
+    }
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
     ui.heading("Color Scale Range");
     ui.add_space(5.0);
 
