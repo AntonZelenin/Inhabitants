@@ -375,20 +375,31 @@ pub fn planet_control(
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
                     if camera_mode.rotate_camera {
-                        // Scale the current direction to new zoom distance while preserving angle
-                        let current_dir = camera_transform.translation.normalize();
-                        let new_position = current_dir * controls.zoom;
-                        // Scale look_at proportionally
-                        let look_at_dir = camera_lerp.current_look_at.normalize_or_zero();
-                        let look_at_dist = controls.zoom * 0.15 / 0.25; // maintain ratio
-                        let new_look_at = if look_at_dir != Vec3::ZERO {
-                            look_at_dir * look_at_dist
-                        } else {
-                            Vec3::new(controls.zoom * 0.15, 0.0, 0.0)
-                        };
+                        // Scale both camera and look_at positions proportionally toward/away from origin
+                        // This preserves the composition offset relationship at any orbital angle
 
-                        camera_lerp.target_position = new_position;
-                        camera_lerp.target_look_at = new_look_at;
+                        // Calculate current conceptual zoom from camera distance
+                        // In default view: camera at (0.25*zoom, 0, zoom), distance = zoom * sqrt(1 + 0.25²)
+                        let offset_factor = (1.0_f32 + 0.25 * 0.25).sqrt(); // ≈ 1.031
+                        let current_dist = camera_transform.translation.length();
+                        let current_conceptual_zoom = current_dist / offset_factor;
+
+                        // Scale factor to achieve new zoom
+                        if current_conceptual_zoom > 0.001 {
+                            let scale = controls.zoom / current_conceptual_zoom;
+
+                            let new_position = camera_transform.translation * scale;
+                            let new_look_at = camera_lerp.current_look_at * scale;
+
+                            camera_transform.translation = new_position;
+                            camera_transform.look_at(new_look_at, Vec3::Y);
+
+                            // Keep lerp state in sync
+                            camera_lerp.target_position = new_position;
+                            camera_lerp.target_look_at = new_look_at;
+                            camera_lerp.current_look_at = new_look_at;
+                        }
+                        camera_lerp.is_lerping = false;
                     } else {
                         // Recompute composition offsets from current distance
                         let camera_x_offset = controls.zoom * 0.25;
@@ -396,8 +407,8 @@ pub fn planet_control(
 
                         camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
                         camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+                        camera_lerp.is_lerping = true;
                     }
-                    camera_lerp.is_lerping = true;
                 }
             }
         }
