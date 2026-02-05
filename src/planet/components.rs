@@ -45,3 +45,8 @@ pub struct CameraLerp {
     pub lerp_speed: f32,
     pub is_lerping: bool,
 }
+
+#[derive(Resource, Default)]
+pub struct CameraRotationMode {
+    pub rotate_camera: bool,
+}

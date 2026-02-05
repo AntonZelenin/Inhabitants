@@ -34,6 +34,7 @@ impl Plugin for PlanetPlugin {
             .add_message::<TectonicTabActiveEvent>()
             .add_message::<TemperatureTabActiveEvent>()
             .add_message::<PlanetSpawnedEvent>()
+            .add_message::<ResetCameraEvent>()
             .init_resource::<CurrentPlanetData>()
             .add_systems(
                 OnEnter(GameState::PlanetGeneration),
@@ -45,6 +46,7 @@ impl Plugin for PlanetPlugin {
                 (
                     handle_camera_position_events,
                     handle_generate_new_seed,
+                    handle_reset_camera,
                     planet_control,
                     smooth_camera_movement,
                     handle_tab_visibility, // Centralized tab visibility handling

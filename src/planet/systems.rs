@@ -1,8 +1,8 @@
 use crate::camera::components::MainCamera;
 use crate::mesh::helpers::arrow_mesh;
 use crate::planet::components::{
-    ArrowEntity, CameraLerp, ContinentView, ContinentViewMesh, OceanEntity, PlanetControls,
-    PlanetEntity, PlateViewMesh, TectonicPlateView,
+    ArrowEntity, CameraLerp, CameraRotationMode, ContinentView, ContinentViewMesh, OceanEntity,
+    PlanetControls, PlanetEntity, PlateViewMesh, TectonicPlateView,
 };
 use crate::planet::events::*;
 use crate::planet::logic;
@@ -315,15 +315,16 @@ pub fn planet_control(
     mouse_input: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<MouseMotion>,
     mut mouse_wheel: MessageReader<MouseWheel>,
+    camera_mode: Res<CameraRotationMode>,
     mut planet_query: Query<
         (&mut Transform, &mut PlanetControls),
         (With<PlanetEntity>, With<PlanetControls>),
     >,
-    mut camera_query: Query<&mut CameraLerp, With<Camera3d>>,
+    mut camera_query: Query<(&mut Transform, &mut CameraLerp), (With<Camera3d>, Without<PlanetEntity>)>,
     windows: Query<&Window>,
 ) {
     if let Ok((mut planet_transform, mut controls)) = planet_query.single_mut() {
-        if let Ok(mut camera_lerp) = camera_query.single_mut() {
+        if let Ok((mut camera_transform, mut camera_lerp)) = camera_query.single_mut() {
             let window = windows.single().unwrap();
             let cursor_position = window.cursor_position();
 
@@ -334,14 +335,36 @@ pub fn planet_control(
                 false
             };
 
-            // Handle mouse dragging for planet rotation (only Y-axis) - only if not over UI
+            // Handle mouse dragging - only if not over UI
             if mouse_input.pressed(MouseButton::Left) && !is_over_ui {
                 for motion in mouse_motion.read() {
                     let sensitivity = 0.002 * (controls.zoom / 60.0);
-                    let yaw = Quat::from_rotation_y(motion.delta.x * sensitivity);
 
-                    controls.rotation = controls.rotation * yaw;
-                    planet_transform.rotation = controls.rotation;
+                    if camera_mode.rotate_camera {
+                        // Rotate camera around the planet
+                        // Negate for correct direction (drag right = camera moves right = planet appears to rotate left)
+                        let rotation = Quat::from_rotation_y(-motion.delta.x * sensitivity);
+
+                        // Rotate both camera position and look_at point to preserve composition
+                        let new_position = rotation * camera_transform.translation;
+                        let new_look_at = rotation * camera_lerp.current_look_at;
+
+                        // Directly set camera position (no lerping for rotation)
+                        camera_transform.translation = new_position;
+                        camera_transform.look_at(new_look_at, Vec3::Y);
+
+                        // Keep lerp state in sync
+                        camera_lerp.target_position = new_position;
+                        camera_lerp.target_look_at = new_look_at;
+                        camera_lerp.current_look_at = new_look_at;
+                        camera_lerp.is_lerping = false;
+                    } else {
+                        // Rotate the planet (original behavior)
+                        let yaw = Quat::from_rotation_y(motion.delta.x * sensitivity);
+
+                        controls.rotation = controls.rotation * yaw;
+                        planet_transform.rotation = controls.rotation;
+                    }
                 }
             }
 
@@ -351,12 +374,29 @@ pub fn planet_control(
                     controls.zoom -= wheel.y * 2.0;
                     controls.zoom = controls.zoom.clamp(controls.min_zoom, controls.max_zoom);
 
-                    // Recompute composition offsets from current distance
-                    let camera_x_offset = controls.zoom * 0.25;
-                    let look_at_x_offset = controls.zoom * 0.15;
+                    if camera_mode.rotate_camera {
+                        // Scale the current direction to new zoom distance while preserving angle
+                        let current_dir = camera_transform.translation.normalize();
+                        let new_position = current_dir * controls.zoom;
+                        // Scale look_at proportionally
+                        let look_at_dir = camera_lerp.current_look_at.normalize_or_zero();
+                        let look_at_dist = controls.zoom * 0.15 / 0.25; // maintain ratio
+                        let new_look_at = if look_at_dir != Vec3::ZERO {
+                            look_at_dir * look_at_dist
+                        } else {
+                            Vec3::new(controls.zoom * 0.15, 0.0, 0.0)
+                        };
 
-                    camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
-                    camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+                        camera_lerp.target_position = new_position;
+                        camera_lerp.target_look_at = new_look_at;
+                    } else {
+                        // Recompute composition offsets from current distance
+                        let camera_x_offset = controls.zoom * 0.25;
+                        let look_at_x_offset = controls.zoom * 0.15;
+
+                        camera_lerp.target_position = Vec3::new(camera_x_offset, 0.0, controls.zoom);
+                        camera_lerp.target_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+                    }
                     camera_lerp.is_lerping = true;
                 }
             }
@@ -445,6 +485,46 @@ pub fn handle_generate_new_seed(
         settings.user_seed = new_user_seed;
         settings.seed = planetgen::tools::expand_seed64(new_user_seed);
         settings_changed_events.write(SettingsChanged);
+    }
+}
+
+pub fn handle_reset_camera(
+    mut events: MessageReader<ResetCameraEvent>,
+    mut camera_query: Query<(&mut Transform, &mut CameraLerp), With<MainCamera>>,
+    mut planet_query: Query<(&mut Transform, &mut PlanetControls), (With<PlanetEntity>, Without<MainCamera>)>,
+) {
+    for _ in events.read() {
+        // Get current zoom from planet controls
+        let zoom = if let Ok((_, controls)) = planet_query.single_mut() {
+            controls.zoom
+        } else {
+            60.0
+        };
+
+        if let Ok((mut camera_transform, mut camera_lerp)) = camera_query.single_mut() {
+            // Reset to default position (looking at planet from front)
+            let camera_x_offset = zoom * 0.25;
+            let look_at_x_offset = zoom * 0.15;
+
+            let new_position = Vec3::new(camera_x_offset, 0.0, zoom);
+            let new_look_at = Vec3::new(look_at_x_offset, 0.0, 0.0);
+
+            // Directly set camera position (no lerping)
+            camera_transform.translation = new_position;
+            camera_transform.look_at(new_look_at, Vec3::Y);
+
+            // Keep lerp state in sync
+            camera_lerp.target_position = new_position;
+            camera_lerp.target_look_at = new_look_at;
+            camera_lerp.current_look_at = new_look_at;
+            camera_lerp.is_lerping = false;
+        }
+
+        // Also reset planet rotation
+        if let Ok((mut transform, mut controls)) = planet_query.single_mut() {
+            controls.rotation = Quat::IDENTITY;
+            transform.rotation = Quat::IDENTITY;
+        }
     }
 }
 

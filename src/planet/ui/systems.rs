@@ -1,3 +1,4 @@
+use crate::planet::components::CameraRotationMode;
 use crate::planet::events::*;
 use crate::planet::resources::PlanetGenerationSettings;
 use bevy::app::AppExit;
@@ -16,21 +17,25 @@ pub enum ViewTab {
 
 pub fn setup_world_generation_menu(mut commands: Commands) {
     commands.init_resource::<ViewTab>();
+    commands.init_resource::<CameraRotationMode>();
 }
 
 pub fn cleanup_world_generation_menu(mut commands: Commands) {
     commands.remove_resource::<ViewTab>();
+    commands.remove_resource::<CameraRotationMode>();
 }
 
 pub fn render_planet_generation_ui(
     mut contexts: EguiContexts,
     mut settings: ResMut<PlanetGenerationSettings>,
     mut view_tab: ResMut<ViewTab>,
+    mut camera_mode: ResMut<CameraRotationMode>,
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
     mut tab_switch_events: MessageWriter<TabSwitchEvent>,
     mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
     mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
+    mut reset_camera_events: MessageWriter<ResetCameraEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
@@ -136,8 +141,20 @@ pub fn render_planet_generation_ui(
                 ui.separator();
                 ui.add_space(10.0);
 
-                // Common action buttons
-                // Note: Generate Planet button is only shown in Continent tab
+                // Camera controls
+                ui.heading("Camera");
+                ui.add_space(5.0);
+
+                ui.checkbox(&mut camera_mode.rotate_camera, "Rotate Camera (instead of planet)");
+
+                ui.add_space(5.0);
+                if ui.button("Reset Camera").clicked() {
+                    reset_camera_events.write(ResetCameraEvent);
+                }
+
+                ui.add_space(20.0);
+                ui.separator();
+                ui.add_space(10.0);
 
                 if ui.button("Quit").clicked() {
                     app_exit_events.write(AppExit::Success);

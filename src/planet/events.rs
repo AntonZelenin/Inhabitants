@@ -49,3 +49,6 @@ pub struct TemperatureTabActiveEvent {
 
 #[derive(Message)]
 pub struct PlanetSpawnedEvent;
+
+#[derive(Message)]
+pub struct ResetCameraEvent;
