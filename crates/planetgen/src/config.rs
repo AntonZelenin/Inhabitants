@@ -66,8 +66,7 @@ pub struct GenerationConfig {
     pub continental_amp: f32,
     pub oceanic_freq: f32,
     pub oceanic_amp: f32,
-    pub planet_min_radius: f32,
-    pub planet_max_radius: f32,
+    pub radius: f32,
     pub default_num_plates: usize,
     pub default_num_micro_plates: usize,
 }

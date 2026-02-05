@@ -92,7 +92,7 @@ pub fn spawn_planet_on_event(
                     rotation: current_rotation,
                     zoom: expected_zoom,
                     min_zoom: settings.radius * 1.5,
-                    max_zoom: config.generation.planet_max_radius * 3.5,
+                    max_zoom: settings.radius * 3.5,
                 },
             ))
             .with_children(|parent| {

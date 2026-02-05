@@ -48,6 +48,7 @@ impl ContinentNoiseConfig {
     }
 
     /// Sample the multi-octave continent noise at a given position
+    ///
     /// Returns the final height value, incorporating continent and detail layers
     /// (Mountains come from tectonic plate simulation)
     ///
@@ -61,7 +62,14 @@ impl ContinentNoiseConfig {
 
         // Create perpendicular vector for warping (tangent to sphere)
         // Use cross product with Y axis to get a consistent tangent direction
-        let tangent = position.cross(Vec3::Y).normalize();
+        // At poles (position parallel to Y), use X axis instead to avoid zero vector
+        let cross = position.cross(Vec3::Y);
+        let tangent = if cross.length_squared() > 1e-6 {
+            cross.normalize()
+        } else {
+            // At poles, use X axis for cross product
+            position.cross(Vec3::X).normalize_or_zero()
+        };
 
         // Apply domain warping: offset the sampling position
         // This breaks up the round continent shapes into irregular forms
