@@ -1,8 +1,8 @@
 // Wind particle systems
 
 use crate::planet::components::PlanetEntity;
-use crate::planet::events::WindTabActiveEvent;
-use crate::planet::resources::PlanetGenerationSettings;
+use crate::planet::events::{PlanetSpawnedEvent, WindTabActiveEvent};
+use crate::planet::resources::{CurrentPlanetData, PlanetGenerationSettings};
 use super::{WindParticleSettings, PARTICLE_COUNT};
 use bevy::prelude::*;
 use rand::Rng;
@@ -258,6 +258,39 @@ pub fn update_particle_fade(
             let emissive_strength = alpha * 2.0; // Original emissive was * 2.0
             material.emissive = LinearRgba::rgb(1.0, 1.0, 0.8) * emissive_strength;
         }
+    }
+}
+
+/// Rebuild wind cubemap with terrain deflection after a planet is generated.
+pub fn rebuild_wind_cubemap_after_planet(
+    mut commands: Commands,
+    mut events: MessageReader<PlanetSpawnedEvent>,
+    planet_data: Res<CurrentPlanetData>,
+    settings: Res<WindParticleSettings>,
+    planet_settings: Res<PlanetGenerationSettings>,
+) {
+    for _ in events.read() {
+        let Some(ref planet) = planet_data.planet_data else {
+            continue;
+        };
+
+        let deflection_config = planetgen::config::WindDeflectionConfig {
+            height_threshold: planet_settings.wind_deflection_height_threshold,
+            height_scale: planet_settings.wind_deflection_height_scale,
+            spread_radius: planet_settings.wind_deflection_spread_radius,
+            spread_decay: planet_settings.wind_deflection_spread_decay,
+            deflection_strength: planet_settings.wind_deflection_strength,
+            deflection_iterations: planet_settings.wind_deflection_iterations,
+        };
+        let (wind_map, _influence) = PlanetgenWindCubeMap::build_with_terrain(
+            settings.wind_cubemap_resolution,
+            settings.zonal_speed,
+            planet,
+            &deflection_config,
+        );
+
+        commands.insert_resource(WindCubeMap { inner: wind_map });
+        info!("Wind cubemap rebuilt with terrain deflection");
     }
 }
 

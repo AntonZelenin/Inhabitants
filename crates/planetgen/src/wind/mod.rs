@@ -1,7 +1,9 @@
 // Pure wind simulation logic
 
+pub mod influence;
 pub mod velocity;
 
+pub use influence::MountainInfluenceMap;
 pub use velocity::{WindCubeFace, WindCubeMap, WindField};
 
 /// Wind constants

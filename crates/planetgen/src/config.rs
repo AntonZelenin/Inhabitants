@@ -56,6 +56,7 @@ pub struct PlanetGenConfig {
     pub mountains: MountainConfig,
     pub ocean: OceanConfig,
     pub wind: WindConfig,
+    pub wind_deflection: WindDeflectionConfig,
     pub temperature: TemperatureConfig,
 }
 
@@ -141,6 +142,16 @@ pub struct WindConfig {
     pub particle_height_offset: f32,
     pub zonal_speed: f32, // East-west movement speed
     pub particle_lifespan: f32, // Particle lifetime in seconds
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindDeflectionConfig {
+    pub height_threshold: f32,
+    pub height_scale: f32,
+    pub spread_radius: usize,
+    pub spread_decay: f32,
+    pub deflection_strength: f32,
+    pub deflection_iterations: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

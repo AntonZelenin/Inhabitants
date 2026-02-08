@@ -136,6 +136,26 @@ zonal_speed = 5.0
 # Lower values mean particles respawn faster (higher spawn rate)
 particle_lifespan = 1.2
 
+[wind_deflection]
+# Minimum heightmap value to count as an obstacle
+# Range: 0.0 to 1.0
+height_threshold = 0.3
+# Height at which mountain cost reaches 1.0
+# Range: 0.5 to 5.0
+height_scale = 1.5
+# Number of cells to spread mountain influence outward
+# Range: 1 to 8
+spread_radius = 6
+# Decay factor per spread step
+# Range: 0.1 to 0.9
+spread_decay = 0.6
+# Overall blending factor for deflection
+# Range: 0.0 to 1.0 (0.0 = no deflection)
+deflection_strength = 0.9
+# Number of relaxation passes
+# Range: 1 to 10
+deflection_iterations = 5
+
 [temperature]
 # Temperature at equator (Celsius) - the hottest generated temperature
 # Range: 20.0 to 50.0
