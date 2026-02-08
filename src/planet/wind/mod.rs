@@ -41,6 +41,7 @@ impl Plugin for WindPlugin {
         app.init_resource::<WindParticleSettings>()
             .add_systems(Startup, systems::initialize_wind_cubemap)
             .add_systems(Update, systems::update_wind_settings)
+            .add_systems(Update, systems::rebuild_wind_cubemap_after_planet)
             .add_systems(Update, systems::handle_wind_tab_events)
             .add_systems(
                 Update,

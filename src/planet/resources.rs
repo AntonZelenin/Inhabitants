@@ -36,6 +36,13 @@ pub struct PlanetGenerationSettings {
     pub wind_particle_height_offset: f32,
     pub wind_zonal_speed: f32,
     pub wind_particle_lifespan: f32,
+    // Wind deflection settings
+    pub wind_deflection_height_threshold: f32,
+    pub wind_deflection_height_scale: f32,
+    pub wind_deflection_spread_radius: usize,
+    pub wind_deflection_spread_decay: f32,
+    pub wind_deflection_strength: f32,
+    pub wind_deflection_iterations: usize,
     // Temperature visualization settings
     pub show_temperature: bool,
     pub land_temperature_bonus: f32, // Temperature increase for land (above sea level)
@@ -78,6 +85,12 @@ impl Default for PlanetGenerationSettings {
             wind_particle_height_offset: config.wind.particle_height_offset,
             wind_zonal_speed: config.wind.zonal_speed,
             wind_particle_lifespan: config.wind.particle_lifespan,
+            wind_deflection_height_threshold: config.wind_deflection.height_threshold,
+            wind_deflection_height_scale: config.wind_deflection.height_scale,
+            wind_deflection_spread_radius: config.wind_deflection.spread_radius,
+            wind_deflection_spread_decay: config.wind_deflection.spread_decay,
+            wind_deflection_strength: config.wind_deflection.deflection_strength,
+            wind_deflection_iterations: config.wind_deflection.deflection_iterations,
             show_temperature: false,
             land_temperature_bonus: config.temperature.land_temperature_bonus,
             temperature_equator_temp: config.temperature.equator_temp,

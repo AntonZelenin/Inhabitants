@@ -296,6 +296,32 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add(egui::Slider::new(&mut settings.wind_particle_lifespan, 1.0..=10.0).step_by(0.1));
     ui.label("Lower lifespan = faster respawn rate");
     ui.add_space(5.0);
+
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Wind Deflection");
+    ui.add_space(5.0);
+
+    ui.label("Height Threshold");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_height_threshold, 0.0..=1.0).step_by(0.01));
+
+    ui.label("Height Scale");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_height_scale, 0.5..=5.0).step_by(0.1));
+
+    ui.label("Spread Radius");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_spread_radius, 1..=8));
+
+    ui.label("Spread Decay");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_spread_decay, 0.1..=0.9).step_by(0.01));
+
+    ui.label("Deflection Strength");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_strength, 0.0..=1.0).step_by(0.01));
+
+    ui.label("Deflection Iterations");
+    ui.add(egui::Slider::new(&mut settings.wind_deflection_iterations, 1..=10));
+
+    ui.add_space(5.0);
 }
 
 fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {

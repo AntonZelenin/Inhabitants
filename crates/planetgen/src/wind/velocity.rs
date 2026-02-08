@@ -1,6 +1,9 @@
 // Pure wind velocity calculation logic
 
-use super::{DEFAULT_WIND_SPEED, TAU, TURN_POINTS, SIGNS, ZONAL_SIGNS};
+use super::influence::MountainInfluenceMap;
+use super::{DEFAULT_WIND_SPEED, SIGNS, TAU, TURN_POINTS, ZONAL_SIGNS};
+use crate::config::WindDeflectionConfig;
+use crate::planet::PlanetData;
 use glam::Vec3;
 
 /// Pure wind field calculations (no engine dependencies)
@@ -235,10 +238,7 @@ impl WindCubeMap {
             }
         }
 
-        Self {
-            faces,
-            resolution,
-        }
+        Self { faces, resolution }
     }
 
     /// Sample wind velocity at a given position using bilinear interpolation
@@ -279,6 +279,96 @@ impl WindCubeMap {
         let v1 = v01.lerp(v11, tx);
         v0.lerp(v1, ty)
     }
+
+    /// Build a wind cube map with terrain-aware deflection.
+    pub fn build_with_terrain(
+        resolution: usize,
+        zonal_speed: f32,
+        planet: &PlanetData,
+        config: &WindDeflectionConfig,
+    ) -> (Self, MountainInfluenceMap) {
+        let mut wind = Self::build(resolution, zonal_speed);
+        let influence = MountainInfluenceMap::build(planet, resolution, config);
+        wind.apply_deflection(&influence, config);
+        (wind, influence)
+    }
+
+    /// Apply mountain deflection to wind velocities.
+    fn apply_deflection(
+        &mut self,
+        influence: &MountainInfluenceMap,
+        config: &WindDeflectionConfig,
+    ) {
+        for _ in 0..config.deflection_iterations {
+            // Snapshot current velocities
+            let snapshot: Vec<Vec<Vec<Vec3>>> =
+                self.faces.iter().map(|f| f.velocities.clone()).collect();
+
+            for face_idx in 0..6 {
+                for y in 0..self.resolution {
+                    let v = (y as f32 / (self.resolution - 1) as f32) * 2.0 - 1.0;
+                    for x in 0..self.resolution {
+                        let u = (x as f32 / (self.resolution - 1) as f32) * 2.0 - 1.0;
+
+                        let dir = cube_face_point(face_idx, u, v).normalize();
+                        let (cost, ridge_tangent) = influence.sample(dir);
+
+                        if cost < 0.01 {
+                            continue;
+                        }
+
+                        let wind = snapshot[face_idx][y][x];
+                        let speed = wind.length();
+                        if speed < 1e-6 {
+                            continue;
+                        }
+
+                        let surface_normal = dir;
+
+                        // Ridge normal = perpendicular to ridge tangent in tangent plane
+                        let ridge_normal = surface_normal.cross(ridge_tangent);
+                        let ridge_normal_len = ridge_normal.length();
+                        if ridge_normal_len < 1e-6 {
+                            continue;
+                        }
+                        let ridge_normal = ridge_normal / ridge_normal_len;
+
+                        // Decompose wind
+                        let v_along = ridge_tangent * wind.dot(ridge_tangent);
+                        let across_component = wind.dot(ridge_normal);
+
+                        // Redirect across-ridge energy along the ridge
+                        // so wind flows around mountains, not through them
+                        let along_sign = if wind.dot(ridge_tangent) >= 0.0 {
+                            1.0
+                        } else {
+                            -1.0
+                        };
+                        let v_redirected = ridge_tangent * across_component.abs() * along_sign;
+
+                        let deflected = v_along + v_redirected;
+
+                        // Blend original and deflected by cost * strength
+                        let blend = cost * config.deflection_strength;
+                        let blended = wind.lerp(deflected, blend);
+
+                        // Re-project to tangent plane
+                        let tangent_v = blended - surface_normal * blended.dot(surface_normal);
+
+                        // Restore original speed
+                        let new_len = tangent_v.length();
+                        let final_v = if new_len > 1e-6 {
+                            tangent_v * (speed / new_len)
+                        } else {
+                            wind
+                        };
+
+                        self.faces[face_idx].velocities[y][x] = final_v;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Convert 2D cube face coordinates to 3D world coordinates
@@ -292,12 +382,12 @@ impl WindCubeMap {
 /// 3D coordinates on unit cube surface
 pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> Vec3 {
     match face_idx {
-        0 => Vec3::new(1.0, v, -u),   // +X face
-        1 => Vec3::new(-1.0, v, u),   // -X face
-        2 => Vec3::new(u, 1.0, -v),   // +Y face
-        3 => Vec3::new(u, -1.0, v),   // -Y face
-        4 => Vec3::new(u, v, 1.0),    // +Z face
-        5 => Vec3::new(-u, v, -1.0),  // -Z face
+        0 => Vec3::new(1.0, v, -u),  // +X face
+        1 => Vec3::new(-1.0, v, u),  // -X face
+        2 => Vec3::new(u, 1.0, -v),  // +Y face
+        3 => Vec3::new(u, -1.0, v),  // -Y face
+        4 => Vec3::new(u, v, 1.0),   // +Z face
+        5 => Vec3::new(-u, v, -1.0), // -Z face
         _ => Vec3::ZERO,
     }
 }
