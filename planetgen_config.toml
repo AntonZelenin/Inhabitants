@@ -151,7 +151,7 @@ spread_radius = 6
 spread_decay = 0.6
 # Overall blending factor for deflection
 # Range: 0.0 to 1.0 (0.0 = no deflection)
-deflection_strength = 0.9
+deflection_strength = 1.0
 # Number of relaxation passes
 # Range: 1 to 10
 deflection_iterations = 5

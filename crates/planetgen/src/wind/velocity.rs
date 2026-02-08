@@ -1,7 +1,7 @@
 // Pure wind velocity calculation logic
 
-use super::{DEFAULT_WIND_SPEED, TAU, TURN_POINTS, SIGNS, ZONAL_SIGNS};
 use super::influence::MountainInfluenceMap;
+use super::{DEFAULT_WIND_SPEED, SIGNS, TAU, TURN_POINTS, ZONAL_SIGNS};
 use crate::config::WindDeflectionConfig;
 use crate::planet::PlanetData;
 use glam::Vec3;
@@ -238,10 +238,7 @@ impl WindCubeMap {
             }
         }
 
-        Self {
-            faces,
-            resolution,
-        }
+        Self { faces, resolution }
     }
 
     /// Sample wind velocity at a given position using bilinear interpolation
@@ -283,19 +280,29 @@ impl WindCubeMap {
         v0.lerp(v1, ty)
     }
 
+    /// Build a wind cube map with terrain-aware deflection.
+    pub fn build_with_terrain(
+        resolution: usize,
+        zonal_speed: f32,
+        planet: &PlanetData,
+        config: &WindDeflectionConfig,
+    ) -> (Self, MountainInfluenceMap) {
+        let mut wind = Self::build(resolution, zonal_speed);
+        let influence = MountainInfluenceMap::build(planet, resolution, config);
+        wind.apply_deflection(&influence, config);
+        (wind, influence)
+    }
+
     /// Apply mountain deflection to wind velocities.
-    pub fn apply_deflection(
+    fn apply_deflection(
         &mut self,
         influence: &MountainInfluenceMap,
         config: &WindDeflectionConfig,
     ) {
         for _ in 0..config.deflection_iterations {
             // Snapshot current velocities
-            let snapshot: Vec<Vec<Vec<Vec3>>> = self
-                .faces
-                .iter()
-                .map(|f| f.velocities.clone())
-                .collect();
+            let snapshot: Vec<Vec<Vec<Vec3>>> =
+                self.faces.iter().map(|f| f.velocities.clone()).collect();
 
             for face_idx in 0..6 {
                 for y in 0..self.resolution {
@@ -332,7 +339,11 @@ impl WindCubeMap {
 
                         // Redirect across-ridge energy along the ridge
                         // so wind flows around mountains, not through them
-                        let along_sign = if wind.dot(ridge_tangent) >= 0.0 { 1.0 } else { -1.0 };
+                        let along_sign = if wind.dot(ridge_tangent) >= 0.0 {
+                            1.0
+                        } else {
+                            -1.0
+                        };
                         let v_redirected = ridge_tangent * across_component.abs() * along_sign;
 
                         let deflected = v_along + v_redirected;
@@ -358,19 +369,6 @@ impl WindCubeMap {
             }
         }
     }
-
-    /// Build a wind cube map with terrain-aware deflection.
-    pub fn build_with_terrain(
-        resolution: usize,
-        zonal_speed: f32,
-        planet: &PlanetData,
-        config: &WindDeflectionConfig,
-    ) -> (Self, MountainInfluenceMap) {
-        let mut wind = Self::build(resolution, zonal_speed);
-        let influence = MountainInfluenceMap::build(planet, resolution, config);
-        wind.apply_deflection(&influence, config);
-        (wind, influence)
-    }
 }
 
 /// Convert 2D cube face coordinates to 3D world coordinates
@@ -384,12 +382,12 @@ impl WindCubeMap {
 /// 3D coordinates on unit cube surface
 pub fn cube_face_point(face_idx: usize, u: f32, v: f32) -> Vec3 {
     match face_idx {
-        0 => Vec3::new(1.0, v, -u),   // +X face
-        1 => Vec3::new(-1.0, v, u),   // -X face
-        2 => Vec3::new(u, 1.0, -v),   // +Y face
-        3 => Vec3::new(u, -1.0, v),   // -Y face
-        4 => Vec3::new(u, v, 1.0),    // +Z face
-        5 => Vec3::new(-u, v, -1.0),  // -Z face
+        0 => Vec3::new(1.0, v, -u),  // +X face
+        1 => Vec3::new(-1.0, v, u),  // -X face
+        2 => Vec3::new(u, 1.0, -v),  // +Y face
+        3 => Vec3::new(u, -1.0, v),  // -Y face
+        4 => Vec3::new(u, v, 1.0),   // +Z face
+        5 => Vec3::new(-u, v, -1.0), // -Z face
         _ => Vec3::ZERO,
     }
 }
