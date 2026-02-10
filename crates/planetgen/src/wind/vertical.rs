@@ -18,12 +18,15 @@ pub struct VerticalAirCubeMap {
     pub resolution: usize,
 }
 
+/// Number of blur passes to spread thin divergence lines into broad zones.
+const BLUR_PASSES: usize = 8;
+
 impl VerticalAirCubeMap {
     /// Build from an existing wind cube map by computing surface divergence.
     ///
-    /// Uses finite differences on each cube face to approximate
-    /// div(v) = d(vx)/du + d(vy)/dv in cube-face coordinates.
-    /// The result is normalized to roughly [-1, 1].
+    /// After computing raw divergence via finite differences, applies repeated
+    /// blur passes to spread thin convergence/divergence lines into broad
+    /// atmospheric zones, then normalizes and enhances contrast.
     pub fn build_from_wind(wind: &WindCubeMap) -> Self {
         let resolution = wind.resolution;
         let blank_face = VerticalAirCubeFace {
@@ -39,25 +42,48 @@ impl VerticalAirCubeMap {
             blank_face.clone(),
         ];
 
-        let mut max_abs: f32 = 0.0;
-
+        // Step 1: Compute raw divergence
         for face_idx in 0..6 {
             for y in 0..resolution {
                 for x in 0..resolution {
-                    let div = compute_divergence(wind, face_idx, x, y);
-                    faces[face_idx].values[y][x] = div;
-                    max_abs = max_abs.max(div.abs());
+                    faces[face_idx].values[y][x] = compute_divergence(wind, face_idx, x, y);
                 }
             }
         }
 
-        // Normalize to [-1, 1]
+        // Step 2: Blur to spread thin lines into broad zones
+        for _ in 0..BLUR_PASSES {
+            for face_idx in 0..6 {
+                faces[face_idx].values = blur_face(&faces[face_idx].values, resolution);
+            }
+        }
+
+        // Step 3: Normalize to [-1, 1]
+        let mut max_abs: f32 = 0.0;
+        for face in &faces {
+            for row in &face.values {
+                for &val in row {
+                    max_abs = max_abs.max(val.abs());
+                }
+            }
+        }
+
         if max_abs > 1e-6 {
             for face in &mut faces {
                 for row in &mut face.values {
                     for val in row.iter_mut() {
                         *val /= max_abs;
                     }
+                }
+            }
+        }
+
+        // Step 4: Non-linear enhancement (signed sqrt) to boost weak signals
+        for face in &mut faces {
+            for row in &mut face.values {
+                for val in row.iter_mut() {
+                    let sign = val.signum();
+                    *val = sign * val.abs().sqrt();
                 }
             }
         }
@@ -93,6 +119,29 @@ impl VerticalAirCubeMap {
         let v1 = v01 + (v11 - v01) * tx;
         v0 + (v1 - v0) * ty
     }
+}
+
+/// Apply a single box blur pass to a face grid.
+fn blur_face(values: &[Vec<f32>], resolution: usize) -> Vec<Vec<f32>> {
+    let mut out = vec![vec![0.0f32; resolution]; resolution];
+    for y in 0..resolution {
+        for x in 0..resolution {
+            let mut sum = 0.0;
+            let mut count = 0.0;
+            for dy in -1i32..=1 {
+                for dx in -1i32..=1 {
+                    let nx = x as i32 + dx;
+                    let ny = y as i32 + dy;
+                    if nx >= 0 && nx < resolution as i32 && ny >= 0 && ny < resolution as i32 {
+                        sum += values[ny as usize][nx as usize];
+                        count += 1.0;
+                    }
+                }
+            }
+            out[y][x] = sum / count;
+        }
+    }
+    out
 }
 
 /// Compute surface divergence at a grid cell using central finite differences.

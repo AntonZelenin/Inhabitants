@@ -325,7 +325,7 @@ pub fn rebuild_wind_cubemap_after_planet(
 }
 
 /// Toggle vertical air movement overlay on/off.
-/// Creates colored mesh copies when enabled, despawns them when disabled.
+/// Creates colored mesh copies when enabled (hiding originals), despawns them when disabled.
 pub fn handle_vertical_air_toggle(
     settings: Res<WindParticleSettings>,
     planet_settings: Res<PlanetGenerationSettings>,
@@ -339,6 +339,8 @@ pub fn handle_vertical_air_toggle(
         (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
         With<crate::planet::components::OceanEntity>,
     >,
+    continent_view_query: Query<Entity, With<crate::planet::components::ContinentView>>,
+    ocean_view_query: Query<Entity, With<crate::planet::components::OceanEntity>>,
     existing_meshes: Query<Entity, With<VerticalAirMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -352,127 +354,109 @@ pub fn handle_vertical_air_toggle(
     let has_meshes = !existing_meshes.is_empty();
 
     if should_show && !has_meshes {
-        // Create vertical air overlay meshes
-        let Some(planet_entity) = planet_query.iter().next() else {
-            return;
-        };
-
-        info!("Creating vertical air movement overlay");
-
-        for (_entity, mesh_handle, _material) in continent_query.iter() {
-            if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                let colored_mesh = create_vertical_air_mesh(original_mesh, &vertical_cubemap);
-                let mesh_handle = meshes.add(colored_mesh);
-                let material = materials.add(StandardMaterial {
-                    base_color: Color::WHITE,
-                    unlit: true,
-                    ..default()
-                });
-
-                let entity = commands
-                    .spawn((
-                        Mesh3d(mesh_handle),
-                        MeshMaterial3d(material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        VerticalAirMesh,
-                        VerticalAirView,
-                    ))
-                    .id();
-                commands.entity(planet_entity).add_child(entity);
-            }
+        spawn_vertical_air_meshes(
+            &planet_query, &continent_query, &ocean_query,
+            &vertical_cubemap, &mut meshes, &mut materials, &mut commands,
+        );
+        // Hide original continent + ocean meshes so overlay is visible
+        for entity in continent_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Hidden);
         }
-
-        for (_entity, mesh_handle, _material) in ocean_query.iter() {
-            if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                let colored_mesh = create_vertical_air_mesh(original_mesh, &vertical_cubemap);
-                let mesh_handle = meshes.add(colored_mesh);
-                let material = materials.add(StandardMaterial {
-                    base_color: Color::WHITE,
-                    unlit: true,
-                    ..default()
-                });
-
-                let entity = commands
-                    .spawn((
-                        Mesh3d(mesh_handle),
-                        MeshMaterial3d(material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        VerticalAirMesh,
-                        VerticalAirView,
-                    ))
-                    .id();
-                commands.entity(planet_entity).add_child(entity);
-            }
+        for entity in ocean_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Hidden);
         }
     } else if !should_show && has_meshes {
-        // Despawn vertical air overlay meshes
+        // Despawn overlay and restore original meshes
         for entity in existing_meshes.iter() {
             commands.entity(entity).despawn();
+        }
+        for entity in continent_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Visible);
+        }
+        for entity in ocean_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Visible);
         }
     } else if should_show && has_meshes && vertical_cubemap.is_changed() {
-        // Rebuild meshes after wind cubemap changed
+        // Rebuild after wind cubemap changed
         for entity in existing_meshes.iter() {
             commands.entity(entity).despawn();
         }
+        spawn_vertical_air_meshes(
+            &planet_query, &continent_query, &ocean_query,
+            &vertical_cubemap, &mut meshes, &mut materials, &mut commands,
+        );
+    }
+}
 
-        let Some(planet_entity) = planet_query.iter().next() else {
-            return;
-        };
+/// Helper to spawn vertical air overlay meshes from continent + ocean originals.
+fn spawn_vertical_air_meshes(
+    planet_query: &Query<Entity, With<PlanetEntity>>,
+    continent_query: &Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::ContinentViewMesh>,
+    >,
+    ocean_query: &Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::OceanEntity>,
+    >,
+    vertical_cubemap: &VerticalAirCubeMap,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    commands: &mut Commands,
+) {
+    let Some(planet_entity) = planet_query.iter().next() else {
+        return;
+    };
 
-        info!("Rebuilding vertical air movement overlay");
+    info!("Creating vertical air movement overlay");
 
-        for (_entity, mesh_handle, _material) in continent_query.iter() {
-            if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                let colored_mesh = create_vertical_air_mesh(original_mesh, &vertical_cubemap);
-                let mesh_handle = meshes.add(colored_mesh);
-                let material = materials.add(StandardMaterial {
-                    base_color: Color::WHITE,
-                    unlit: true,
-                    ..default()
-                });
+    for (_entity, mesh_handle, _material) in continent_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let colored_mesh = create_vertical_air_mesh(original_mesh, vertical_cubemap);
+            let mesh_handle = meshes.add(colored_mesh);
+            let material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
 
-                let entity = commands
-                    .spawn((
-                        Mesh3d(mesh_handle),
-                        MeshMaterial3d(material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        VerticalAirMesh,
-                        VerticalAirView,
-                    ))
-                    .id();
-                commands.entity(planet_entity).add_child(entity);
-            }
+            let entity = commands
+                .spawn((
+                    Mesh3d(mesh_handle),
+                    MeshMaterial3d(material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    VerticalAirMesh,
+                    VerticalAirView,
+                ))
+                .id();
+            commands.entity(planet_entity).add_child(entity);
         }
+    }
 
-        for (_entity, mesh_handle, _material) in ocean_query.iter() {
-            if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
-                let colored_mesh = create_vertical_air_mesh(original_mesh, &vertical_cubemap);
-                let mesh_handle = meshes.add(colored_mesh);
-                let material = materials.add(StandardMaterial {
-                    base_color: Color::WHITE,
-                    unlit: true,
-                    ..default()
-                });
+    for (_entity, mesh_handle, _material) in ocean_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let colored_mesh = create_vertical_air_mesh(original_mesh, vertical_cubemap);
+            let mesh_handle = meshes.add(colored_mesh);
+            let material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
 
-                let entity = commands
-                    .spawn((
-                        Mesh3d(mesh_handle),
-                        MeshMaterial3d(material),
-                        Transform::default(),
-                        GlobalTransform::default(),
-                        Visibility::Visible,
-                        VerticalAirMesh,
-                        VerticalAirView,
-                    ))
-                    .id();
-                commands.entity(planet_entity).add_child(entity);
-            }
+            let entity = commands
+                .spawn((
+                    Mesh3d(mesh_handle),
+                    MeshMaterial3d(material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    VerticalAirMesh,
+                    VerticalAirView,
+                ))
+                .id();
+            commands.entity(planet_entity).add_child(entity);
         }
     }
 }

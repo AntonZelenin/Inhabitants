@@ -45,16 +45,24 @@ pub fn handle_tab_visibility(
             }
 
             ViewTabType::Wind => {
-                // Show: Continent mesh + Ocean + Vertical air (if enabled, toggle manages creation)
-                // Hide: Tectonic plates, Temperature meshes
                 // Wind particles are managed by handle_wind_tab_events + spawn_debug_particles
+                // If vertical air overlay is active, hide originals; otherwise show them
+                let has_vertical_air = !vertical_air_query.is_empty();
 
                 for entity in continent_view_query.iter() {
-                    commands.entity(entity).insert(Visibility::Visible);
+                    commands.entity(entity).insert(if has_vertical_air {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Visible
+                    });
                 }
 
                 for entity in ocean_query.iter() {
-                    commands.entity(entity).insert(Visibility::Visible);
+                    commands.entity(entity).insert(if has_vertical_air {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Visible
+                    });
                 }
 
                 for entity in plate_view_query.iter() {
