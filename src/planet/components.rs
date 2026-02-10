@@ -27,6 +27,10 @@ pub struct TectonicPlateView;
 #[derive(Component)]
 pub struct TemperatureView;
 
+/// Marker component for vertical air movement overlay meshes
+#[derive(Component)]
+pub struct VerticalAirView;
+
 #[derive(Component)]
 pub struct PlanetControls {
     pub rotation: Quat,

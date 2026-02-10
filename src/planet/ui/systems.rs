@@ -321,6 +321,28 @@ fn render_wind_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.label("Deflection Iterations");
     ui.add(egui::Slider::new(&mut settings.wind_deflection_iterations, 1..=10));
 
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Vertical Air Movement");
+    ui.add_space(5.0);
+
+    ui.checkbox(&mut settings.show_vertical_air, "Show Vertical Air Movement");
+    ui.label("Shows where air rises (convergence) or sinks (divergence)");
+
+    ui.add_space(5.0);
+    ui.label("Color Scale:");
+    ui.horizontal(|ui| {
+        ui.label("Blue: Rising air (convergence)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("White: Neutral");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Red: Sinking air (divergence)");
+    });
+
     ui.add_space(5.0);
 }
 
