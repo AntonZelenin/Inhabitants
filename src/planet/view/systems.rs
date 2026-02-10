@@ -19,7 +19,7 @@ pub fn handle_tab_visibility(
         info!("Switching to {:?} tab - handling ALL visibility", event.tab);
 
         match event.tab {
-            ViewTabType::Continent => {
+            ViewTabType::Continent | ViewTabType::Wind => {
                 // Show: Continent mesh + Ocean
                 // Hide: Tectonic plates, Temperature meshes, Vertical air
 
