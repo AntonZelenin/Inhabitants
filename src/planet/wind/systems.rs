@@ -1,12 +1,16 @@
 // Wind particle systems
 
-use crate::planet::components::PlanetEntity;
+use crate::planet::components::{PlanetEntity, VerticalAirView};
 use crate::planet::events::{PlanetSpawnedEvent, WindTabActiveEvent};
 use crate::planet::resources::{CurrentPlanetData, PlanetGenerationSettings};
 use super::{WindParticleSettings, PARTICLE_COUNT};
+use bevy::asset::RenderAssetUsages;
+use bevy::mesh::PrimitiveTopology;
 use bevy::prelude::*;
 use rand::Rng;
 use planetgen::wind::WindCubeMap as PlanetgenWindCubeMap;
+use planetgen::wind::VerticalAirCubeMap as PlanetgenVerticalAirCubeMap;
+use planetgen::wind::vertical::divergence_to_color;
 
 /// Bevy-compatible WindCubeMap resource
 #[derive(Resource, Clone)]
@@ -25,6 +29,27 @@ impl WindCubeMap {
     }
 }
 
+/// Bevy-compatible VerticalAirCubeMap resource
+#[derive(Resource, Clone)]
+pub struct VerticalAirCubeMap {
+    inner: PlanetgenVerticalAirCubeMap,
+}
+
+impl VerticalAirCubeMap {
+    pub fn build_from_wind(wind_inner: &PlanetgenWindCubeMap) -> Self {
+        let inner = PlanetgenVerticalAirCubeMap::build_from_wind(wind_inner);
+        Self { inner }
+    }
+
+    pub fn sample(&self, position: Vec3) -> f32 {
+        self.inner.sample(position)
+    }
+}
+
+/// Marker component for vertical air movement overlay mesh
+#[derive(Component)]
+pub struct VerticalAirMesh;
+
 /// Marker component for wind particle visualization
 #[derive(Component)]
 pub struct WindParticle {
@@ -41,7 +66,9 @@ pub fn initialize_wind_cubemap(
 ) {
     info!("Initializing wind cube map...");
     let cubemap = WindCubeMap::build(settings.wind_cubemap_resolution, settings.zonal_speed);
+    let vertical = VerticalAirCubeMap::build_from_wind(&cubemap.inner);
     commands.insert_resource(cubemap);
+    commands.insert_resource(vertical);
 }
 
 /// Update wind particle settings from planet generation settings
@@ -55,6 +82,7 @@ pub fn update_wind_settings(
         wind_settings.enabled = planet_settings.show_wind;
         wind_settings.zonal_speed = planet_settings.wind_zonal_speed;
         wind_settings.particle_lifespan = planet_settings.wind_particle_lifespan;
+        wind_settings.show_vertical_air = planet_settings.show_vertical_air;
     }
 }
 
@@ -289,8 +317,188 @@ pub fn rebuild_wind_cubemap_after_planet(
             &deflection_config,
         );
 
+        let vertical = VerticalAirCubeMap::build_from_wind(&wind_map);
         commands.insert_resource(WindCubeMap { inner: wind_map });
+        commands.insert_resource(vertical);
         info!("Wind cubemap rebuilt with terrain deflection");
     }
+}
+
+/// Toggle vertical air movement overlay on/off.
+/// Creates colored mesh copies when enabled (hiding originals), despawns them when disabled.
+pub fn handle_vertical_air_toggle(
+    settings: Res<WindParticleSettings>,
+    planet_settings: Res<PlanetGenerationSettings>,
+    vertical_cubemap: Res<VerticalAirCubeMap>,
+    planet_query: Query<Entity, With<PlanetEntity>>,
+    continent_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::ContinentViewMesh>,
+    >,
+    ocean_query: Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::OceanEntity>,
+    >,
+    continent_view_query: Query<Entity, With<crate::planet::components::ContinentView>>,
+    ocean_view_query: Query<Entity, With<crate::planet::components::OceanEntity>>,
+    existing_meshes: Query<Entity, With<VerticalAirMesh>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    if !planet_settings.is_changed() && !vertical_cubemap.is_changed() {
+        return;
+    }
+
+    let should_show = settings.show_vertical_air && settings.enabled;
+    let has_meshes = !existing_meshes.is_empty();
+
+    if should_show && !has_meshes {
+        spawn_vertical_air_meshes(
+            &planet_query, &continent_query, &ocean_query,
+            &vertical_cubemap, &mut meshes, &mut materials, &mut commands,
+        );
+        // Hide original continent + ocean meshes so overlay is visible
+        for entity in continent_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Hidden);
+        }
+        for entity in ocean_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Hidden);
+        }
+    } else if !should_show && has_meshes {
+        // Despawn overlay and restore original meshes
+        for entity in existing_meshes.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in continent_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Visible);
+        }
+        for entity in ocean_view_query.iter() {
+            commands.entity(entity).insert(Visibility::Visible);
+        }
+    } else if should_show && has_meshes && vertical_cubemap.is_changed() {
+        // Rebuild after wind cubemap changed
+        for entity in existing_meshes.iter() {
+            commands.entity(entity).despawn();
+        }
+        spawn_vertical_air_meshes(
+            &planet_query, &continent_query, &ocean_query,
+            &vertical_cubemap, &mut meshes, &mut materials, &mut commands,
+        );
+    }
+}
+
+/// Helper to spawn vertical air overlay meshes from continent + ocean originals.
+fn spawn_vertical_air_meshes(
+    planet_query: &Query<Entity, With<PlanetEntity>>,
+    continent_query: &Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::ContinentViewMesh>,
+    >,
+    ocean_query: &Query<
+        (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
+        With<crate::planet::components::OceanEntity>,
+    >,
+    vertical_cubemap: &VerticalAirCubeMap,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    commands: &mut Commands,
+) {
+    let Some(planet_entity) = planet_query.iter().next() else {
+        return;
+    };
+
+    info!("Creating vertical air movement overlay");
+
+    for (_entity, mesh_handle, _material) in continent_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let colored_mesh = create_vertical_air_mesh(original_mesh, vertical_cubemap);
+            let mesh_handle = meshes.add(colored_mesh);
+            let material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
+
+            let entity = commands
+                .spawn((
+                    Mesh3d(mesh_handle),
+                    MeshMaterial3d(material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    VerticalAirMesh,
+                    VerticalAirView,
+                ))
+                .id();
+            commands.entity(planet_entity).add_child(entity);
+        }
+    }
+
+    for (_entity, mesh_handle, _material) in ocean_query.iter() {
+        if let Some(original_mesh) = meshes.get(&mesh_handle.0) {
+            let colored_mesh = create_vertical_air_mesh(original_mesh, vertical_cubemap);
+            let mesh_handle = meshes.add(colored_mesh);
+            let material = materials.add(StandardMaterial {
+                base_color: Color::WHITE,
+                unlit: true,
+                ..default()
+            });
+
+            let entity = commands
+                .spawn((
+                    Mesh3d(mesh_handle),
+                    MeshMaterial3d(material),
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
+                    VerticalAirMesh,
+                    VerticalAirView,
+                ))
+                .id();
+            commands.entity(planet_entity).add_child(entity);
+        }
+    }
+}
+
+/// Create a mesh copy with vertex colors based on vertical air movement
+fn create_vertical_air_mesh(
+    original_mesh: &Mesh,
+    vertical_cubemap: &VerticalAirCubeMap,
+) -> Mesh {
+    let mut new_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+
+    if let Some(positions_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+        if let Some(positions) = positions_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions.to_vec());
+
+            let colors: Vec<[f32; 4]> = positions
+                .iter()
+                .map(|&[x, y, z]| {
+                    let direction = Vec3::new(x, y, z).normalize();
+                    let value = vertical_cubemap.sample(direction);
+                    let color = divergence_to_color(value);
+                    [color.x, color.y, color.z, 1.0]
+                })
+                .collect();
+
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+        }
+    }
+
+    if let Some(normals_attr) = original_mesh.attribute(Mesh::ATTRIBUTE_NORMAL) {
+        if let Some(normals) = normals_attr.as_float3() {
+            new_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals.to_vec());
+        }
+    }
+
+    if let Some(indices) = original_mesh.indices() {
+        new_mesh.insert_indices(indices.clone());
+    }
+
+    new_mesh
 }
 

@@ -17,6 +17,7 @@ pub struct WindParticleSettings {
     pub fade_in_duration: f32,
     pub fade_out_duration: f32,
     pub wind_cubemap_resolution: usize,
+    pub show_vertical_air: bool,
 }
 
 impl Default for WindParticleSettings {
@@ -30,6 +31,7 @@ impl Default for WindParticleSettings {
             fade_in_duration: 0.6,
             fade_out_duration: 0.6,
             wind_cubemap_resolution: DEFAULT_CUBEMAP_RESOLUTION,
+            show_vertical_air: false,
         }
     }
 }
@@ -43,6 +45,7 @@ impl Plugin for WindPlugin {
             .add_systems(Update, systems::update_wind_settings)
             .add_systems(Update, systems::rebuild_wind_cubemap_after_planet)
             .add_systems(Update, systems::handle_wind_tab_events)
+            .add_systems(Update, systems::handle_vertical_air_toggle)
             .add_systems(
                 Update,
                 (

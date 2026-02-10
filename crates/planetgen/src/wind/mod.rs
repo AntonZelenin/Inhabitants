@@ -2,9 +2,11 @@
 
 pub mod influence;
 pub mod velocity;
+pub mod vertical;
 
 pub use influence::MountainInfluenceMap;
 pub use velocity::{WindCubeFace, WindCubeMap, WindField};
+pub use vertical::VerticalAirCubeMap;
 
 /// Wind constants
 pub const DEFAULT_WIND_SPEED: f32 = 3.0;

@@ -1,6 +1,7 @@
 use crate::planet::components::{ContinentView, OceanEntity, TectonicPlateView};
 use crate::planet::events::{TabSwitchEvent, ViewTabType};
 use crate::planet::temperature::systems::TemperatureMesh;
+use crate::planet::wind::systems::VerticalAirMesh;
 use bevy::prelude::*;
 
 /// CENTRALIZED tab visibility handler - handles ALL tab switching in ONE place
@@ -11,6 +12,7 @@ pub fn handle_tab_visibility(
     ocean_query: Query<Entity, With<OceanEntity>>,
     plate_view_query: Query<Entity, With<TectonicPlateView>>,
     temperature_mesh_query: Query<Entity, With<TemperatureMesh>>,
+    vertical_air_query: Query<Entity, With<VerticalAirMesh>>,
     mut commands: Commands,
 ) {
     for event in tab_switch_events.read() {
@@ -19,8 +21,7 @@ pub fn handle_tab_visibility(
         match event.tab {
             ViewTabType::Continent | ViewTabType::Wind => {
                 // Show: Continent mesh + Ocean
-                // Hide: Tectonic plates, Temperature meshes
-                // Wind particles are managed by handle_wind_tab_events + spawn_debug_particles
+                // Hide: Tectonic plates, Temperature meshes, Vertical air
 
                 for entity in continent_view_query.iter() {
                     commands.entity(entity).insert(Visibility::Visible);
@@ -36,12 +37,50 @@ pub fn handle_tab_visibility(
 
                 for entity in temperature_mesh_query.iter() {
                     commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in vertical_air_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+            }
+
+            ViewTabType::Wind => {
+                // Wind particles are managed by handle_wind_tab_events + spawn_debug_particles
+                // If vertical air overlay is active, hide originals; otherwise show them
+                let has_vertical_air = !vertical_air_query.is_empty();
+
+                for entity in continent_view_query.iter() {
+                    commands.entity(entity).insert(if has_vertical_air {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Visible
+                    });
+                }
+
+                for entity in ocean_query.iter() {
+                    commands.entity(entity).insert(if has_vertical_air {
+                        Visibility::Hidden
+                    } else {
+                        Visibility::Visible
+                    });
+                }
+
+                for entity in plate_view_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in temperature_mesh_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in vertical_air_query.iter() {
+                    commands.entity(entity).insert(Visibility::Visible);
                 }
             }
 
             ViewTabType::Tectonic => {
                 // Show: Tectonic plates ONLY
-                // Hide: Continent mesh, Ocean, Temperature meshes
+                // Hide: Continent mesh, Ocean, Temperature meshes, Vertical air
 
                 for entity in continent_view_query.iter() {
                     commands.entity(entity).insert(Visibility::Hidden);
@@ -56,13 +95,17 @@ pub fn handle_tab_visibility(
                 }
 
                 for entity in temperature_mesh_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in vertical_air_query.iter() {
                     commands.entity(entity).insert(Visibility::Hidden);
                 }
             }
 
             ViewTabType::Temperature => {
                 // Show: Temperature meshes ONLY
-                // Hide: Continent mesh, Ocean, Tectonic plates
+                // Hide: Continent mesh, Ocean, Tectonic plates, Vertical air
 
                 for entity in continent_view_query.iter() {
                     commands.entity(entity).insert(Visibility::Hidden);
@@ -78,6 +121,10 @@ pub fn handle_tab_visibility(
 
                 for entity in temperature_mesh_query.iter() {
                     commands.entity(entity).insert(Visibility::Visible);
+                }
+
+                for entity in vertical_air_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
                 }
             }
         }

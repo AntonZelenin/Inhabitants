@@ -43,6 +43,8 @@ pub struct PlanetGenerationSettings {
     pub wind_deflection_spread_decay: f32,
     pub wind_deflection_strength: f32,
     pub wind_deflection_iterations: usize,
+    // Vertical air movement
+    pub show_vertical_air: bool,
     // Temperature visualization settings
     pub show_temperature: bool,
     pub land_temperature_bonus: f32, // Temperature increase for land (above sea level)
@@ -91,6 +93,7 @@ impl Default for PlanetGenerationSettings {
             wind_deflection_spread_decay: config.wind_deflection.spread_decay,
             wind_deflection_strength: config.wind_deflection.deflection_strength,
             wind_deflection_iterations: config.wind_deflection.deflection_iterations,
+            show_vertical_air: false,
             show_temperature: false,
             land_temperature_bonus: config.temperature.land_temperature_bonus,
             temperature_equator_temp: config.temperature.equator_temp,
