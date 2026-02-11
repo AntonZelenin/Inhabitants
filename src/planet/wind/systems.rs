@@ -32,7 +32,7 @@ impl WindCubeMap {
 /// Bevy-compatible VerticalAirCubeMap resource
 #[derive(Resource, Clone)]
 pub struct VerticalAirCubeMap {
-    inner: PlanetgenVerticalAirCubeMap,
+    pub inner: PlanetgenVerticalAirCubeMap,
 }
 
 impl VerticalAirCubeMap {

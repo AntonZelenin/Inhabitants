@@ -11,5 +11,6 @@ pub mod prelude;
 pub mod temperature;
 pub mod tools;
 pub mod wind;
+pub mod precipitations;
 
 pub use config::{get_config, reload_config};

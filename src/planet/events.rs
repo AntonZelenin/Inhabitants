@@ -25,6 +25,7 @@ pub enum ViewTabType {
     Tectonic,
     Wind,
     Temperature,
+    Precipitations,
 }
 
 #[derive(Message)]
@@ -44,6 +45,11 @@ pub struct TectonicTabActiveEvent {
 
 #[derive(Message)]
 pub struct TemperatureTabActiveEvent {
+    pub active: bool,
+}
+
+#[derive(Message)]
+pub struct PrecipitationTabActiveEvent {
     pub active: bool,
 }
 

@@ -176,3 +176,14 @@ land_temperature_bonus = 15.0
 # Resolution of temperature cubemap (pixels per face side)
 # Range: 32 to 256
 cubemap_resolution = 64
+
+[precipitation]
+# === Precipitation Drivers ===
+# Weight for rising air contribution to precipitation (0.0 to 1.0)
+# Rising air (convergence zones) causes condensation and rain
+# Sinking air (divergence zones) creates dry conditions
+# Range: 0.0 to 1.0
+rising_air_weight = 1.0
+# Resolution of precipitation cubemap (pixels per face side)
+# Range: 32 to 256
+cubemap_resolution = 64

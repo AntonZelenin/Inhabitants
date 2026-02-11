@@ -6,6 +6,7 @@ pub mod ui;
 pub mod view;
 pub mod wind;
 pub mod temperature;
+pub mod precipitation;
 mod logic;
 
 use crate::core::state::GameState;
@@ -15,6 +16,7 @@ use crate::planet::systems::*;
 use crate::planet::view::handle_tab_visibility;
 use crate::planet::wind::WindPlugin;
 use crate::planet::temperature::TemperaturePlugin;
+use crate::planet::precipitation::PrecipitationPlugin;
 use bevy::prelude::*;
 
 pub struct PlanetPlugin;
@@ -24,6 +26,7 @@ impl Plugin for PlanetPlugin {
         app
             .add_plugins(WindPlugin)
             .add_plugins(TemperaturePlugin)
+            .add_plugins(PrecipitationPlugin)
             .add_message::<GeneratePlanetEvent>()
             .add_message::<GenerateNewSeedEvent>()
             .add_message::<ToggleArrowsEvent>()
@@ -33,6 +36,7 @@ impl Plugin for PlanetPlugin {
             .add_message::<WindTabActiveEvent>()
             .add_message::<TectonicTabActiveEvent>()
             .add_message::<TemperatureTabActiveEvent>()
+            .add_message::<PrecipitationTabActiveEvent>()
             .add_message::<PlanetSpawnedEvent>()
             .add_message::<ResetCameraEvent>()
             .init_resource::<CurrentPlanetData>()

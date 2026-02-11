@@ -53,6 +53,10 @@ pub struct PlanetGenerationSettings {
     pub temperature_max_temp: f32,
     pub temperature_min_temp: f32,
     pub temperature_cubemap_resolution: usize,
+    // Precipitation visualization settings
+    pub show_precipitation: bool,
+    pub precipitation_rising_air_weight: f32,
+    pub precipitation_cubemap_resolution: usize,
 }
 
 impl Default for PlanetGenerationSettings {
@@ -101,6 +105,9 @@ impl Default for PlanetGenerationSettings {
             temperature_max_temp: config.temperature.max_temp,
             temperature_min_temp: config.temperature.min_temp,
             temperature_cubemap_resolution: config.temperature.cubemap_resolution,
+            show_precipitation: false,
+            precipitation_rising_air_weight: config.precipitation.rising_air_weight,
+            precipitation_cubemap_resolution: config.precipitation.cubemap_resolution,
         }
     }
 }

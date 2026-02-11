@@ -58,6 +58,7 @@ pub struct PlanetGenConfig {
     pub wind: WindConfig,
     pub wind_deflection: WindDeflectionConfig,
     pub temperature: TemperatureConfig,
+    pub precipitation: PrecipitationConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +163,15 @@ pub struct TemperatureConfig {
     pub min_temp: f32,        // Minimum temperature for color scale
     pub land_temperature_bonus: f32, // Extra warmth for land above sea level
     pub cubemap_resolution: usize, // Resolution of temperature cubemap
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrecipitationConfig {
+    /// Weight for rising air contribution to precipitation (0.0 to 1.0)
+    /// Rising air causes condensation and rain
+    pub rising_air_weight: f32,
+    /// Resolution of precipitation cubemap (pixels per face side)
+    pub cubemap_resolution: usize,
 }
 
 impl PlanetGenConfig {
