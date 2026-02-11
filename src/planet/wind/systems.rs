@@ -366,15 +366,19 @@ pub fn handle_vertical_air_toggle(
             commands.entity(entity).insert(Visibility::Hidden);
         }
     } else if !should_show && has_meshes {
-        // Despawn overlay and restore original meshes
+        // Despawn overlay
         for entity in existing_meshes.iter() {
             commands.entity(entity).despawn();
         }
-        for entity in continent_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Visible);
-        }
-        for entity in ocean_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Visible);
+        // Only restore continent/ocean if we're still on Wind tab (user unchecked the box)
+        // If leaving Wind tab (enabled=false), let centralized tab system handle visibility
+        if settings.enabled {
+            for entity in continent_view_query.iter() {
+                commands.entity(entity).insert(Visibility::Visible);
+            }
+            for entity in ocean_view_query.iter() {
+                commands.entity(entity).insert(Visibility::Visible);
+            }
         }
     } else if should_show && has_meshes && vertical_cubemap.is_changed() {
         // Rebuild after wind cubemap changed

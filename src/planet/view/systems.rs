@@ -1,5 +1,6 @@
 use crate::planet::components::{ContinentView, OceanEntity, TectonicPlateView};
 use crate::planet::events::{TabSwitchEvent, ViewTabType};
+use crate::planet::resources::PlanetGenerationSettings;
 use crate::planet::temperature::systems::TemperatureMesh;
 use crate::planet::precipitation::systems::PrecipitationMesh;
 use crate::planet::wind::systems::VerticalAirMesh;
@@ -9,6 +10,7 @@ use bevy::prelude::*;
 /// Wind particles are managed by their own systems (handle_wind_tab_events + spawn_debug_particles)
 pub fn handle_tab_visibility(
     mut tab_switch_events: MessageReader<TabSwitchEvent>,
+    planet_settings: Res<PlanetGenerationSettings>,
     continent_view_query: Query<Entity, With<ContinentView>>,
     ocean_query: Query<Entity, With<OceanEntity>>,
     plate_view_query: Query<Entity, With<TectonicPlateView>>,
@@ -52,11 +54,11 @@ pub fn handle_tab_visibility(
 
             ViewTabType::Wind => {
                 // Wind particles are managed by handle_wind_tab_events + spawn_debug_particles
-                // If vertical air overlay is active, hide originals; otherwise show them
-                let has_vertical_air = !vertical_air_query.is_empty();
+                // If vertical air overlay is enabled, hide originals (meshes will be created by toggle system)
+                let show_vertical_air = planet_settings.show_vertical_air;
 
                 for entity in continent_view_query.iter() {
-                    commands.entity(entity).insert(if has_vertical_air {
+                    commands.entity(entity).insert(if show_vertical_air {
                         Visibility::Hidden
                     } else {
                         Visibility::Visible
@@ -64,7 +66,7 @@ pub fn handle_tab_visibility(
                 }
 
                 for entity in ocean_query.iter() {
-                    commands.entity(entity).insert(if has_vertical_air {
+                    commands.entity(entity).insert(if show_vertical_air {
                         Visibility::Hidden
                     } else {
                         Visibility::Visible

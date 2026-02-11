@@ -19,7 +19,7 @@ pub struct VerticalAirCubeMap {
 }
 
 /// Number of blur passes to spread thin divergence lines into broad zones.
-const BLUR_PASSES: usize = 12;
+const BLUR_PASSES: usize = 15;
 
 impl VerticalAirCubeMap {
     /// Build from an existing wind cube map by computing surface divergence.
