@@ -170,6 +170,9 @@ pub struct PrecipitationConfig {
     /// Weight for temperature influence on precipitation (0.0 to 1.0)
     /// Warm air holds more moisture (high capacity), cold air holds less (low capacity)
     pub temperature_weight: f32,
+    /// Weight for ocean/land influence on precipitation (0.0 to 1.0)
+    /// Oceans evaporate more (high moisture source), land evaporates less
+    pub ocean_weight: f32,
     /// Resolution of precipitation cubemap (pixels per face side)
     pub cubemap_resolution: usize,
 }

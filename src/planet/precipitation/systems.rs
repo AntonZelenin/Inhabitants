@@ -1,7 +1,7 @@
 use super::{PreviousPrecipitationSettings, PrecipitationSettings};
 use crate::planet::components::PlanetEntity;
 use crate::planet::events::PrecipitationTabActiveEvent;
-use crate::planet::resources::PlanetGenerationSettings;
+use crate::planet::resources::{CurrentPlanetData, PlanetGenerationSettings};
 use crate::planet::temperature::systems::TemperatureCubeMap;
 use crate::planet::wind::systems::VerticalAirCubeMap;
 use bevy::asset::RenderAssetUsages;
@@ -19,16 +19,22 @@ impl PrecipitationCubeMap {
     pub fn build(
         vertical_air: &planetgen::wind::VerticalAirCubeMap,
         temperature: Option<&planetgen::temperature::TemperatureCubeMap>,
+        planet: Option<&planetgen::planet::PlanetData>,
         temperature_weight: f32,
+        ocean_weight: f32,
         equator_temp: f32,
         pole_temp: f32,
+        continent_threshold: f32,
     ) -> Self {
         let inner = PlanetgenPrecipitationCubeMap::build(
             vertical_air,
             temperature,
+            planet,
             temperature_weight,
+            ocean_weight,
             equator_temp,
             pole_temp,
+            continent_threshold,
         );
         Self { inner }
     }
@@ -52,6 +58,7 @@ pub fn initialize_precipitation_cubemap(
     mut commands: Commands,
     settings: Res<PrecipitationSettings>,
     planet_settings: Res<PlanetGenerationSettings>,
+    planet_data: Res<CurrentPlanetData>,
     vertical_air: Option<Res<VerticalAirCubeMap>>,
     temperature: Option<Res<TemperatureCubeMap>>,
 ) {
@@ -61,12 +68,16 @@ pub fn initialize_precipitation_cubemap(
     // If it doesn't exist yet, create a placeholder that will be rebuilt later
     if let Some(vertical_air) = vertical_air {
         let temp_inner = temperature.as_ref().map(|t| &t.inner);
+        let planet_inner = planet_data.planet_data.as_ref();
         let cubemap = PrecipitationCubeMap::build(
             &vertical_air.inner,
             temp_inner,
+            planet_inner,
             settings.temperature_weight,
+            settings.ocean_weight,
             planet_settings.temperature_equator_temp,
             planet_settings.temperature_pole_temp,
+            planet_settings.continent_threshold,
         );
         commands.insert_resource(cubemap);
     } else {
@@ -80,6 +91,7 @@ pub fn update_precipitation_settings(
     mut previous_settings: ResMut<PreviousPrecipitationSettings>,
     mut precipitation_settings: ResMut<PrecipitationSettings>,
     mut precipitation_cubemap: Option<ResMut<PrecipitationCubeMap>>,
+    planet_data: Res<CurrentPlanetData>,
     vertical_air: Option<Res<VerticalAirCubeMap>>,
     temperature: Option<Res<TemperatureCubeMap>>,
     mut commands: Commands,
@@ -88,26 +100,33 @@ pub fn update_precipitation_settings(
     precipitation_settings.planet_radius = planet_settings.radius;
     precipitation_settings.enabled = planet_settings.show_precipitation;
     precipitation_settings.temperature_weight = planet_settings.precipitation_temperature_weight;
+    precipitation_settings.ocean_weight = planet_settings.precipitation_ocean_weight;
 
     // Check if precipitation-related values have changed
     let precip_changed =
         previous_settings.0.precipitation_temperature_weight != planet_settings.precipitation_temperature_weight ||
+        previous_settings.0.precipitation_ocean_weight != planet_settings.precipitation_ocean_weight ||
         previous_settings.0.precipitation_cubemap_resolution != planet_settings.precipitation_cubemap_resolution;
 
     // Rebuild cubemap if settings changed or if vertical air map was updated
     let vertical_air_changed = vertical_air.as_ref().map_or(false, |v| v.is_changed());
     let temperature_changed = temperature.as_ref().map_or(false, |t| t.is_changed());
+    let planet_changed = planet_data.is_changed();
 
-    if precip_changed || vertical_air_changed || temperature_changed {
+    if precip_changed || vertical_air_changed || temperature_changed || planet_changed {
         if let Some(vertical_air) = vertical_air {
             info!("Rebuilding precipitation cubemap with new settings...");
             let temp_inner = temperature.as_ref().map(|t| &t.inner);
+            let planet_inner = planet_data.planet_data.as_ref();
             let new_cubemap = PrecipitationCubeMap::build(
                 &vertical_air.inner,
                 temp_inner,
+                planet_inner,
                 planet_settings.precipitation_temperature_weight,
+                planet_settings.precipitation_ocean_weight,
                 planet_settings.temperature_equator_temp,
                 planet_settings.temperature_pole_temp,
+                planet_settings.continent_threshold,
             );
 
             if let Some(ref mut cubemap) = precipitation_cubemap {
@@ -118,6 +137,7 @@ pub fn update_precipitation_settings(
 
             // Update tracking
             previous_settings.0.precipitation_temperature_weight = planet_settings.precipitation_temperature_weight;
+            previous_settings.0.precipitation_ocean_weight = planet_settings.precipitation_ocean_weight;
             previous_settings.0.precipitation_cubemap_resolution = planet_settings.precipitation_cubemap_resolution;
         }
     }

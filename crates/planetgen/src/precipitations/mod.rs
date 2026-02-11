@@ -5,6 +5,7 @@
 // Negative values (rising air / convergence) lead to higher precipitation.
 // Positive values (sinking air / divergence) lead to lower precipitation.
 
+use crate::planet::PlanetData;
 use crate::temperature::TemperatureCubeMap;
 use crate::wind::VerticalAirCubeMap;
 use glam::Vec3;
@@ -28,22 +29,23 @@ pub struct PrecipitationCubeMap {
 }
 
 impl PrecipitationCubeMap {
-    /// Build precipitation map from vertical air movement and temperature.
+    /// Build precipitation map from vertical air movement, temperature, and terrain.
     ///
-    /// Precipitation = uplift × moisture_capacity
+    /// Precipitation = uplift × moisture_capacity × water_availability
     ///
     /// - Rising air (convergence) triggers precipitation
-    /// - Temperature controls moisture capacity (Clausius-Clapeyron: ~7% more per °C)
-    ///   - Warm air holds more moisture → higher precipitation potential
-    ///   - Cold air holds less moisture → lower precipitation potential
-    ///
-    /// The `temperature_weight` controls how much temperature modulates the result.
+    /// - Temperature controls moisture capacity (warm = high, cold = low)
+    /// - Water availability: oceans evaporate more, land evaporates less
+    ///   - Evaporation also scales with temperature (warm ocean = high evaporation)
     pub fn build(
         vertical_air: &VerticalAirCubeMap,
         temperature: Option<&TemperatureCubeMap>,
+        planet: Option<&PlanetData>,
         temperature_weight: f32,
+        ocean_weight: f32,
         equator_temp: f32,
         pole_temp: f32,
+        continent_threshold: f32,
     ) -> Self {
         let resolution = vertical_air.resolution;
         let blank_face = PrecipitationCubeFace {
@@ -73,10 +75,9 @@ impl PrecipitationCubeMap {
 
                     // Moisture capacity from temperature
                     // Warm = high capacity (1.0), Cold = low capacity (0.0)
-                    let moisture_capacity = if let Some(temp_map) = temperature {
+                    let normalized_temp = if let Some(temp_map) = temperature {
                         if temp_range.abs() > 0.01 {
                             let temp = temp_map.faces[face_idx].temperatures[y][x];
-                            // Normalize: equator_temp → 1.0 (warm), pole_temp → 0.0 (cold)
                             ((temp - pole_temp) / temp_range).clamp(0.0, 1.0)
                         } else {
                             0.5
@@ -86,12 +87,38 @@ impl PrecipitationCubeMap {
                     };
 
                     // Blend moisture capacity with weight
-                    // At weight=0: capacity=1.0 (no temperature effect)
-                    // At weight=1: capacity=moisture_capacity (full temperature effect)
-                    let effective_capacity = 1.0 - temperature_weight * (1.0 - moisture_capacity);
+                    let effective_capacity = 1.0 - temperature_weight * (1.0 - normalized_temp);
 
-                    // Precipitation = uplift × capacity
-                    let precipitation = (uplift * effective_capacity).clamp(0.0, 1.0);
+                    // Water availability (evaporation source strength)
+                    // Ocean = high evaporation, Land = low evaporation
+                    // Also modulated by temperature (warm = more evaporation)
+                    let water_availability = if let Some(planet) = planet {
+                        // Sample terrain height
+                        let u = (x as f32 / (resolution - 1) as f32) * 2.0 - 1.0;
+                        let v = (y as f32 / (resolution - 1) as f32) * 2.0 - 1.0;
+                        let height = sample_heightmap(planet, face_idx, u, v);
+
+                        let ocean_level = planet.radius + continent_threshold;
+                        let is_ocean = height < ocean_level;
+
+                        if is_ocean {
+                            // Ocean: high evaporation, scales with temperature
+                            // Warm ocean = 1.0, cold ocean = 0.5
+                            0.5 + 0.5 * normalized_temp
+                        } else {
+                            // Land: low evaporation (some from lakes, rivers, vegetation)
+                            // Base 0.2, slightly higher when warm
+                            0.2 + 0.1 * normalized_temp
+                        }
+                    } else {
+                        0.5 // No terrain data, assume moderate availability
+                    };
+
+                    // Blend water availability with weight
+                    let effective_water = 1.0 - ocean_weight * (1.0 - water_availability);
+
+                    // Precipitation = uplift × capacity × water
+                    let precipitation = (uplift * effective_capacity * effective_water).clamp(0.0, 1.0);
                     faces[face_idx].values[y][x] = precipitation;
                 }
             }
@@ -158,6 +185,34 @@ fn blur_face(values: &[Vec<f32>], resolution: usize) -> Vec<Vec<f32>> {
         }
     }
     out
+}
+
+/// Sample heightmap at given cube face coordinates using bilinear interpolation.
+fn sample_heightmap(planet: &PlanetData, face_idx: usize, u: f32, v: f32) -> f32 {
+    let grid_size = planet.face_grid_size;
+    let heightmap = &planet.faces[face_idx].heightmap;
+
+    // Convert u,v from [-1, 1] to grid coordinates [0, grid_size-1]
+    let fx = ((u + 1.0) * 0.5) * (grid_size - 1) as f32;
+    let fy = ((v + 1.0) * 0.5) * (grid_size - 1) as f32;
+
+    let x0 = (fx.floor() as usize).min(grid_size - 1);
+    let y0 = (fy.floor() as usize).min(grid_size - 1);
+    let x1 = (x0 + 1).min(grid_size - 1);
+    let y1 = (y0 + 1).min(grid_size - 1);
+
+    let tx = fx - x0 as f32;
+    let ty = fy - y0 as f32;
+
+    // Bilinear interpolation
+    let h00 = heightmap[y0][x0];
+    let h10 = heightmap[y0][x1];
+    let h01 = heightmap[y1][x0];
+    let h11 = heightmap[y1][x1];
+
+    let h0 = h00 + (h10 - h00) * tx;
+    let h1 = h01 + (h11 - h01) * tx;
+    h0 + (h1 - h0) * ty
 }
 
 /// Convert precipitation probability to RGB color.

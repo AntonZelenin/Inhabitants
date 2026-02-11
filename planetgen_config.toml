@@ -181,9 +181,13 @@ cubemap_resolution = 64
 # === Precipitation Drivers ===
 # Weight for temperature influence on precipitation (0.0 to 1.0)
 # Warm air = high moisture capacity, cold air = low moisture capacity
-# Precipitation = uplift × moisture_capacity
 # Range: 0.0 to 1.0
 temperature_weight = 0.95
+# Weight for ocean/land influence on precipitation (0.0 to 1.0)
+# Oceans = high evaporation (moisture source), land = low evaporation
+# Evaporation also scales with temperature
+# Range: 0.0 to 1.0
+ocean_weight = 0.8
 # Resolution of precipitation cubemap (pixels per face side)
 # Range: 32 to 256
 cubemap_resolution = 64

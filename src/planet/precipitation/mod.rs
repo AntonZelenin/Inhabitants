@@ -9,6 +9,7 @@ pub struct PrecipitationSettings {
     pub planet_radius: f32,
     pub enabled: bool,
     pub temperature_weight: f32,
+    pub ocean_weight: f32,
     pub cubemap_resolution: usize,
 }
 
@@ -19,6 +20,7 @@ impl Default for PrecipitationSettings {
             planet_radius: 50.0,
             enabled: false,
             temperature_weight: config.precipitation.temperature_weight,
+            ocean_weight: config.precipitation.ocean_weight,
             cubemap_resolution: config.precipitation.cubemap_resolution,
         }
     }

@@ -56,6 +56,7 @@ pub struct PlanetGenerationSettings {
     // Precipitation visualization settings
     pub show_precipitation: bool,
     pub precipitation_temperature_weight: f32,
+    pub precipitation_ocean_weight: f32,
     pub precipitation_cubemap_resolution: usize,
 }
 
@@ -107,6 +108,7 @@ impl Default for PlanetGenerationSettings {
             temperature_cubemap_resolution: config.temperature.cubemap_resolution,
             show_precipitation: false,
             precipitation_temperature_weight: config.precipitation.temperature_weight,
+            precipitation_ocean_weight: config.precipitation.ocean_weight,
             precipitation_cubemap_resolution: config.precipitation.cubemap_resolution,
         }
     }

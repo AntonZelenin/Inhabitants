@@ -458,7 +458,21 @@ fn render_precipitation_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSe
             .step_by(0.05),
     );
     ui.label("Warm air = high moisture capacity");
-    ui.label("Cold air = low moisture capacity");
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Water Availability");
+    ui.add_space(5.0);
+
+    ui.label("Ocean Weight");
+    ui.add(
+        egui::Slider::new(&mut settings.precipitation_ocean_weight, 0.0..=1.0)
+            .step_by(0.05),
+    );
+    ui.label("Ocean = high evaporation");
+    ui.label("Land = low evaporation");
 
     ui.add_space(10.0);
     ui.separator();
