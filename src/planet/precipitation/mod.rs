@@ -8,7 +8,7 @@ use crate::planet::resources::PlanetGenerationSettings;
 pub struct PrecipitationSettings {
     pub planet_radius: f32,
     pub enabled: bool,
-    pub rising_air_weight: f32,
+    pub temperature_weight: f32,
     pub cubemap_resolution: usize,
 }
 
@@ -18,7 +18,7 @@ impl Default for PrecipitationSettings {
         Self {
             planet_radius: 50.0,
             enabled: false,
-            rising_air_weight: config.precipitation.rising_air_weight,
+            temperature_weight: config.precipitation.temperature_weight,
             cubemap_resolution: config.precipitation.cubemap_resolution,
         }
     }

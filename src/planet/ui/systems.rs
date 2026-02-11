@@ -446,15 +446,30 @@ fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSett
     });
 }
 
-fn render_precipitation_tab(ui: &mut egui::Ui, _settings: &mut PlanetGenerationSettings) {
+fn render_precipitation_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.add_space(5.0);
+
+    ui.heading("Temperature Influence");
+    ui.add_space(5.0);
+
+    ui.label("Temperature Weight");
+    ui.add(
+        egui::Slider::new(&mut settings.precipitation_temperature_weight, 0.0..=1.0)
+            .step_by(0.05),
+    );
+    ui.label("Warm air = high moisture capacity");
+    ui.label("Cold air = low moisture capacity");
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
 
     ui.label("Color Scale:");
     ui.horizontal(|ui| {
-        ui.label("Tan/Yellow: Dry (0%)");
+        ui.label("Yellow: Dry (0%)");
     });
     ui.horizontal(|ui| {
-        ui.label("Green: Moderate (50%)");
+        ui.label("Light Blue: Moderate (50%)");
     });
     ui.horizontal(|ui| {
         ui.label("Blue: Wet (100%)");

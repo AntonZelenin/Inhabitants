@@ -5,6 +5,7 @@
 // Negative values (rising air / convergence) lead to higher precipitation.
 // Positive values (sinking air / divergence) lead to lower precipitation.
 
+use crate::temperature::TemperatureCubeMap;
 use crate::wind::VerticalAirCubeMap;
 use glam::Vec3;
 
@@ -27,16 +28,22 @@ pub struct PrecipitationCubeMap {
 }
 
 impl PrecipitationCubeMap {
-    /// Build precipitation map from vertical air movement.
+    /// Build precipitation map from vertical air movement and temperature.
     ///
-    /// Rising air (negative divergence) → higher precipitation probability
-    /// Sinking air (positive divergence) → lower precipitation probability
+    /// Precipitation = uplift × moisture_capacity
     ///
-    /// The `rising_air_weight` parameter controls how strongly rising air
-    /// contributes to precipitation (0.0 to 1.0, default ~0.5).
-    pub fn build_from_vertical_air(
+    /// - Rising air (convergence) triggers precipitation
+    /// - Temperature controls moisture capacity (Clausius-Clapeyron: ~7% more per °C)
+    ///   - Warm air holds more moisture → higher precipitation potential
+    ///   - Cold air holds less moisture → lower precipitation potential
+    ///
+    /// The `temperature_weight` controls how much temperature modulates the result.
+    pub fn build(
         vertical_air: &VerticalAirCubeMap,
-        rising_air_weight: f32,
+        temperature: Option<&TemperatureCubeMap>,
+        temperature_weight: f32,
+        equator_temp: f32,
+        pole_temp: f32,
     ) -> Self {
         let resolution = vertical_air.resolution;
         let blank_face = PrecipitationCubeFace {
@@ -52,23 +59,40 @@ impl PrecipitationCubeMap {
             blank_face.clone(),
         ];
 
-        // Convert vertical air movement to precipitation probability
-        // vertical_air values are in [-1, 1]: negative = rising, positive = sinking
-        // We want: rising → high precipitation, sinking → low precipitation
+        // Temperature range for normalization
+        let temp_range = equator_temp - pole_temp;
+
         for face_idx in 0..6 {
             for y in 0..resolution {
                 for x in 0..resolution {
                     let vertical = vertical_air.faces[face_idx].values[y][x];
 
-                    // Convert: -1 (rising) → 1.0 (wet), +1 (sinking) → 0.0 (dry)
-                    // Linear mapping: precipitation = (1 - vertical) / 2
-                    // Then apply weight to control contribution strength
-                    let base_precipitation = (1.0 - vertical) / 2.0;
+                    // Uplift factor: rising air triggers precipitation
+                    // -1 (rising) → 1.0, +1 (sinking) → 0.0
+                    let uplift = (1.0 - vertical) / 2.0;
 
-                    // Apply weight (0.5 means this driver contributes 50% of final value)
-                    let precipitation = base_precipitation * rising_air_weight;
+                    // Moisture capacity from temperature
+                    // Warm = high capacity (1.0), Cold = low capacity (0.0)
+                    let moisture_capacity = if let Some(temp_map) = temperature {
+                        if temp_range.abs() > 0.01 {
+                            let temp = temp_map.faces[face_idx].temperatures[y][x];
+                            // Normalize: equator_temp → 1.0 (warm), pole_temp → 0.0 (cold)
+                            ((temp - pole_temp) / temp_range).clamp(0.0, 1.0)
+                        } else {
+                            0.5
+                        }
+                    } else {
+                        0.5
+                    };
 
-                    faces[face_idx].values[y][x] = precipitation.clamp(0.0, 1.0);
+                    // Blend moisture capacity with weight
+                    // At weight=0: capacity=1.0 (no temperature effect)
+                    // At weight=1: capacity=moisture_capacity (full temperature effect)
+                    let effective_capacity = 1.0 - temperature_weight * (1.0 - moisture_capacity);
+
+                    // Precipitation = uplift × capacity
+                    let precipitation = (uplift * effective_capacity).clamp(0.0, 1.0);
+                    faces[face_idx].values[y][x] = precipitation;
                 }
             }
         }
@@ -138,27 +162,27 @@ fn blur_face(values: &[Vec<f32>], resolution: usize) -> Vec<Vec<f32>> {
 
 /// Convert precipitation probability to RGB color.
 ///
-/// * 0.0 (dry): yellow/tan
-/// * 0.5 (moderate): green
+/// * 0.0 (dry): yellow
+/// * 0.5 (moderate): light blue
 /// * 1.0 (wet): blue
 pub fn precipitation_to_color(value: f32) -> Vec3 {
     let t = value.clamp(0.0, 1.0);
 
     if t < 0.5 {
-        // Dry to moderate: tan/yellow → green
+        // Dry to moderate: yellow → light blue
         let s = t * 2.0; // 0..1
         Vec3::new(
-            0.9 - 0.5 * s,   // 0.9 → 0.4
-            0.8 - 0.1 * s,   // 0.8 → 0.7
-            0.3 + 0.1 * s,   // 0.3 → 0.4
+            1.0 - 0.5 * s,   // 1.0 → 0.5
+            1.0 - 0.2 * s,   // 1.0 → 0.8
+            0.2 + 0.8 * s,   // 0.2 → 1.0
         )
     } else {
-        // Moderate to wet: green → blue
+        // Moderate to wet: light blue → blue
         let s = (t - 0.5) * 2.0; // 0..1
         Vec3::new(
-            0.4 - 0.3 * s,   // 0.4 → 0.1
-            0.7 - 0.3 * s,   // 0.7 → 0.4
-            0.4 + 0.5 * s,   // 0.4 → 0.9
+            0.5 - 0.4 * s,   // 0.5 → 0.1
+            0.8 - 0.4 * s,   // 0.8 → 0.4
+            1.0,             // 1.0 → 1.0
         )
     }
 }
@@ -169,15 +193,15 @@ mod tests {
 
     #[test]
     fn test_precipitation_color_range() {
-        // Dry should be yellowish
+        // Dry should be yellow
         let dry = precipitation_to_color(0.0);
-        assert!(dry.x > 0.8); // red high
-        assert!(dry.y > 0.7); // green high
-        assert!(dry.z < 0.5); // blue low
+        assert!(dry.x > 0.9); // red high
+        assert!(dry.y > 0.9); // green high
+        assert!(dry.z < 0.3); // blue low
 
-        // Wet should be bluish
+        // Wet should be blue
         let wet = precipitation_to_color(1.0);
-        assert!(wet.x < 0.3); // red low
-        assert!(wet.z > 0.8); // blue high
+        assert!(wet.x < 0.2); // red low
+        assert!(wet.z > 0.9); // blue high
     }
 }

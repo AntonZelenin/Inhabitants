@@ -167,9 +167,9 @@ pub struct TemperatureConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrecipitationConfig {
-    /// Weight for rising air contribution to precipitation (0.0 to 1.0)
-    /// Rising air causes condensation and rain
-    pub rising_air_weight: f32,
+    /// Weight for temperature influence on precipitation (0.0 to 1.0)
+    /// Warm air holds more moisture (high capacity), cold air holds less (low capacity)
+    pub temperature_weight: f32,
     /// Resolution of precipitation cubemap (pixels per face side)
     pub cubemap_resolution: usize,
 }
