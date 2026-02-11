@@ -339,8 +339,6 @@ pub fn handle_vertical_air_toggle(
         (Entity, &Mesh3d, &MeshMaterial3d<StandardMaterial>),
         With<crate::planet::components::OceanEntity>,
     >,
-    continent_view_query: Query<Entity, With<crate::planet::components::ContinentView>>,
-    ocean_view_query: Query<Entity, With<crate::planet::components::OceanEntity>>,
     existing_meshes: Query<Entity, With<VerticalAirMesh>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -358,23 +356,13 @@ pub fn handle_vertical_air_toggle(
             &planet_query, &continent_query, &ocean_query,
             &vertical_cubemap, &mut meshes, &mut materials, &mut commands,
         );
-        // Hide original continent + ocean meshes so overlay is visible
-        for entity in continent_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Hidden);
-        }
-        for entity in ocean_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Hidden);
-        }
+        // DO NOT manipulate continent/ocean visibility here
+        // The centralized tab visibility system handles all mesh visibility
     } else if !should_show && has_meshes {
-        // Despawn overlay and restore original meshes
+        // Despawn overlay - DO NOT restore continent/ocean visibility here
+        // The centralized tab visibility system handles all mesh visibility
         for entity in existing_meshes.iter() {
             commands.entity(entity).despawn();
-        }
-        for entity in continent_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Visible);
-        }
-        for entity in ocean_view_query.iter() {
-            commands.entity(entity).insert(Visibility::Visible);
         }
     } else if should_show && has_meshes && vertical_cubemap.is_changed() {
         // Rebuild after wind cubemap changed
