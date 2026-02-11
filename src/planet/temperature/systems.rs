@@ -10,7 +10,7 @@ use planetgen::temperature::TemperatureCubeMap as PlanetgenTemperatureCubeMap;
 /// Bevy-compatible TemperatureCubeMap resource
 #[derive(Resource, Clone)]
 pub struct TemperatureCubeMap {
-    inner: PlanetgenTemperatureCubeMap,
+    pub inner: PlanetgenTemperatureCubeMap,
 }
 
 impl TemperatureCubeMap {

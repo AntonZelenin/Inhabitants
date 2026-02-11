@@ -31,6 +31,10 @@ pub struct TemperatureView;
 #[derive(Component)]
 pub struct VerticalAirView;
 
+/// Marker component for entities that should only be visible in precipitation view mode
+#[derive(Component)]
+pub struct PrecipitationView;
+
 #[derive(Component)]
 pub struct PlanetControls {
     pub rotation: Quat,

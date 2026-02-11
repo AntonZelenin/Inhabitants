@@ -13,6 +13,7 @@ pub enum ViewTab {
     Tectonic,
     Wind,
     Temperature,
+    Precipitations,
 }
 
 pub fn setup_world_generation_menu(mut commands: Commands) {
@@ -29,13 +30,12 @@ pub fn render_planet_generation_ui(
     mut contexts: EguiContexts,
     mut settings: ResMut<PlanetGenerationSettings>,
     mut view_tab: ResMut<ViewTab>,
-    mut camera_mode: ResMut<CameraRotationMode>,
     mut planet_generation_events: MessageWriter<GeneratePlanetEvent>,
     mut generate_new_seed_events: MessageWriter<GenerateNewSeedEvent>,
     mut tab_switch_events: MessageWriter<TabSwitchEvent>,
     mut wind_tab_events: MessageWriter<WindTabActiveEvent>,
     mut temperature_tab_events: MessageWriter<TemperatureTabActiveEvent>,
-    mut reset_camera_events: MessageWriter<ResetCameraEvent>,
+    mut precipitation_tab_events: MessageWriter<PrecipitationTabActiveEvent>,
     mut app_exit_events: MessageWriter<AppExit>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else {
@@ -83,6 +83,13 @@ pub fn render_planet_generation_ui(
                         *view_tab = ViewTab::Temperature;
                         tab_changed = old_tab != *view_tab;
                     }
+                    if ui
+                        .selectable_label(*view_tab == ViewTab::Precipitations, "Precipitations")
+                        .clicked()
+                    {
+                        *view_tab = ViewTab::Precipitations;
+                        tab_changed = old_tab != *view_tab;
+                    }
 
                     // Update visibility when tab changes
                     if tab_changed {
@@ -92,6 +99,7 @@ pub fn render_planet_generation_ui(
                             ViewTab::Tectonic => ViewTabType::Tectonic,
                             ViewTab::Wind => ViewTabType::Wind,
                             ViewTab::Temperature => ViewTabType::Temperature,
+                            ViewTab::Precipitations => ViewTabType::Precipitations,
                         };
 
                         tab_switch_events.write(TabSwitchEvent { tab: tab_type });
@@ -104,6 +112,12 @@ pub fn render_planet_generation_ui(
                         let is_temperature = *view_tab == ViewTab::Temperature;
                         temperature_tab_events.write(TemperatureTabActiveEvent {
                             active: is_temperature,
+                        });
+
+                        // Emit precipitation event for mesh generation
+                        let is_precipitation = *view_tab == ViewTab::Precipitations;
+                        precipitation_tab_events.write(PrecipitationTabActiveEvent {
+                            active: is_precipitation,
                         });
                     }
                 });
@@ -135,21 +149,10 @@ pub fn render_planet_generation_ui(
                         // Temperature tab content
                         render_temperature_tab(ui, &mut settings);
                     }
-                }
-
-                ui.add_space(20.0);
-                ui.separator();
-                ui.add_space(10.0);
-
-                // Camera controls
-                ui.heading("Camera");
-                ui.add_space(5.0);
-
-                ui.checkbox(&mut camera_mode.rotate_camera, "Rotate Camera (instead of planet)");
-
-                ui.add_space(5.0);
-                if ui.button("Reset Camera").clicked() {
-                    reset_camera_events.write(ResetCameraEvent);
+                    ViewTab::Precipitations => {
+                        // Precipitations tab content
+                        render_precipitation_tab(ui, &mut settings);
+                    }
                 }
 
                 ui.add_space(20.0);
@@ -440,5 +443,49 @@ fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSett
     ui.horizontal(|ui| {
         ui.label("🔴 Red:");
         ui.label(format!("{:.0}°C", settings.temperature_max_temp));
+    });
+}
+
+fn render_precipitation_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
+    ui.add_space(5.0);
+
+    ui.heading("Temperature Influence");
+    ui.add_space(5.0);
+
+    ui.label("Temperature Weight");
+    ui.add(
+        egui::Slider::new(&mut settings.precipitation_temperature_weight, 0.0..=1.0)
+            .step_by(0.05),
+    );
+    ui.label("Warm air = high moisture capacity");
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Water Availability");
+    ui.add_space(5.0);
+
+    ui.label("Ocean Weight");
+    ui.add(
+        egui::Slider::new(&mut settings.precipitation_ocean_weight, 0.0..=1.0)
+            .step_by(0.05),
+    );
+    ui.label("Ocean = high evaporation");
+    ui.label("Land = low evaporation");
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.label("Color Scale:");
+    ui.horizontal(|ui| {
+        ui.label("Yellow: Dry (0%)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Light Blue: Moderate (50%)");
+    });
+    ui.horizontal(|ui| {
+        ui.label("Blue: Wet (100%)");
     });
 }
