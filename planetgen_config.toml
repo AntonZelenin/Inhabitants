@@ -173,6 +173,10 @@ min_temp = -50.0
 # Range: 0.0 to 20.0
 # This makes continents warmer than oceans at the same latitude
 land_temperature_bonus = 15.0
+# Latitude falloff exponent - controls equator-to-pole temperature curve shape
+# 1.0 = default (linear in cos latitude), <1.0 = wider warm zone, >1.0 = wider cold zone
+# Range: 0.2 to 4.0
+latitude_falloff = 2.5
 # Resolution of temperature cubemap (pixels per face side)
 # Range: 32 to 256
 cubemap_resolution = 64
@@ -191,3 +195,16 @@ ocean_weight = 0.8
 # Resolution of precipitation cubemap (pixels per face side)
 # Range: 32 to 256
 cubemap_resolution = 64
+
+[biome]
+# Temperature thresholds (°C) — define biome zone boundaries
+ice_temp = -10.0           # below this = pure ice
+tundra_temp = 0.0          # ice→tundra transition ends here
+boreal_temp = 8.0          # tundra→temperate/desert transition ends here
+temperate_temp = 20.0      # temperate zone upper bound
+hot_temp = 30.0            # above this = hot zone (desert/savanna/jungle)
+# Precipitation thresholds (0.0-1.0) — control dry↔wet biome boundaries
+desert_precip = 0.1        # below this = desert in hot zone
+savanna_precip = 0.25      # desert→savanna transition ends here
+jungle_precip = 0.45       # savanna→jungle transition starts here
+temperate_precip = 0.1     # dry threshold for temperate zone desert↔forest

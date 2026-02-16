@@ -1,3 +1,4 @@
+use crate::biome;
 use crate::generator::cube_face_point;
 use crate::planet::PlanetData;
 use glam::Vec3;
@@ -210,4 +211,54 @@ fn calculate_continent_view_color(
             1.0,
         ]
     }
+}
+
+/// Calculate biome-based vertex colors for a planet mesh.
+///
+/// Called after temperature and precipitation cubemaps are ready,
+/// to replace initial height-based colors with biome-aware colors.
+pub fn calculate_biome_colors(
+    positions: &[[f32; 3]],
+    planet_radius: f32,
+    continent_threshold: f32,
+    snow_threshold: f32,
+    land_temperature_bonus: f32,
+    biome_colors: &biome::BiomeColors,
+    biome_thresholds: &biome::BiomeThresholds,
+    sample_temperature: impl Fn(Vec3) -> f32,
+    sample_precipitation: impl Fn(Vec3) -> f32,
+) -> Vec<[f32; 4]> {
+    let ocean_level = planet_radius + continent_threshold;
+
+    positions
+        .iter()
+        .map(|&[x, y, z]| {
+            let position = Vec3::new(x, y, z);
+            let direction = position.normalize();
+            let vertex_radius = position.length();
+
+            let height = vertex_radius - planet_radius;
+            let height_above_ocean = height - continent_threshold;
+            let is_land = vertex_radius > ocean_level;
+
+            let base_temperature = sample_temperature(direction);
+            let temperature = if is_land {
+                base_temperature + land_temperature_bonus
+            } else {
+                base_temperature
+            };
+            let precipitation = sample_precipitation(direction);
+
+            biome::biome_color(
+                height_above_ocean,
+                temperature,
+                precipitation,
+                height,
+                snow_threshold,
+                continent_threshold,
+                biome_colors,
+                biome_thresholds,
+            )
+        })
+        .collect()
 }

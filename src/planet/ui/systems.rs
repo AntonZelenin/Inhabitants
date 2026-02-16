@@ -228,10 +228,90 @@ fn render_continent_tab(
     ui.separator();
     ui.add_space(10.0);
 
+    // Biome settings
+    ui.heading("Biome Thresholds");
+    ui.add_space(5.0);
+
+    ui.label("Ice Temp");
+    ui.add(
+        egui::Slider::new(&mut settings.biome_ice_temp, -50.0..=50.0)
+            .step_by(1.0)
+            .suffix("\u{00b0}C"),
+    );
+    ui.label("Tundra Temp");
+    ui.add(
+        egui::Slider::new(&mut settings.biome_tundra_temp, -50.0..=50.0)
+            .step_by(1.0)
+            .suffix("\u{00b0}C"),
+    );
+    ui.label("Boreal Temp");
+    ui.add(
+        egui::Slider::new(&mut settings.biome_boreal_temp, -50.0..=50.0)
+            .step_by(1.0)
+            .suffix("\u{00b0}C"),
+    );
+    ui.label("Temperate Temp");
+    ui.add(
+        egui::Slider::new(&mut settings.biome_temperate_temp, -50.0..=50.0)
+            .step_by(1.0)
+            .suffix("\u{00b0}C"),
+    );
+    ui.label("Hot Temp");
+    ui.add(
+        egui::Slider::new(&mut settings.biome_hot_temp, -50.0..=50.0)
+            .step_by(1.0)
+            .suffix("\u{00b0}C"),
+    );
+
+    ui.add_space(8.0);
+
+    ui.label("Desert Precip");
+    ui.add(egui::Slider::new(&mut settings.biome_desert_precip, 0.0..=1.0).step_by(0.01));
+    ui.label("Savanna Precip");
+    ui.add(egui::Slider::new(&mut settings.biome_savanna_precip, 0.0..=1.0).step_by(0.01));
+    ui.label("Jungle Precip");
+    ui.add(egui::Slider::new(&mut settings.biome_jungle_precip, 0.0..=1.0).step_by(0.01));
+    ui.label("Temperate Precip");
+    ui.add(egui::Slider::new(&mut settings.biome_temperate_precip, 0.0..=1.0).step_by(0.01));
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
+    ui.heading("Biome Colors");
+    ui.add_space(4.0);
+
+    biome_color_row(ui, "Ice", &mut settings.biome_ice_color);
+    biome_color_row(ui, "Tundra", &mut settings.biome_tundra_color);
+    biome_color_row(ui, "Desert", &mut settings.biome_desert_color);
+    biome_color_row(ui, "Savanna", &mut settings.biome_savanna_color);
+    biome_color_row(ui, "Temperate", &mut settings.biome_temperate_color);
+    biome_color_row(ui, "Jungle", &mut settings.biome_jungle_color);
+
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
+
     // Generate Planet button (only on Continent tab)
     if ui.button("Generate Planet").clicked() {
         planet_generation_events.write(GeneratePlanetEvent);
     }
+}
+
+fn biome_color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 3]) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        let mut srgb = [
+            (color[0] * 255.0) as u8,
+            (color[1] * 255.0) as u8,
+            (color[2] * 255.0) as u8,
+        ];
+        if egui::color_picker::color_edit_button_srgb(ui, &mut srgb).changed() {
+            color[0] = srgb[0] as f32 / 255.0;
+            color[1] = srgb[1] as f32 / 255.0;
+            color[2] = srgb[2] as f32 / 255.0;
+        }
+    });
 }
 
 fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
@@ -363,6 +443,12 @@ fn render_temperature_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSett
     ui.label("Pole Temperature (°C)");
     ui.add(egui::Slider::new(&mut settings.temperature_pole_temp, -50.0..=-10.0).step_by(1.0));
     ui.label("Coldest temperature at the poles");
+
+    ui.add_space(5.0);
+
+    ui.label("Latitude Falloff");
+    ui.add(egui::Slider::new(&mut settings.temperature_latitude_falloff, 0.2..=4.0).step_by(0.1));
+    ui.label("< 1 = wider warm zone, > 1 = wider cold zone");
 
     ui.add_space(10.0);
     ui.separator();

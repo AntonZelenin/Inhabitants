@@ -7,6 +7,7 @@ use crate::planet::components::{
 use crate::planet::events::*;
 use crate::planet::logic;
 use crate::planet::resources::*;
+use crate::planet::biome::systems::BiomeColorState;
 use crate::planet::temperature::systems::TemperatureMesh;
 use crate::planet::ui::systems::ViewTab;
 use bevy::asset::{Assets, RenderAssetUsages};
@@ -30,6 +31,7 @@ pub fn spawn_planet_on_event(
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<PlanetGenerationSettings>,
     view_tab: Res<ViewTab>,
+    mut biome_state: ResMut<BiomeColorState>,
     planet_entities: Query<Entity, With<PlanetEntity>>,
     planet_controls_query: Query<&PlanetControls, With<PlanetEntity>>,
     temperature_meshes: Query<Entity, With<TemperatureMesh>>,
@@ -76,7 +78,6 @@ pub fn spawn_planet_on_event(
             ..default()
         });
 
-        let config = planetgen::get_config();
         let expected_zoom = settings.radius * 3.5;
 
         // Spawn parent planet entity with controls
@@ -161,6 +162,9 @@ pub fn spawn_planet_on_event(
 
         // Store planet data after using it for generation
         current_planet_data.planet_data = Some(planet_data);
+
+        // Reset biome color state so deferred coloring system will recolor the new mesh
+        biome_state.applied = false;
 
         // Emit event to notify that planet was spawned
         planet_spawned_events.write(PlanetSpawnedEvent);

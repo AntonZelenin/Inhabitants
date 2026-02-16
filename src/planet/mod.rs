@@ -1,3 +1,4 @@
+pub mod biome;
 pub mod components;
 pub mod events;
 pub mod resources;
@@ -14,6 +15,7 @@ use crate::planet::events::*;
 use crate::planet::resources::*;
 use crate::planet::systems::*;
 use crate::planet::view::handle_tab_visibility;
+use crate::planet::biome::BiomePlugin;
 use crate::planet::wind::WindPlugin;
 use crate::planet::temperature::TemperaturePlugin;
 use crate::planet::precipitation::PrecipitationPlugin;
@@ -24,6 +26,7 @@ pub struct PlanetPlugin;
 impl Plugin for PlanetPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_plugins(BiomePlugin)
             .add_plugins(WindPlugin)
             .add_plugins(TemperaturePlugin)
             .add_plugins(PrecipitationPlugin)
