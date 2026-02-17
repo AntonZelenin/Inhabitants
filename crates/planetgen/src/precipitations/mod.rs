@@ -11,7 +11,7 @@ use crate::wind::VerticalAirCubeMap;
 use glam::Vec3;
 
 /// Number of blur passes to create smooth precipitation zones
-const BLUR_PASSES: usize = 15;
+const BLUR_PASSES: usize = 5;
 
 /// A single cube face storing precipitation probability values
 #[derive(Clone)]

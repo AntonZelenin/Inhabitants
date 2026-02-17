@@ -198,11 +198,11 @@ cubemap_resolution = 64
 
 [biome]
 # Temperature thresholds (°C) — define biome zone boundaries
-ice_temp = -10.0           # below this = pure ice
+ice_temp = -15.0           # below this = pure ice
 tundra_temp = 0.0          # ice→tundra transition ends here
 boreal_temp = 8.0          # tundra→temperate/desert transition ends here
-temperate_temp = 20.0      # temperate zone upper bound
-hot_temp = 30.0            # above this = hot zone (desert/savanna/jungle)
+temperate_temp = 23.0      # temperate zone upper bound
+hot_temp = 35.0            # above this = hot zone (desert/savanna/jungle)
 # Precipitation thresholds (0.0-1.0) — control dry↔wet biome boundaries
 desert_precip = 0.1        # below this = desert in hot zone
 savanna_precip = 0.25      # desert→savanna transition ends here
