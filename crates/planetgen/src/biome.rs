@@ -165,17 +165,19 @@ fn biome_base_color(temperature: f32, precipitation: f32, colors: &BiomeColors, 
         let p = smoothstep(((precipitation - effective_precip_threshold) / 0.4).clamp(0.0, 1.0));
         lerp_color(desert, temperate, p)
     } else if temperature < th.hot_temp {
-        // Warm temperate: blend between temperate regime and hot regime by temperature.
+        // Warm temperate: blend between temperate regime and savanna/desert.
+        // Jungle is excluded here — it only appears in the fully hot zone.
         let temp_t = smoothstep(((temperature - th.temperate_temp) / temperate_hot_range).clamp(0.0, 1.0));
 
-        // Temperate regime: desert ↔ temperate (uses full threshold at warm end)
+        // Temperate regime: desert ↔ temperate forest
         let p_temperate = smoothstep(((precipitation - th.temperate_precip) / 0.4).clamp(0.0, 1.0));
         let cool_color = lerp_color(desert, temperate, p_temperate);
 
-        // Hot regime: desert → savanna → jungle
-        let hot_color = hot_zone_color(precipitation, desert, savanna, jungle, th);
+        // Warm regime: desert → savanna (no jungle)
+        let p_warm = smoothstep(((precipitation - th.desert_precip) / (th.savanna_precip - th.desert_precip).max(0.01)).clamp(0.0, 1.0));
+        let warm_color = lerp_color(desert, savanna, p_warm);
 
-        lerp_color(cool_color, hot_color, temp_t)
+        lerp_color(cool_color, warm_color, temp_t)
     } else {
         // Hot zone: desert vs savanna vs jungle
         hot_zone_color(precipitation, desert, savanna, jungle, th)
