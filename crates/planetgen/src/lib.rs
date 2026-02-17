@@ -13,5 +13,6 @@ pub mod temperature;
 pub mod tools;
 pub mod wind;
 pub mod precipitations;
+pub mod cubemap_utils;
 
 pub use config::{get_config, reload_config};

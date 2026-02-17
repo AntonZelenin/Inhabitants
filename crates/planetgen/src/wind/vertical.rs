@@ -51,11 +51,13 @@ impl VerticalAirCubeMap {
             }
         }
 
-        // Step 2: Blur to spread thin lines into broad zones
+        // Step 2: Blur to spread thin lines into broad zones (cross-face to avoid edge seams)
+        let mut grids: [Vec<Vec<f32>>; 6] = std::array::from_fn(|i| faces[i].values.clone());
         for _ in 0..BLUR_PASSES {
-            for face_idx in 0..6 {
-                faces[face_idx].values = blur_face(&faces[face_idx].values, resolution);
-            }
+            grids = crate::cubemap_utils::blur_cube_faces(&grids, resolution);
+        }
+        for (i, grid) in grids.into_iter().enumerate() {
+            faces[i].values = grid;
         }
 
         // Step 3: Normalize to [-1, 1]
@@ -119,29 +121,6 @@ impl VerticalAirCubeMap {
         let v1 = v01 + (v11 - v01) * tx;
         v0 + (v1 - v0) * ty
     }
-}
-
-/// Apply a single box blur pass to a face grid.
-fn blur_face(values: &[Vec<f32>], resolution: usize) -> Vec<Vec<f32>> {
-    let mut out = vec![vec![0.0f32; resolution]; resolution];
-    for y in 0..resolution {
-        for x in 0..resolution {
-            let mut sum = 0.0;
-            let mut count = 0.0;
-            for dy in -1i32..=1 {
-                for dx in -1i32..=1 {
-                    let nx = x as i32 + dx;
-                    let ny = y as i32 + dy;
-                    if nx >= 0 && nx < resolution as i32 && ny >= 0 && ny < resolution as i32 {
-                        sum += values[ny as usize][nx as usize];
-                        count += 1.0;
-                    }
-                }
-            }
-            out[y][x] = sum / count;
-        }
-    }
-    out
 }
 
 /// Compute surface divergence at a grid cell using central finite differences.
