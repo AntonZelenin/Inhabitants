@@ -86,14 +86,16 @@ impl PrecipitationCubeMap {
                         0.5
                     };
 
-                    // Blend moisture capacity with weight
-                    let effective_capacity = 1.0 - temperature_weight * (1.0 - normalized_temp);
+                    // Moisture capacity: temperature only reduces precipitation in cold
+                    // regions (cold air holds less moisture), but does NOT boost hot regions
+                    // above what uplift provides. This prevents hot sinking-air zones
+                    // (savannas) from getting unrealistic precipitation.
+                    // Range: cold → (1 - temperature_weight), hot → 1.0
+                    let moisture_cap = 1.0 - temperature_weight * (1.0 - normalized_temp);
 
                     // Water availability (evaporation source strength)
                     // Ocean = high evaporation, Land = low evaporation
-                    // Also modulated by temperature (warm = more evaporation)
                     let water_availability = if let Some(planet) = planet {
-                        // Sample terrain height
                         let u = (x as f32 / (resolution - 1) as f32) * 2.0 - 1.0;
                         let v = (y as f32 / (resolution - 1) as f32) * 2.0 - 1.0;
                         let height = sample_heightmap(planet, face_idx, u, v);
@@ -102,23 +104,21 @@ impl PrecipitationCubeMap {
                         let is_ocean = height < ocean_level;
 
                         if is_ocean {
-                            // Ocean: high evaporation, scales with temperature
-                            // Warm ocean = 1.0, cold ocean = 0.5
                             0.5 + 0.5 * normalized_temp
                         } else {
-                            // Land: low evaporation (some from lakes, rivers, vegetation)
-                            // Base 0.2, slightly higher when warm
                             0.2 + 0.1 * normalized_temp
                         }
                     } else {
-                        0.5 // No terrain data, assume moderate availability
+                        0.5
                     };
 
-                    // Blend water availability with weight
                     let effective_water = 1.0 - ocean_weight * (1.0 - water_availability);
 
-                    // Precipitation = uplift × capacity × water
-                    let precipitation = (uplift * effective_capacity * effective_water).clamp(0.0, 1.0);
+                    // Precipitation is primarily driven by uplift. Moisture capacity
+                    // and water availability act as limiters (via min), not boosters.
+                    // This ensures sinking air always means low precipitation regardless
+                    // of temperature.
+                    let precipitation = (uplift * effective_water).min(moisture_cap).clamp(0.0, 1.0);
                     faces[face_idx].values[y][x] = precipitation;
                 }
             }
@@ -128,6 +128,26 @@ impl PrecipitationCubeMap {
         for _ in 0..BLUR_PASSES {
             for face_idx in 0..6 {
                 faces[face_idx].values = blur_face(&faces[face_idx].values, resolution);
+            }
+        }
+
+        // Normalize precipitation so the wettest point reaches 1.0
+        let mut max_val = 0.0f32;
+        for face in &faces {
+            for row in &face.values {
+                for &v in row {
+                    max_val = max_val.max(v);
+                }
+            }
+        }
+        if max_val > 0.0 {
+            let scale = 1.0 / max_val;
+            for face in &mut faces {
+                for row in &mut face.values {
+                    for v in row {
+                        *v *= scale;
+                    }
+                }
             }
         }
 

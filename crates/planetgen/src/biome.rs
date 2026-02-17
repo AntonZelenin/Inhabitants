@@ -157,14 +157,18 @@ fn biome_base_color(temperature: f32, precipitation: f32, colors: &BiomeColors, 
         let p = smoothstep(precipitation.clamp(0.0, 1.0));
         lerp_color(dry, wet, p)
     } else if temperature < th.temperate_temp {
-        // Temperate zone: desert vs forest based on precipitation
-        let p = smoothstep(((precipitation - th.temperate_precip) / 0.4).clamp(0.0, 1.0));
+        // Temperate zone: desert vs forest based on precipitation.
+        // Cooler temperate regions need less precipitation to sustain vegetation
+        // (lower evaporation), so the threshold scales with temperature.
+        let temp_t = ((temperature - th.boreal_temp) / (th.temperate_temp - th.boreal_temp)).clamp(0.0, 1.0);
+        let effective_precip_threshold = th.temperate_precip * (0.3 + 0.7 * temp_t);
+        let p = smoothstep(((precipitation - effective_precip_threshold) / 0.4).clamp(0.0, 1.0));
         lerp_color(desert, temperate, p)
     } else if temperature < th.hot_temp {
         // Warm temperate: blend between temperate regime and hot regime by temperature.
         let temp_t = smoothstep(((temperature - th.temperate_temp) / temperate_hot_range).clamp(0.0, 1.0));
 
-        // Temperate regime: desert ↔ temperate
+        // Temperate regime: desert ↔ temperate (uses full threshold at warm end)
         let p_temperate = smoothstep(((precipitation - th.temperate_precip) / 0.4).clamp(0.0, 1.0));
         let cool_color = lerp_color(desert, temperate, p_temperate);
 
