@@ -176,6 +176,33 @@ pub fn handle_tab_visibility(
                     commands.entity(entity).insert(Visibility::Hidden);
                 }
             }
+
+            ViewTabType::Biomes => {
+                // Same visibility as Continent: show continent mesh + ocean
+                for entity in continent_view_query.iter() {
+                    commands.entity(entity).insert(Visibility::Visible);
+                }
+
+                for entity in ocean_query.iter() {
+                    commands.entity(entity).insert(Visibility::Visible);
+                }
+
+                for entity in plate_view_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in temperature_mesh_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in precipitation_mesh_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+
+                for entity in vertical_air_query.iter() {
+                    commands.entity(entity).insert(Visibility::Hidden);
+                }
+            }
         }
     }
 }

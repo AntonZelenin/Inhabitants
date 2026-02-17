@@ -138,13 +138,12 @@ impl Default for PlanetGenerationSettings {
             biome_savanna_precip: config.biome.savanna_precip,
             biome_jungle_precip: config.biome.jungle_precip,
             biome_temperate_precip: config.biome.temperate_precip,
-            // DEBUG: vivid colors to identify biomes easily
-            biome_ice_color: [1.0, 1.0, 1.0],       // white
-            biome_tundra_color: [0.0, 0.0, 1.0],     // blue
-            biome_desert_color: [1.0, 1.0, 0.0],     // yellow
-            biome_savanna_color: [1.0, 0.5, 0.0],    // orange
-            biome_temperate_color: [0.0, 1.0, 0.0],  // green
-            biome_jungle_color: [1.0, 0.0, 0.0],     // red
+            biome_ice_color: [0.85, 0.90, 0.95],
+            biome_tundra_color: [0.55, 0.60, 0.50],
+            biome_desert_color: [0.82, 0.72, 0.45],
+            biome_savanna_color: [0.60, 0.65, 0.25],
+            biome_temperate_color: [0.15, 0.40, 0.10],
+            biome_jungle_color: [0.05, 0.30, 0.05],
         }
     }
 }

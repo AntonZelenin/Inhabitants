@@ -14,6 +14,7 @@ pub enum ViewTab {
     Wind,
     Temperature,
     Precipitations,
+    Biomes,
 }
 
 pub fn setup_world_generation_menu(mut commands: Commands) {
@@ -77,17 +78,24 @@ pub fn render_planet_generation_ui(
                         tab_changed = old_tab != *view_tab;
                     }
                     if ui
-                        .selectable_label(*view_tab == ViewTab::Temperature, "Temperature")
+                        .selectable_label(*view_tab == ViewTab::Temperature, "Temp")
                         .clicked()
                     {
                         *view_tab = ViewTab::Temperature;
                         tab_changed = old_tab != *view_tab;
                     }
                     if ui
-                        .selectable_label(*view_tab == ViewTab::Precipitations, "Precipitations")
+                        .selectable_label(*view_tab == ViewTab::Precipitations, "Precip")
                         .clicked()
                     {
                         *view_tab = ViewTab::Precipitations;
+                        tab_changed = old_tab != *view_tab;
+                    }
+                    if ui
+                        .selectable_label(*view_tab == ViewTab::Biomes, "Biomes")
+                        .clicked()
+                    {
+                        *view_tab = ViewTab::Biomes;
                         tab_changed = old_tab != *view_tab;
                     }
 
@@ -100,6 +108,7 @@ pub fn render_planet_generation_ui(
                             ViewTab::Wind => ViewTabType::Wind,
                             ViewTab::Temperature => ViewTabType::Temperature,
                             ViewTab::Precipitations => ViewTabType::Precipitations,
+                            ViewTab::Biomes => ViewTabType::Biomes,
                         };
 
                         tab_switch_events.write(TabSwitchEvent { tab: tab_type });
@@ -153,6 +162,10 @@ pub fn render_planet_generation_ui(
                         // Precipitations tab content
                         render_precipitation_tab(ui, &mut settings);
                     }
+                    ViewTab::Biomes => {
+                        // Biomes dev tab content
+                        render_biomes_tab(ui, &mut settings);
+                    }
                 }
 
                 ui.add_space(20.0);
@@ -183,8 +196,17 @@ fn render_continent_tab(
             generate_new_seed_events.write(GenerateNewSeedEvent);
         }
     });
+
+    ui.add_space(10.0);
+    ui.separator();
     ui.add_space(10.0);
 
+    // Generate Planet button (only on Continent tab)
+    if ui.button("Generate Planet").clicked() {
+        planet_generation_events.write(GeneratePlanetEvent);
+    }
+
+    ui.add_space(10.0);
     ui.separator();
     ui.add_space(10.0);
 
@@ -223,12 +245,25 @@ fn render_continent_tab(
 
     ui.label("Mountain Width");
     ui.add(egui::Slider::new(&mut settings.mountain_width, 0.03..=0.25).step_by(0.001));
+}
 
-    ui.add_space(10.0);
-    ui.separator();
-    ui.add_space(10.0);
+fn biome_color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 3]) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        let mut srgb = [
+            (color[0] * 255.0) as u8,
+            (color[1] * 255.0) as u8,
+            (color[2] * 255.0) as u8,
+        ];
+        if egui::color_picker::color_edit_button_srgb(ui, &mut srgb).changed() {
+            color[0] = srgb[0] as f32 / 255.0;
+            color[1] = srgb[1] as f32 / 255.0;
+            color[2] = srgb[2] as f32 / 255.0;
+        }
+    });
+}
 
-    // Biome settings
+fn render_biomes_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {
     ui.heading("Biome Thresholds");
     ui.add_space(5.0);
 
@@ -287,31 +322,6 @@ fn render_continent_tab(
     biome_color_row(ui, "Savanna", &mut settings.biome_savanna_color);
     biome_color_row(ui, "Temperate", &mut settings.biome_temperate_color);
     biome_color_row(ui, "Jungle", &mut settings.biome_jungle_color);
-
-    ui.add_space(10.0);
-    ui.separator();
-    ui.add_space(10.0);
-
-    // Generate Planet button (only on Continent tab)
-    if ui.button("Generate Planet").clicked() {
-        planet_generation_events.write(GeneratePlanetEvent);
-    }
-}
-
-fn biome_color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 3]) {
-    ui.horizontal(|ui| {
-        ui.label(label);
-        let mut srgb = [
-            (color[0] * 255.0) as u8,
-            (color[1] * 255.0) as u8,
-            (color[2] * 255.0) as u8,
-        ];
-        if egui::color_picker::color_edit_button_srgb(ui, &mut srgb).changed() {
-            color[0] = srgb[0] as f32 / 255.0;
-            color[1] = srgb[1] as f32 / 255.0;
-            color[2] = srgb[2] as f32 / 255.0;
-        }
-    });
 }
 
 fn render_tectonic_tab(ui: &mut egui::Ui, settings: &mut PlanetGenerationSettings) {

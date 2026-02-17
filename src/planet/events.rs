@@ -26,6 +26,7 @@ pub enum ViewTabType {
     Wind,
     Temperature,
     Precipitations,
+    Biomes,
 }
 
 #[derive(Message)]
