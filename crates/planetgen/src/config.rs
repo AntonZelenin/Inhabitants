@@ -59,6 +59,7 @@ pub struct PlanetGenConfig {
     pub wind_deflection: WindDeflectionConfig,
     pub temperature: TemperatureConfig,
     pub precipitation: PrecipitationConfig,
+    pub biome: BiomeConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +163,7 @@ pub struct TemperatureConfig {
     pub max_temp: f32,        // Maximum temperature for color scale
     pub min_temp: f32,        // Minimum temperature for color scale
     pub land_temperature_bonus: f32, // Extra warmth for land above sea level
+    pub latitude_falloff: f32, // Exponent controlling equator-to-pole temperature curve
     pub cubemap_resolution: usize, // Resolution of temperature cubemap
 }
 
@@ -175,6 +177,19 @@ pub struct PrecipitationConfig {
     pub ocean_weight: f32,
     /// Resolution of precipitation cubemap (pixels per face side)
     pub cubemap_resolution: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BiomeConfig {
+    pub ice_temp: f32,
+    pub tundra_temp: f32,
+    pub boreal_temp: f32,
+    pub temperate_temp: f32,
+    pub hot_temp: f32,
+    pub desert_precip: f32,
+    pub savanna_precip: f32,
+    pub jungle_precip: f32,
+    pub temperate_precip: f32,
 }
 
 impl PlanetGenConfig {

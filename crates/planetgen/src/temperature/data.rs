@@ -16,17 +16,32 @@ impl TemperatureField {
     /// # Returns
     /// Temperature in Celsius
     pub fn calculate_temperature_at(position: Vec3, equator_temp: f32, pole_temp: f32) -> f32 {
+        Self::calculate_temperature_at_with_falloff(position, equator_temp, pole_temp, 1.0)
+    }
+
+    /// Calculate temperature with configurable latitude falloff exponent.
+    ///
+    /// `falloff` controls how quickly temperature drops from equator to poles:
+    /// - 1.0 = linear in cos(latitude) (default, physically based)
+    /// - < 1.0 = warmth spreads further toward poles (wider temperate zone)
+    /// - > 1.0 = warmth concentrates near equator (wider cold zones)
+    pub fn calculate_temperature_at_with_falloff(
+        position: Vec3,
+        equator_temp: f32,
+        pole_temp: f32,
+        falloff: f32,
+    ) -> f32 {
         // Get latitude from Y component
         let lat_rad = position.y.asin();
 
         // Solar irradiance is proportional to cos(latitude)
-        // This creates slow change near equator, dramatic change near poles
-        // Physical explanation: sunlight hits equator perpendicularly (max energy per area),
-        // but hits poles at shallow angle (same energy spread over larger area)
         let cos_lat = lat_rad.cos();
 
-        // Map cos(lat) from [1.0 (equator) to 0.0 (pole)] to temperature range
-        pole_temp + (equator_temp - pole_temp) * cos_lat
+        // Apply falloff exponent to shape the temperature curve
+        let factor = cos_lat.powf(falloff);
+
+        // Map from [1.0 (equator) to 0.0 (pole)] to temperature range
+        pole_temp + (equator_temp - pole_temp) * factor
     }
 
     /// Convert temperature to a color for visualization
@@ -121,6 +136,10 @@ impl TemperatureCubeMap {
     /// # Returns
     /// Pre-computed temperature cube map ready for sampling
     pub fn build(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32) -> Self {
+        Self::build_with_falloff(resolution, equator_temp, pole_temp, min_temp, max_temp, 1.0)
+    }
+
+    pub fn build_with_falloff(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32, falloff: f32) -> Self {
         let blank_face = TemperatureCubeFace {
             temperatures: vec![vec![0.0; resolution]; resolution],
             colors: vec![vec![Vec3::ZERO; resolution]; resolution],
@@ -146,7 +165,7 @@ impl TemperatureCubeMap {
                     let dir = cube_face_point(face_idx, u, v).normalize();
 
                     // Calculate temperature at this position
-                    let temp = TemperatureField::calculate_temperature_at(dir, equator_temp, pole_temp);
+                    let temp = TemperatureField::calculate_temperature_at_with_falloff(dir, equator_temp, pole_temp, falloff);
                     let color = TemperatureField::temperature_to_color(temp, min_temp, max_temp);
 
                     faces[face_idx].temperatures[y][x] = temp;

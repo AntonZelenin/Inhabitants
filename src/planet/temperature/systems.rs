@@ -14,8 +14,8 @@ pub struct TemperatureCubeMap {
 }
 
 impl TemperatureCubeMap {
-    pub fn build(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32) -> Self {
-        let inner = PlanetgenTemperatureCubeMap::build(resolution, equator_temp, pole_temp, min_temp, max_temp);
+    pub fn build(resolution: usize, equator_temp: f32, pole_temp: f32, min_temp: f32, max_temp: f32, falloff: f32) -> Self {
+        let inner = PlanetgenTemperatureCubeMap::build_with_falloff(resolution, equator_temp, pole_temp, min_temp, max_temp, falloff);
         Self { inner }
     }
 
@@ -42,6 +42,7 @@ pub fn initialize_temperature_cubemap(mut commands: Commands, settings: Res<Temp
         config.temperature.pole_temp,
         config.temperature.min_temp,
         config.temperature.max_temp,
+        config.temperature.latitude_falloff,
     );
     commands.insert_resource(cubemap);
 }
@@ -64,6 +65,7 @@ pub fn update_temperature_settings(
         previous_settings.0.temperature_pole_temp != planet_settings.temperature_pole_temp ||
         previous_settings.0.temperature_max_temp != planet_settings.temperature_max_temp ||
         previous_settings.0.temperature_min_temp != planet_settings.temperature_min_temp ||
+        previous_settings.0.temperature_latitude_falloff != planet_settings.temperature_latitude_falloff ||
         previous_settings.0.temperature_cubemap_resolution != planet_settings.temperature_cubemap_resolution;
 
     // Only rebuild cubemap if temperature values actually changed
@@ -75,6 +77,7 @@ pub fn update_temperature_settings(
             planet_settings.temperature_pole_temp,
             planet_settings.temperature_min_temp,
             planet_settings.temperature_max_temp,
+            planet_settings.temperature_latitude_falloff,
         );
 
         // Update the previous settings to track current values
@@ -82,6 +85,7 @@ pub fn update_temperature_settings(
         previous_settings.0.temperature_pole_temp = planet_settings.temperature_pole_temp;
         previous_settings.0.temperature_max_temp = planet_settings.temperature_max_temp;
         previous_settings.0.temperature_min_temp = planet_settings.temperature_min_temp;
+        previous_settings.0.temperature_latitude_falloff = planet_settings.temperature_latitude_falloff;
         previous_settings.0.temperature_cubemap_resolution = planet_settings.temperature_cubemap_resolution;
     }
 

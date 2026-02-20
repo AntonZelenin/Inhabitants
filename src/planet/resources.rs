@@ -52,12 +52,30 @@ pub struct PlanetGenerationSettings {
     pub temperature_pole_temp: f32,
     pub temperature_max_temp: f32,
     pub temperature_min_temp: f32,
+    pub temperature_latitude_falloff: f32,
     pub temperature_cubemap_resolution: usize,
     // Precipitation visualization settings
     pub show_precipitation: bool,
     pub precipitation_temperature_weight: f32,
     pub precipitation_ocean_weight: f32,
     pub precipitation_cubemap_resolution: usize,
+    // Biome thresholds
+    pub biome_ice_temp: f32,
+    pub biome_tundra_temp: f32,
+    pub biome_boreal_temp: f32,
+    pub biome_temperate_temp: f32,
+    pub biome_hot_temp: f32,
+    pub biome_desert_precip: f32,
+    pub biome_savanna_precip: f32,
+    pub biome_jungle_precip: f32,
+    pub biome_temperate_precip: f32,
+    // Biome colors (RGB, 0.0-1.0)
+    pub biome_ice_color: [f32; 3],
+    pub biome_tundra_color: [f32; 3],
+    pub biome_desert_color: [f32; 3],
+    pub biome_savanna_color: [f32; 3],
+    pub biome_temperate_color: [f32; 3],
+    pub biome_jungle_color: [f32; 3],
 }
 
 impl Default for PlanetGenerationSettings {
@@ -105,11 +123,27 @@ impl Default for PlanetGenerationSettings {
             temperature_pole_temp: config.temperature.pole_temp,
             temperature_max_temp: config.temperature.max_temp,
             temperature_min_temp: config.temperature.min_temp,
+            temperature_latitude_falloff: config.temperature.latitude_falloff,
             temperature_cubemap_resolution: config.temperature.cubemap_resolution,
             show_precipitation: false,
             precipitation_temperature_weight: config.precipitation.temperature_weight,
             precipitation_ocean_weight: config.precipitation.ocean_weight,
             precipitation_cubemap_resolution: config.precipitation.cubemap_resolution,
+            biome_ice_temp: config.biome.ice_temp,
+            biome_tundra_temp: config.biome.tundra_temp,
+            biome_boreal_temp: config.biome.boreal_temp,
+            biome_temperate_temp: config.biome.temperate_temp,
+            biome_hot_temp: config.biome.hot_temp,
+            biome_desert_precip: config.biome.desert_precip,
+            biome_savanna_precip: config.biome.savanna_precip,
+            biome_jungle_precip: config.biome.jungle_precip,
+            biome_temperate_precip: config.biome.temperate_precip,
+            biome_ice_color: [0.85, 0.90, 0.95],
+            biome_tundra_color: [0.55, 0.60, 0.50],
+            biome_desert_color: [0.82, 0.72, 0.45],
+            biome_savanna_color: [0.60, 0.65, 0.25],
+            biome_temperate_color: [0.15, 0.40, 0.10],
+            biome_jungle_color: [0.05, 0.30, 0.05],
         }
     }
 }
