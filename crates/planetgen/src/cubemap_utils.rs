@@ -2,8 +2,13 @@
 
 use crate::wind::velocity::{cube_face_point, direction_to_cube_uv};
 
-/// Sample a value from any face given pixel coordinates that may be out of bounds.
-/// When out of bounds, converts to 3D direction and finds the correct neighbor face.
+/// Read a pixel from a cubemap face, even if x/y are outside the face bounds.
+///
+/// If x/y are within the face, just return the value directly.
+/// If x/y are outside (e.g. x = -1), figure out which neighboring face
+/// that pixel belongs to and read from there instead.
+/// This is needed for blurring: edge pixels need to average with their
+/// neighbors, which may be on a different face of the cube.
 fn sample_cross_face(
     faces: &[Vec<Vec<f32>>; 6],
     face_idx: usize,
