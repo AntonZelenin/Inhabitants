@@ -54,7 +54,7 @@ impl Default for BiomeColors {
             desert: [0.82, 0.72, 0.45],
             savanna: [0.60, 0.65, 0.25],
             temperate: [0.15, 0.40, 0.10],
-            jungle: [0.05, 0.30, 0.05],
+            jungle: [0.0, 0.2, 0.0],
         }
     }
 }
@@ -121,96 +121,89 @@ fn rgb3_to_rgba(c: [f32; 3]) -> [f32; 4] {
     [c[0], c[1], c[2], 1.0]
 }
 
-/// Smoothstep interpolation: sharper transitions than linear but still smooth.
-fn smoothstep(t: f32) -> f32 {
-    let t = t.clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-/// Base biome color using smooth interpolation across temperature/precipitation space.
+/// Compute Gaussian weights for each biome based on distance in climate space.
 ///
-/// Each biome has a distinct core zone with narrow smoothstep transitions between
-/// neighbors, preventing any single biome color from dominating its neighbors.
-fn biome_base_color(temperature: f32, precipitation: f32, colors: &BiomeColors, th: &BiomeThresholds) -> [f32; 4] {
-    let ice = rgb3_to_rgba(colors.ice);
-    let tundra = rgb3_to_rgba(colors.tundra);
-    let desert = rgb3_to_rgba(colors.desert);
-    let savanna = rgb3_to_rgba(colors.savanna);
-    let temperate = rgb3_to_rgba(colors.temperate);
-    let jungle = rgb3_to_rgba(colors.jungle);
+/// Returns weights for [ice, tundra, desert, savanna, temperate, jungle].
+/// Ice and tundra are precipitation-independent (any precipitation is fine).
+fn biome_weights(temperature: f32, precipitation: f32, th: &BiomeThresholds) -> [f32; 6] {
+    // Derive biome centers from thresholds
+    let ice_center_temp = th.ice_temp - 5.0;
+    let tundra_center_temp = (th.ice_temp + th.boreal_temp) / 2.0;
+    let temperate_center_temp = (th.boreal_temp + th.hot_temp) / 2.0;
+    let hot_center_temp = th.hot_temp + 5.0;
 
-    let ice_tundra_range = th.tundra_temp - th.ice_temp;
-    let tundra_boreal_range = th.boreal_temp - th.tundra_temp;
-    let temperate_hot_range = th.hot_temp - th.temperate_temp;
+    let desert_center_precip = th.desert_precip / 2.0;
+    let savanna_center_precip = (th.desert_precip + th.jungle_precip) / 2.0;
+    let temperate_center_precip = (th.temperate_precip + th.jungle_precip) / 2.0;
+    let jungle_center_precip = th.jungle_precip + 0.15;
 
-    if temperature < th.ice_temp {
-        ice
-    } else if temperature < th.tundra_temp {
-        // Ice -> Tundra
-        let t = smoothstep(((temperature - th.ice_temp) / ice_tundra_range).clamp(0.0, 1.0));
-        lerp_color(ice, tundra, t)
-    } else if temperature < th.boreal_temp {
-        // Tundra -> temperate/desert based on precipitation
-        let t = smoothstep(((temperature - th.tundra_temp) / tundra_boreal_range).clamp(0.0, 1.0));
-        let dry = lerp_color(tundra, desert, t);
-        let wet = lerp_color(tundra, temperate, t);
-        let p = smoothstep(precipitation.clamp(0.0, 1.0));
-        lerp_color(dry, wet, p)
-    } else if temperature < th.temperate_temp {
-        // Temperate zone: desert vs forest based on precipitation.
-        // Cooler temperate regions need less precipitation to sustain vegetation
-        // (lower evaporation), so the threshold scales with temperature.
-        let temp_t = ((temperature - th.boreal_temp) / (th.temperate_temp - th.boreal_temp)).clamp(0.0, 1.0);
-        let effective_precip_threshold = th.temperate_precip * (0.3 + 0.7 * temp_t);
-        let p = smoothstep(((precipitation - effective_precip_threshold) / 0.4).clamp(0.0, 1.0));
-        lerp_color(desert, temperate, p)
-    } else if temperature < th.hot_temp {
-        // Warm temperate: blend between temperate regime and savanna/desert.
-        // Jungle is excluded here — it only appears in the fully hot zone.
-        let temp_t = smoothstep(((temperature - th.temperate_temp) / temperate_hot_range).clamp(0.0, 1.0));
+    // Derive spreads from threshold spacing
+    let ice_temp_spread = (th.tundra_temp - th.ice_temp).abs().max(3.0);
+    let tundra_temp_spread = (th.boreal_temp - th.ice_temp).abs().max(3.0) / 2.0 + 2.0;
+    let desert_temp_spread = (th.hot_temp - th.boreal_temp).abs().max(3.0);
+    let savanna_temp_spread = (th.hot_temp - th.temperate_temp).abs().max(3.0);
+    let temperate_temp_spread = (th.hot_temp - th.boreal_temp).abs().max(3.0) / 2.0 + 2.0;
+    let jungle_temp_spread = (th.hot_temp - th.temperate_temp).abs().max(3.0);
 
-        // Temperate regime: desert ↔ temperate forest
-        let p_temperate = smoothstep(((precipitation - th.temperate_precip) / 0.4).clamp(0.0, 1.0));
-        let cool_color = lerp_color(desert, temperate, p_temperate);
+    let desert_precip_spread = th.desert_precip.max(0.05) + 0.05;
+    let savanna_precip_spread = (th.jungle_precip - th.desert_precip).abs().max(0.05) / 2.0 + 0.05;
+    let temperate_precip_spread = 0.25;
+    let jungle_precip_spread = 0.2;
 
-        // Warm regime: desert → savanna (no jungle)
-        let p_warm = smoothstep(((precipitation - th.desert_precip) / (th.savanna_precip - th.desert_precip).max(0.01)).clamp(0.0, 1.0));
-        let warm_color = lerp_color(desert, savanna, p_warm);
+    // Helper: Gaussian weight with both temp and precip terms
+    let gaussian_tp = |ct: f32, st: f32, cp: f32, sp: f32| -> f32 {
+        let dt = (temperature - ct) / st;
+        let dp = (precipitation - cp) / sp;
+        (-0.5 * (dt * dt + dp * dp)).exp()
+    };
 
-        lerp_color(cool_color, warm_color, temp_t)
-    } else {
-        // Hot zone: desert vs savanna vs jungle
-        hot_zone_color(precipitation, desert, savanna, jungle, th)
-    }
+    // Helper: Gaussian weight with temp only (precip-independent)
+    let gaussian_t = |ct: f32, st: f32| -> f32 {
+        let dt = (temperature - ct) / st;
+        (-0.5 * dt * dt).exp()
+    };
+
+    [
+        gaussian_t(ice_center_temp, ice_temp_spread),
+        gaussian_t(tundra_center_temp, tundra_temp_spread),
+        gaussian_tp(hot_center_temp, desert_temp_spread, desert_center_precip, desert_precip_spread),
+        gaussian_tp(hot_center_temp, savanna_temp_spread, savanna_center_precip, savanna_precip_spread),
+        gaussian_tp(temperate_center_temp, temperate_temp_spread, temperate_center_precip, temperate_precip_spread),
+        gaussian_tp(hot_center_temp, jungle_temp_spread, jungle_center_precip, jungle_precip_spread),
+    ]
 }
 
-/// Hot-zone precipitation classification: desert → savanna → jungle with narrow transitions.
-fn hot_zone_color(
-    precipitation: f32,
-    desert: [f32; 4],
-    savanna: [f32; 4],
-    jungle: [f32; 4],
-    th: &BiomeThresholds,
-) -> [f32; 4] {
-    let p = precipitation.clamp(0.0, 1.0);
-    let desert_savanna_width = (th.savanna_precip - th.desert_precip).max(0.01);
-    let jungle_transition_width = 0.10;
-    let jungle_start = th.jungle_precip;
-    let jungle_end = jungle_start + jungle_transition_width;
+/// Base biome color using Gaussian weight blending across temperature/precipitation space.
+///
+/// Each biome has a center point in climate space with spread values controlling
+/// its influence zone. Colors are blended using normalized Gaussian weights,
+/// producing soft, organic transitions between biomes.
+fn biome_base_color(temperature: f32, precipitation: f32, colors: &BiomeColors, th: &BiomeThresholds) -> [f32; 4] {
+    let biome_colors = [
+        rgb3_to_rgba(colors.ice),
+        rgb3_to_rgba(colors.tundra),
+        rgb3_to_rgba(colors.desert),
+        rgb3_to_rgba(colors.savanna),
+        rgb3_to_rgba(colors.temperate),
+        rgb3_to_rgba(colors.jungle),
+    ];
 
-    if p < th.desert_precip {
-        desert
-    } else if p < th.savanna_precip {
-        let t = smoothstep(((p - th.desert_precip) / desert_savanna_width).clamp(0.0, 1.0));
-        lerp_color(desert, savanna, t)
-    } else if p < jungle_start {
-        savanna
-    } else if p < jungle_end {
-        let t = smoothstep(((p - jungle_start) / jungle_transition_width).clamp(0.0, 1.0));
-        lerp_color(savanna, jungle, t)
-    } else {
-        jungle
+    let weights = biome_weights(temperature, precipitation, th);
+    let total: f32 = weights.iter().sum();
+
+    if total < 1e-10 {
+        // Fallback: if all weights are near zero, use temperate
+        return rgb3_to_rgba(colors.temperate);
     }
+
+    let mut result = [0.0f32; 4];
+    for (i, &w) in weights.iter().enumerate() {
+        let nw = w / total;
+        for c in 0..4 {
+            result[c] += nw * biome_colors[i][c];
+        }
+    }
+    result
 }
 
 /// Linear interpolation between two RGBA colors.

@@ -184,5 +184,4 @@ pub fn update_continent_biome_colors(
     biome_state.prev_land_temp_bonus = settings.land_temperature_bonus;
 
     biome_state.applied = true;
-    info!("Biome colors applied to continent mesh");
 }
